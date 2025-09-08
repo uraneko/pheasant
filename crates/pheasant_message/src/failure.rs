@@ -1,7 +1,11 @@
-use std::hash::{Hash, Hasher};
-use std::pin::Pin;
+extern crate alloc;
+use alloc::boxed::Box;
+use core::hash::{Hash, Hasher};
+use core::pin::Pin;
 
-use crate::{ErrorStatus, Mime, Response, ResponseStatus};
+use crate::Response;
+use mime::Mime;
+use pheasant_core::Status;
 
 pub struct Failure {
     mime: Option<Mime>,
@@ -40,7 +44,7 @@ impl Failure {
         self.status
     }
 
-    pub fn status(&self) -> crate::Status {
+    pub fn status(&self) -> Status {
         self.status.try_into().unwrap()
     }
 

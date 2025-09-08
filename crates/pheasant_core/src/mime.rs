@@ -1,9 +1,4 @@
-use std::fmt;
-
-use serde::de::{Deserialize, Deserializer, Error, Visitor};
-use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
-
-use crate::Header;
+use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Mime(mime::Mime);
@@ -27,121 +22,6 @@ impl std::ops::Deref for Mime {
 impl std::ops::DerefMut for Mime {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-impl serde::Serialize for Mime {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(self.essence_str())
-    }
-}
-
-struct MimeVisitor;
-
-impl<'de> Visitor<'de> for MimeVisitor {
-    type Value = Mime;
-
-    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("expecting str value of a mime")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let mime = v
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let mime = v
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let mime = v
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    fn visit_bytes<E>(self, b: &[u8]) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(b).map_err(|_| E::custom("invalid bytes"))?;
-
-        let mime = s
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(v).map_err(|_| E::custom("invalid bytes"))?;
-
-        let mime = s
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(&v).map_err(|_| E::custom("invalid bytes"))?;
-
-        let mime = s
-            .parse::<mime::Mime>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(Mime(mime))
-    }
-
-    // this means that none values would deserialize to mime default
-    // fn visit_none<E>(self) -> Result<Self::Value, E>
-    // where
-    //     E: Error,
-    // {
-    //     Ok(Mime::default())
-    // }
-
-    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_option(MimeVisitor)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Mime {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_tuple_struct("Mime", 1, MimeVisitor)
     }
 }
 
@@ -177,29 +57,16 @@ impl Default for Mime {
     }
 }
 
-crate::impl_hdfs!(Mime);
-
 #[derive(Debug)]
 enum MimeError {
     MimeError,
 }
 
-impl std::error::Error for MimeError {}
+impl core::error::Error for MimeError {}
 
 impl std::fmt::Display for MimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self)
-    }
-}
-
-impl Error for MimeError {
-    fn custom<T>(msg: T) -> Self
-    where
-        T: std::fmt::Display,
-    {
-        match msg {
-            _ => Self::MimeError,
-        }
     }
 }
 

@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use alloc::{string::String, vec, vec::Vec};
+use hashbrown::HashMap;
 use std::io::{BufRead, BufReader, Read};
-use std::net::TcpStream;
 
-use super::{ClientError, Header, HeaderMap, Method, PheasantError, PheasantResult, Protocol};
+use pheasant_core::{ClientError, Method, PheasantError, PheasantResult, Protocol};
 use pheasant_uri::{Query, Resource, Route};
 
 /// HTTP Request type
@@ -23,7 +23,7 @@ impl Request {
     /// ### Error
     ///
     /// returns a `PheasantError` in case of a bad request
-    pub(crate) fn from_stream(stream: &mut TcpStream) -> PheasantResult<Self> {
+    pub(crate) fn from_stream<R: Read>(stream: &mut R) -> PheasantResult<Self> {
         let mut v = vec![];
         let mut reader = BufReader::new(stream);
         // if error we return 400 bad request
@@ -33,7 +33,9 @@ impl Request {
 
         let headers = read_parse_headers(&mut v, &mut reader)?;
 
-        let len = headers.header::<usize>("Content-Length");
+        let len = headers
+            .get("Content-Length")
+            .map(|len| len.parse::<usize>().unwrap());
 
         let body = if let Some(len) = len {
             read_body(&mut v, &mut reader, len)?;
@@ -156,24 +158,12 @@ impl Request {
     /// takes this request's headers map and returns them
     ///
     /// once this is used, self.headers becomes an empty `HashMap`
-    pub fn headers(&mut self) -> HashMap<String, String> {
+    pub fn take_headers(&mut self) -> HashMap<String, String> {
         std::mem::take(&mut self.headers)
     }
 }
 
-impl HeaderMap for Request {
-    fn header<H: Header>(&self, key: &str) -> Option<H> {
-        self.headers.header(key)
-    }
-
-    fn set_header<H: Header>(&mut self, key: &str, h: H) -> &mut Self {
-        self.headers.set_header(key, h);
-
-        self
-    }
-}
-
-fn read_req_line(v: &mut Vec<u8>, s: &mut BufReader<&mut TcpStream>) -> PheasantResult<usize> {
+fn read_req_line<R: Read>(v: &mut Vec<u8>, s: &mut BufReader<&mut R>) -> PheasantResult<usize> {
     s.read_until(10, v)
         .map_err(|_| PheasantError::ClientError(ClientError::BadRequest))
 }
@@ -212,9 +202,9 @@ fn parse_req_line(
     Ok((method, resource, proto))
 }
 
-fn read_parse_headers(
+fn read_parse_headers<R: Read>(
     v: &mut Vec<u8>,
-    s: &mut BufReader<&mut TcpStream>,
+    s: &mut BufReader<&mut R>,
 ) -> PheasantResult<HashMap<String, String>> {
     let mut map = HashMap::new();
 
@@ -251,7 +241,11 @@ fn read_parse_headers(
 
 // WARN rn, if no content len header is found, server ignores request body
 // TODO handle body with missing content length
-fn read_body(v: &mut Vec<u8>, s: &mut BufReader<&mut TcpStream>, len: usize) -> PheasantResult<()> {
+fn read_body<R: Read>(
+    v: &mut Vec<u8>,
+    s: &mut BufReader<&mut R>,
+    len: usize,
+) -> PheasantResult<()> {
     v.resize(len, 0);
     s.read_exact(v)?;
 

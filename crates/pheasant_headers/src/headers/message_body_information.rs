@@ -1,32 +1,31 @@
-extern crate alloc;
-use alloc::{borrow::ToOwned, format, string::String};
-use chrono::TimeDelta;
-use core::fmt::{self, Debug, Display, Formatter};
-use hashbrown::{HashMap, HashSet};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+use core::fmt::Debug;
+use core::str::FromStr;
 use mime::Mime;
 
-use pheasant_core::{Header, HeaderMap, Method, Response, WildCardish};
-use pheasant_uri::{Origin, OriginSet};
+use pheasant_core::{ClientError, ErrorStatus, ServerError, WildCardish};
+use pheasant_uri::Origin;
 
-use crate::{HttpResult, ToHeader, ToHeaders};
+use crate::{FromHeader, HttpResult, ToHeader, ToHeaders};
 
 pub struct SetContentLength<'a>(&'a [u8]);
 
 impl<'a> SetContentLength<'a> {
-    fn new(slice: &'a [u8]) -> Self {
+    pub fn new(slice: &'a [u8]) -> Self {
         Self(slice)
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.0.len()
     }
 }
 
-impl ToHeader for SetContentLength {
-    type Output = (&str, String);
-
-    fn to_header(&self, _header: &str) -> Self::Output {
-        ("Content-Length", self.len().to_string())
+impl<'a> ToHeader for SetContentLength<'a> {
+    fn to_header(&self) -> String {
+        self.len().to_string()
     }
 }
 
@@ -46,35 +45,37 @@ impl FromHeader for ContentLength {
 pub struct ContentType(Mime);
 
 impl ContentType {
-    fn new(mime: &str) -> Self {
-        Self(mime.into())
+    pub fn new(mime: &str) -> Self {
+        Self(mime.parse().unwrap())
     }
 
-    fn mime(&self) -> &Mime {
+    pub fn mime(&self) -> &Mime {
         &self.0
     }
 }
 
 impl ToHeader for ContentType {
-    // const NAME: &str = "Content-Type";
-    //
-    type Output = [&str; 2];
-
-    fn to_header(&self, header: &str) -> Self::Output {
-        (header, self.mime().essence_str())
+    fn to_header(&self) -> &str {
+        self.mime().essence_str()
     }
 }
 
 impl FromHeader for ContentType {
     fn from_header(header: String) -> HttpResult<Self> {
-        header.parse::<Mime>().unwrap()
+        match header
+            .parse::<Mime>()
+            .map_err(|_| ErrorStatus::Server(ServerError::NotImplemented))
+        {
+            Ok(mime) => Ok(Self(mime)),
+            Err(err) => Err(err),
+        }
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Encoding {
     Deflate,
-    GZip,
+    Gzip,
     Zlib,
 }
 
@@ -86,7 +87,7 @@ impl FromStr for Encoding {
             "deflate" => Ok(Self::Deflate),
             "gzip" => Ok(Self::Gzip),
             "zlib" => Ok(Self::Zlib),
-            "br" | "zstd" | "dcb" | "dcz" => Err(ErrorStatus::Server(ServerError::Unimplemented)),
+            "br" | "zstd" | "dcb" | "dcz" => Err(ErrorStatus::Server(ServerError::NotImplemented)),
             // may be a bad/non-existent algorithm name
             // or
             // an algorithm that this lib doesnt know about
@@ -96,17 +97,15 @@ impl FromStr for Encoding {
 }
 
 impl Encoding {
-    fn to_u8(&self) -> u8 {
+    pub fn to_u8(&self) -> u8 {
         match self {
             Self::Deflate => 1,
             Self::Gzip => 2,
             Self::Zlib => 4,
         }
     }
-}
 
-impl Encoding {
-    fn encode(&self, slice: &[u8]) -> Vec<u8> {
+    pub fn encode(&self, slice: &[u8]) -> Vec<u8> {
         match self {
             Self::Deflate => deflate::deflate_bytes(slice),
             Self::Gzip => deflate::deflate_bytes_gzip(slice),
@@ -115,24 +114,11 @@ impl Encoding {
     }
 }
 
-impl Responses {
-    fn encode(&mut self, encoder: Encoding) -> (&mut Self, u8) {
-        *self.body = encoder.encode(&self.body);
-
-        (self, encoder.to_u8())
-    }
-}
-
-trait EncodeBody {
-    fn encode(self, encoder: Encoding) -> Self;
-
-    fn content_encoding(self);
-}
-
-pub struct ContentEncodingBits(u8);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ContentEncodingBits(pub u8);
 
 impl ContentEncodingBits {
-    fn encoding_list(self) -> &str {
+    pub fn encoding_list(self) -> &'static str {
         match self.0 {
             0 => "",
             1 => "deflate",
@@ -148,24 +134,8 @@ impl ContentEncodingBits {
 }
 
 impl ToHeader for ContentEncodingBits {
-    type Output = [&str; 2];
-
-    fn to_header(&self, _header: &str) -> Self::Output {
-        ["Content-Encoding", self.encoding_list()]
-    }
-}
-
-impl<'a> EncodeBody for (&'a mut Responses, u8) {
-    fn encode(self, encoder: Encoding) -> Self {
-        *self.0.body = encoder.encode(&self.0.body);
-
-        (self.0, self.1 | encoder.to_u8())
-    }
-
-    fn content_encoding(self) {
-        let bits = ContentEncodingBits(self.1);
-
-        self.0.content_encoding(bits.encoding_list());
+    fn to_header(&self) -> &str {
+        self.encoding_list()
     }
 }
 
@@ -190,7 +160,7 @@ impl FromHeader for ContentEncoding {
         Ok(Self {
             encodings: header
                 .split(',')
-                .map(|algo| algo.parse::<Encoding>()?)
+                .map(|algo| algo.parse::<Encoding>().unwrap())
                 .collect(),
         })
     }

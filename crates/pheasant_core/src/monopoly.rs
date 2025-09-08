@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use alloc::vec::Vec;
+use hashbrown::HashSet;
 
 pub enum MonoPoly<T> {
     Mono(T),

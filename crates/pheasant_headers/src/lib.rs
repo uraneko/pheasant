@@ -1,110 +1,86 @@
 #![no_std]
-use pheasant_core::ErrorStatus;
+#[allow(refining_impl_trait)]
 extern crate alloc;
-use alloc::{borrow::ToOwned, string::String};
-use core::fmt::Display;
-use core::str::FromStr;
-use hashbrown::HashMap;
+use alloc::string::String;
+use hashbrown::{HashMap, HashSet};
+use pheasant_core::ErrorStatus;
 
 pub mod headers;
 pub use headers::*;
 
-#[macro_export]
-macro_rules! impl_hdfs {
-    ($($t: ty),*) => {
-        $(
-            impl Header for $t {
-                fn to_string(&self) -> String {
-                    <Self as ToString>::to_string(self)
-                }
+pub trait MessageHeadersMap {
+    fn pull(&mut self, h: &str) -> Option<String>;
 
-                fn from_str(s: &str) -> Self {
-                    s.parse::<Self>().unwrap()
-                }
-            }
-        )*
+    fn pull_iter<P>(
+        &mut self,
+        p: P,
+    ) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>
+    where
+        P: FnMut(&String, &mut String) -> bool;
+
+    fn push(&mut self, h: &str, th: impl ToHeader);
+
+    fn push_iter(&mut self, th: impl ToHeaders);
+}
+
+pub trait MessageHeadersSet {
+    fn push(&mut self, th: impl ToHeader);
+
+    fn push_iter(&mut self, th: impl ToHeaders);
+}
+
+impl MessageHeadersSet for HashSet<String> {
+    fn push(&mut self, th: impl ToHeader) {
+        self.insert(th.to_header().into());
+    }
+
+    fn push_iter(&mut self, th: impl ToHeaders) {
+        self.extend(th.to_headers().map(|(a, b)| a.into()));
     }
 }
 
-/// HTTP header conversion from/to String
-pub trait Header {
-    fn to_string(&self) -> String;
-
-    // TODO handle the unwrap error case
-    fn from_str(s: &str) -> Self;
-}
-
-/// read and write headers of a request/response
-pub trait HeaderMap {
-    /// get a header value from a request/response
-    ///
-    /// ```
-    /// let mime: Mime = req.header("Content-Type");
-    /// ```
-    fn header<H: Header>(&self, key: &str) -> Option<H>;
-
-    /// set a header value for a request/response
-    ///
-    /// ```
-    /// let len = content.len();
-    /// let maybe_old: Option<usize> = response.set_header("Content-Length", len);
-    /// ```
-    fn set_header<H: Header>(&mut self, key: &str, h: H) -> &mut Self;
-
-    fn has_header<H: Header>(&self, key: &str) -> bool {
-        self.header::<H>(key).is_some()
-    }
-}
-
-impl HeaderMap for HashMap<String, String> {
-    fn header<H: Header>(&self, key: &str) -> Option<H> {
-        self.get(key).map(|s| <H as Header>::from_str(s))
+impl MessageHeadersMap for HashMap<String, String> {
+    fn pull(&mut self, h: &str) -> Option<String> {
+        self.remove(h)
     }
 
-    fn set_header<H: Header>(&mut self, key: &str, h: H) -> &mut Self {
-        self.insert(key.to_owned(), h.to_string());
-
-        self
+    fn pull_iter<P>(&mut self, p: P) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>
+    where
+        P: FnMut(&String, &mut String) -> bool,
+    {
+        self.extract_if(p)
     }
-}
 
-pub trait MessageHeaders {
-    fn remove(&mut self, h: &str) -> Option<String>;
+    fn push(&mut self, h: &str, th: impl ToHeader) {
+        self.insert(h.into(), th.to_header().into());
+    }
 
-    fn remove_iter(&mut self, h: &[&str]) -> impl Iterator<Item = String>;
-
-    fn take(&mut self, h: &str) -> Option<String>;
-
-    fn take_iter(&mut self, h: &[&str]) -> impl Iterator<Item = String>;
-
-    fn borrow(&self, h: &str) -> Option<&str>;
-
-    fn borrow_iter(&self, h: &[&str]) -> impl Iterator<Item = &str>;
+    fn push_iter(&mut self, th: impl ToHeaders) {
+        self.extend(th.to_headers().map(|(k, v)| (k.into(), v.into())));
+    }
 }
 
 pub type HttpResult<T> = Result<T, ErrorStatus>;
 
-pub trait FromHeaders {
+pub trait FromHeaders<'a>
+where
+    Self: Sized,
+{
     type Headers;
-
     fn from_headers(h: Self::Headers) -> HttpResult<Self>;
 }
 
-pub trait FromHeader {
+pub trait FromHeader
+where
+    Self: Sized,
+{
     fn from_header(header: String) -> HttpResult<Self>;
 }
 
 pub trait ToHeaders {
-    type Item;
-
-    fn to_headers(&self) -> impl Iterator<Item = Self::Item>;
-
-    // fn into_headers(self) -> impl Iterator<Item = [String; 2]>;
+    fn to_headers(&self) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>;
 }
 
 pub trait ToHeader {
-    type Output;
-    // fn into_header(self) -> [String; 2];
-
-    fn to_header(&self, header: &str) -> Self::Output;
+    fn to_header(&self) -> impl Into<String>;
 }

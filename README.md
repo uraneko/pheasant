@@ -27,24 +27,30 @@ This table describes the implementation choices of this framework, it has to col
 | Logic | Framework | Server |
 | :------------------------- | :-: | :-: |
 | Data Types                 |  x  |     |
+| Request Analysis           |  x  |     |
 | Request Parsing            |  x  |     |
-| Response Status Resolution |  x  |     |
+| Response Status Resolution |  x  |  x  |
 | Response Building          |     |  x  |
+| Headers Operations         |  x  |     |
+| Uri Forwarding             |  x  |     |
+| Preflight Requests         |  x  |     |
+| Head, Trace Requests       |  x  |     |
 
 ###
 ### Goals
 
 | Goal | \*Basic | Full | Extra | 
 | :------------- | :--: | :--: | :--: | 
-| Origin Server | x | | |
-| Http/1.1 | x | | |
-| Http/2 | | | |
-| TLS/1.3 (Https) | | | |
-| DataBases Integration | | | |
-| Headers (Cors) | x | | |
-| Headers (Cooks.) | x | | |
-| Headers (Msg. Body Info.) | x | | |
-| Headers (Date, Host) | x | | |
+| Origin Server             | x | | |
+| Http/1.1                  | x | | |
+| Http/2                    |   | | |
+| TLS/1.3 (Https)           |   | | |
+| DataBases Integration     |   | | |
+| Cors                      | x | | |
+| Cooks.                    | x | | |
+| Headers (Content-*)       | x | | |
+| Headers (Date, Host)      | x | | |
+| Http/1.1 Pipelining       |   | | |
 
 ###
 

@@ -1,32 +1,28 @@
 extern crate alloc;
-use alloc::{borrow::ToOwned, format, string::String};
+use alloc::{
+    borrow::ToOwned,
+    format,
+    string::{String, ToString},
+};
 use chrono::{DateTime, TimeDelta, Utc};
-use core::fmt::{self, Debug, Display, Formatter};
-use hashbrown::{HashMap, HashSet};
+use core::fmt::Debug;
+use core::str::FromStr;
+use hashbrown::HashSet;
+use pheasant_core::{ClientError, ErrorStatus, ServerError};
 
-use pheasant_core::{Header, HeaderMap, Method, Response, WildCardish};
-use pheasant_uri::{Origin, OriginSet};
-
-use crate::{FromHeader, HttpResult, ToHeader, ToHeaders};
-
-// #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-// pub struct Cookies(HashSet<Cookie>);
+use crate::{FromHeader, FromHeaders, HttpResult, ToHeader, ToHeaders};
 
 impl ToHeaders for HashSet<Cookie> {
-    type Item = [&str; String];
-
-    fn to_headers(&self) -> impl Iterator<Item = Self::Item> {
-        self.iter().map(|cookie| cookie.to_header("Set-Cookie"))
+    fn to_headers(&self) -> impl Iterator<Item = (&str, String)> {
+        self.iter().map(|cookie| ("Set-Cookie", cookie.to_header()))
     }
 }
 
 impl ToHeader for HashSet<Cookie> {
-    type Output = String;
-
-    fn to_header(&self) -> Self::Output {
-        let mut header = self
-            .iter()
-            .fold("".to_owned(), |acc, cookie| acc + cookie.to_string() + "; ");
+    fn to_header(&self) -> String {
+        let mut header = self.iter().fold("".to_owned(), |acc, cookie| {
+            acc + &cookie.to_string() + "; "
+        });
 
         header.pop();
         header.pop();
@@ -42,7 +38,7 @@ impl ToHeader for HashSet<Cookie> {
 // WARN browsers' session restore feature also restores session cookies
 // NOTE
 // if no expires or max-age attrs are set then the cookie is auto expired at browser session shutdown
-#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Cookie {
     expires: Option<DateTime<Utc>>,
     max_age: Option<TimeDelta>,
@@ -66,16 +62,23 @@ const EXTS: [&str; 7] = [
     "Path",
     "SameSite",
 ];
-
-fn split_on_pat<P>(s: &mut String, delim: P) -> Option<String>
-where
-    P: core::str::pattern::Pattern,
-{
+fn split_on_key(s: &mut String, delim: &str) -> Option<String> {
     if !EXTS.iter().any(|ext| s.starts_with(ext)) {
         return None;
     }
 
+    // WARN this should actually return an Err not None
     s.find(delim).map(|idx| s.drain(..idx).collect())
+}
+
+fn split_on_val(s: &mut String, delim: &str) -> HttpResult<String> {
+    if !EXTS.iter().any(|ext| s.starts_with(ext)) {
+        return Err(ErrorStatus::Client(ClientError::BadRequest));
+    }
+
+    s.find(delim)
+        .map(|idx| s.drain(..idx).collect())
+        .ok_or_else(|| ErrorStatus::Client(ClientError::BadRequest))
 }
 
 fn take_key_val(s: &mut String) -> Option<HttpResult<[String; 2]>> {
@@ -83,39 +86,52 @@ fn take_key_val(s: &mut String) -> Option<HttpResult<[String; 2]>> {
         return None;
     }
 
-    let [Some(key), Some(val)] = [
+    if let [Ok(key), Ok(val)] = [
         s.find('=')
             .map(|idx| s.drain(..idx).collect())
-            .ok_or_else(|| todo!("error")),
+            .ok_or_else(|| ErrorStatus::Server(ServerError::NotImplemented)),
         s.find("; ")
             .map(|idx| s.drain(..idx).collect())
-            .ok_or_else(|| todo!("error")),
-    ] else {
-        Some(Err(8));
-    };
-
-    Some(Ok([key, val]))
+            .ok_or_else(|| ErrorStatus::Server(ServerError::NotImplemented)),
+    ] {
+        Some(Ok([key, val]))
+    } else {
+        Some(Err(ErrorStatus::Server(ServerError::NotImplemented)))
+    }
 }
 
 // WARN HTTP/2 allows requests to have many Cookie headers for compression optimizations
 // HTTP/1.1 tho, doesnt allow this feature
-impl FromHeaders for HashSet<Cookie> {
+impl FromHeaders<'_> for HashSet<Cookie> {
+    type Headers = HashSet<String>;
+
     fn from_headers(mut h: HashSet<String>) -> HttpResult<Self> {
+        let mut err = false;
         if h.is_empty() {
-            return Err(3);
+            return Err(ErrorStatus::Server(ServerError::NotImplemented));
         }
 
-        Ok(h.into_iter()
-            .map(|mut header| {
-                let Some(kv) = take_key_val(&mut header) else {
-                    return Err(6);
-                };
-
+        let mut iter = h.into_iter().map(|mut header| {
+            if let Some(kv) = take_key_val(&mut header) {
                 let [ref k, ref v] = kv?;
 
-                Cookie::new(k, v).fill_out(&mut header)
-            })
-            .collect())
+                Ok(Cookie::new(k, v).fill_out(&mut header))
+            } else {
+                err = true;
+                Err(ErrorStatus::Server(ServerError::NotImplemented))
+            }
+        });
+
+        // TODO
+        // if err {
+        //     let Some(Err(err)) = iter.find(|c| c.is_err()) else {
+        //         unreachable!("the logic commands you to stop");
+        //     };
+        //
+        //     return Err(err);
+        // }
+
+        iter.map(|c| c.unwrap()).collect()
     }
 }
 
@@ -157,7 +173,7 @@ impl Cookie {
     // takes a duration after which the cookie should be expired
     // this sets the Max-Age cookie attribute
     pub fn max_age(&mut self, delta: TimeDelta) -> &mut Self {
-        self.max_age = Some(delta);
+        self.max_age = Some(delta.into());
 
         self
     }
@@ -191,7 +207,7 @@ impl Cookie {
     pub fn same_site<SS>(&mut self, ss: SS) -> &mut Self
     where
         SS: TryInto<SameSite>,
-        <SS as TryInto<SameSite>>::Error: std::fmt::Debug,
+        <SS as TryInto<SameSite>>::Error: core::fmt::Debug,
     {
         self.same_site = Some(ss.try_into().unwrap());
 
@@ -215,17 +231,25 @@ impl Cookie {
 }
 
 impl Cookie {
-    fn fill_out(mut self, s: &mut String) -> HttpResult<Self> {
-        while let Some(ref ext) = split_on_pat(&mut header, '=') {
-            match ext {
-                "Domain" => cookie.domain(split_on_pat(&mut header, "; ")),
-                "Expires" => cookie.expires(split_on_pat(&mut header, "; ")),
-                "HttpOnly" => cookie.http_only(true),
-                "Max-Age" => cookie.max_age(split_on_pat(&mut header, "; ")),
-                "Partitioned" => cookie.partitioned(true),
-                "Path" => cookie.max_age(split_on_pat(&mut header, "; ")),
-                "SameSite" => cookie.max_age(split_on_pat(&mut header, "; ")),
-            }
+    fn fill_out(mut self, header: &mut String) -> HttpResult<Self> {
+        while let Some(ref ext) = split_on_key(header, "=") {
+            match ext.as_str() {
+                "Domain" => self.domain(&split_on_val(header, "; ")?),
+                "Expires" => self.expires(
+                    split_on_val(header, "; ")?
+                        .parse::<DateTime<Utc>>()
+                        .unwrap(),
+                ),
+                "HttpOnly" => self.http_only(true),
+                "Max-Age" => self.max_age(TimeDelta::seconds(
+                    split_on_val(header, "; ")?.parse::<i64>().unwrap(),
+                )),
+                "Partitioned" => self.partitioned(true),
+                "Path" => self.path(split_on_val(header, "; ")?.as_str()),
+                "SameSite" => self.same_site(split_on_val(header, "; ")?.parse::<SameSite>()?),
+                "Secure" => self.secure(true),
+                _ => return Err(ErrorStatus::Server(ServerError::NotImplemented)),
+            };
         }
 
         Ok(self)
@@ -233,10 +257,8 @@ impl Cookie {
 }
 
 impl ToHeader for Cookie {
-    type Output = (&str, String);
-
-    fn to_header(&self, header: &str) -> Self::Output {
-        (header, self.to_string())
+    fn to_header(&self) -> String {
+        self.to_string()
     }
 }
 
@@ -282,12 +304,12 @@ impl ToString for Cookie {
             cookie.push_str(&temp);
         }
 
-        (header, cookie)
+        cookie
     }
 }
 
 // NOTE the same domain with a different scheme is considered a different domain
-#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum SameSite {
     // only send this cookie on requests made to the same site that defined it
     Strict = 1,
@@ -302,14 +324,27 @@ pub enum SameSite {
 }
 
 impl TryFrom<u8> for SameSite {
-    type Error = ();
+    type Error = ErrorStatus;
 
     fn try_from(val: u8) -> Result<Self, Self::Error> {
         match val {
             0 => Ok(Self::None),
             1 => Ok(Self::Strict),
             2 => Ok(Self::Lax),
-            _ => Err(()),
+            _ => Err(ErrorStatus::Server(ServerError::NotImplemented)),
+        }
+    }
+}
+
+impl FromStr for SameSite {
+    type Err = ErrorStatus;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Strict" => Ok(Self::Strict),
+            "Lax" => Ok(Self::Lax),
+            "None" => Ok(Self::None),
+            _ => Err(ErrorStatus::Server(ServerError::NotImplemented)),
         }
     }
 }

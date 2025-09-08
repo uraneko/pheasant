@@ -1,6 +1,6 @@
+use hashbrown::HashSet;
 use serde::de::{Deserialize, Deserializer, Error, Visitor};
 use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
-use std::collections::HashSet;
 use std::str::FromStr;
 
 use super::{Origin, TransmuteError};

@@ -6,7 +6,7 @@ use core::fmt::{self, Debug, Display, Formatter};
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
 
-use pheasant_core::{Header, HeaderMap, Method, Response, WildCardish};
+use pheasant_core::{Method, WildCardish};
 use pheasant_uri::Origin;
 
 use crate::{HttpResult, ToHeader, ToHeaders};

@@ -1,13 +1,21 @@
-use std::collections::{HashMap, HashSet};
-
-use chrono::{DateTime, offset::Utc};
-use pheasant_uri::{Origin, Resource};
-
-use crate::{
-    ClientError, Cookie, Cors, ErrorStatus, Failure, Header, HeaderMap, Mime, PheasantError,
-    PheasantResult, Protocol, Redirection, Request, ResponseStatus, ServerError, Service, Status,
-    Successful,
+extern crate alloc;
+extern crate std;
+use crate::{Failure, FindService, Request, Service, TakeRequest};
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
 };
+use chrono::{DateTime, offset::Utc};
+use hashbrown::{HashMap, HashSet};
+use mime::Mime;
+use pheasant_core::{
+    ClientError, ErrorStatus, PheasantError, PheasantResult, Protocol, Redirection, ResponseStatus,
+    ServerError, Status, Successful,
+};
+use pheasant_headers::{Cookie, ResourceCors, ResponseCors};
+use pheasant_uri::{Origin, Resource};
+use std::println;
 
 const SERVER: &str = "Pheasant (dev/0.1.0)";
 
@@ -40,8 +48,8 @@ impl StatusState {
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Response {
     proto: Protocol,
-    body: Option<Vec<u8>>,
-    headers: HashMap<String, String>,
+    pub(crate) body: Option<Vec<u8>>,
+    pub headers: HashMap<String, String>,
     status: StatusState,
     cookies: HashSet<Cookie>,
 }
@@ -75,7 +83,7 @@ impl Response {
 
         let mut resp = (service.service())(&req).await;
         resp.set_cors(&req, service);
-        let mime = if resp.has_header::<Mime>("Content-Type") {
+        let mime = if resp.header_is_set("Content-Type") {
             None
         } else {
             Some(mime)
@@ -96,7 +104,7 @@ impl Response {
         }
     }
 
-    pub fn preflight(cors: &Cors, origin: Option<&Origin>) -> Self {
+    pub fn preflight(cors: &ResponseCors, origin: Option<&Origin>) -> Self {
         Self {
             headers: cors.to_headers(origin),
             ..Default::default()
@@ -190,6 +198,12 @@ impl Response {
     }
 }
 
+impl Response {
+    fn header_is_set(&self, f: &str) -> bool {
+        self.headers.contains_key(f)
+    }
+}
+
 // BUG cors headers were set despite there being no cors attribute in the Service definition
 // the cross origin request still failed with client error Origin not set tho
 // not sure if they really were set at all, and when were they removed then
@@ -252,7 +266,7 @@ impl Response {
     // origin comes from the request headers
     // cors comes from the corresponding service
     pub fn set_cors(&mut self, req: &Request, service: &Service) -> &mut Self {
-        if let Some(cors) = service.cors()
+        if let Ok(cors) = service.cors()
             && let Some(origin) = req.header::<Origin>("Origin")
         {
             let origin = cors.allows_origin(&origin).then(|| &origin);
@@ -286,18 +300,6 @@ impl Response {
     }
 }
 
-impl HeaderMap for Response {
-    fn header<H: Header>(&self, key: &str) -> Option<H> {
-        self.headers.header(key)
-    }
-
-    fn set_header<H: Header>(&mut self, key: &str, h: H) -> &mut Self {
-        self.headers.set_header(key, h);
-
-        self
-    }
-}
-
 // resolve the mime type of the response content
 // if none is found then falls back to text html
 // TODO also consider the `Accept` header
@@ -311,5 +313,3 @@ fn mime(req: &Request, service: &Service) -> Mime {
 fn is_already_compressed(mime: &Mime) -> bool {
     todo!()
 }
-
-crate::impl_hdfs!(DateTime<Utc>, Origin);

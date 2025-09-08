@@ -5,7 +5,9 @@ use syn::{FnArg, Ident, ItemFn, PatType, Type, Visibility};
 
 use super::{Altering, Inscriptions, option_iter_quote, option_quote};
 use crate::{Mining, ServicePlumber};
-use pheasant_core::{Cors, Method, Mime};
+use mime::Mime;
+use pheasant_core::Method;
+use pheasant_headers::ResourceCors;
 use pheasant_uri::Route;
 
 #[derive(Debug)]
@@ -19,7 +21,7 @@ pub struct ServicePoet {
     decorated: bool,
     // if Some then an Options service corresponding to the user service has to be generated
     // with the passed cors headers, service route and client request origin
-    cors: Option<Cors>,
+    cors: Option<ResourceCors>,
     // requesting any of the Routes in redirections triggers a redirection response towards
     // this service
     re: Option<HashSet<Route>>,
@@ -88,18 +90,17 @@ impl Inscriptions for ServicePoet {
 
     fn cors(&self) -> TS2 {
         if let Some(ref cors) = self.cors {
-            let methods = cors.cors_methods().into_iter();
+            let methods = cors.method_cpy().into_iter();
             let headers = cors
-                .cors_headers()
-                .into_iter()
+                .headers_iter()
                 .map(|h| quote! { std::string::String::from(#h) });
-            let expose = cors.cors_expose().map(|exp| {
+            let expose = cors.expose_ref().map(|exp| {
                 exp.into_iter()
                     .map(|e| quote! { std::string::String::from(#e) })
             });
             let expose = option_iter_quote(expose);
             let origins = self.origin_set();
-            let max_age = cors.cors_max_age();
+            let max_age = cors.max_age_cpy();
             let max_age = option_quote(max_age);
 
             quote! {

@@ -29,3 +29,4 @@ quote = { workspace = true }
 syn = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+hashbrown.workspace = true

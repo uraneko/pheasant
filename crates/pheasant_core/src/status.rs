@@ -1,5 +1,6 @@
 use crate::PheasantError;
-use std::fmt;
+use alloc::string::ToString;
+use core::fmt::{self, Debug};
 
 macro_rules! status_enum {
      ($name: ident, $($var: ident $code: literal),*) => {
@@ -171,7 +172,7 @@ impl ResponseStatus for ServerError {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -211,7 +212,7 @@ impl ResponseStatus for ClientError {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -231,7 +232,7 @@ impl ResponseStatus for Redirection {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -254,7 +255,7 @@ impl ResponseStatus for Successful {
     fn code(&self) -> u16 {
         // NOTE this is safe
         // trust me bro
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -269,7 +270,7 @@ impl ResponseStatus for Informational {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 

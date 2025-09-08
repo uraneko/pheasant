@@ -26,6 +26,17 @@ impl Scheme {
         }
     }
 
+    pub fn default_port(&self) -> u16 {
+        match self {
+            Self::Http => 80,
+            Self::Https => 443,
+            Self::Ws => 80,
+            Self::Wss => 443,
+            Self::File => 0,
+            Self::Ftp => 21,
+        }
+    }
+
     pub fn is_scheme(s: &str) -> bool {
         match s {
             "http" | "https" | "ws" | "wss" | "file" | "ftp" => true,

@@ -5,10 +5,10 @@ use core::fmt::{self, Debug, Display, Formatter};
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
 
-use pheasant_core::{Header, HeaderMap, Method, Response, WildCardish};
+use pheasant_core::{ClientError, ErrorStatus};
 use pheasant_uri::Origin;
 
-use crate::{HttpResult, ToHeader, ToHeaders};
+use crate::{FromHeader, HttpResult};
 
 // host is origin without scheme
 // TODO make the host type in uri crate
@@ -20,6 +20,9 @@ pub struct Host(Origin);
 
 impl FromHeader for Host {
     fn from_header(header: String) -> HttpResult<Self> {
-        header.parse::<Origin>().map(|o| Self(o))
+        header
+            .parse::<Origin>()
+            .map(|o| Self(o))
+            .map_err(|_| ErrorStatus::Client(ClientError::BadRequest))
     }
 }
