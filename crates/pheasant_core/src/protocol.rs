@@ -10,7 +10,7 @@ use core::fmt::{self, Display, Formatter};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Protocol {
     #[default]
-    HTTP1_1 = 1,
+    HTTP11 = 1,
     HTTP2 = 2,
 }
 
@@ -20,7 +20,7 @@ impl Display for Protocol {
             f,
             "{}",
             match self {
-                Self::HTTP1_1 => "HTTP/1.1",
+                Self::HTTP11 => "HTTP/1.1",
                 Self::HTTP2 => "HTTP/2",
             }
         )
@@ -32,7 +32,7 @@ impl TryFrom<&[u8]> for Protocol {
 
     fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
         match v {
-            b"HTTP/1.1" => Ok(Self::HTTP1_1),
+            b"HTTP/1.1" => Ok(Self::HTTP11),
             b"HTTP/2" | b"HTTP/3" => Err(Self::Error::ServerError(
                 ServerError::HTTPVersionNotSupported,
             )),
@@ -46,7 +46,7 @@ impl TryFrom<&str> for Protocol {
 
     fn try_from(v: &str) -> Result<Self, Self::Error> {
         match v {
-            "HTTP/1.1" => Ok(Self::HTTP1_1),
+            "HTTP/1.1" => Ok(Self::HTTP11),
             "HTTP/2" | "HTTP/3" => Err(Self::Error::ServerError(
                 ServerError::HTTPVersionNotSupported,
             )),
@@ -60,7 +60,7 @@ impl FromStr for Protocol {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "HTTP/1.1" => Ok(Self::HTTP1_1),
+            "HTTP/1.1" => Ok(Self::HTTP11),
             "HTTP/2" | "HTTP/3" => {
                 Err(Self::Err::ServerError(ServerError::HTTPVersionNotSupported))
             }

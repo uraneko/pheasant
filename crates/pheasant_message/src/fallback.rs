@@ -7,14 +7,14 @@ use crate::Response;
 use mime::Mime;
 use pheasant_core::Status;
 
-pub struct Failure {
+pub struct Fallback {
     mime: Option<Mime>,
     status: u16,
     fail: BoxFun,
 }
 
-unsafe impl Send for Failure {}
-unsafe impl Sync for Failure {}
+unsafe impl Send for Fallback {}
+unsafe impl Sync for Fallback {}
 
 // the future return type
 type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
@@ -22,7 +22,7 @@ type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
 // the wrapper function type
 type BoxFun = Box<dyn Fn() -> BoxFut<'static> + Send + Sync>;
 
-impl Failure {
+impl Fallback {
     pub fn new<F, O>(status: u16, mime: Option<Mime>, fun: F) -> Self
     where
         // probably give the Fn an input of ErrorStatus
@@ -53,16 +53,16 @@ impl Failure {
     }
 }
 
-impl Hash for Failure {
+impl Hash for Fallback {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.status.hash(state);
     }
 }
 
-impl PartialEq for Failure {
+impl PartialEq for Fallback {
     fn eq(&self, other: &Self) -> bool {
         self.status == other.status
     }
 }
 
-impl Eq for Failure {}
+impl Eq for Fallback {}

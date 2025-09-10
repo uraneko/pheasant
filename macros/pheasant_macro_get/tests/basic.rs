@@ -2,14 +2,14 @@ use pheasant_macro_get::get;
 
 mod pheasant_core {
 
-    pub struct Service;
+    pub struct Process;
 
     pub trait IntoRoutes {}
 
     impl<'a, T> IntoRoutes for &'a T where T: IntoIterator<Item = &'a str> {}
     impl IntoRoutes for [&'static str; 0] {}
 
-    impl Service {
+    impl Process {
         pub fn new<F, I, O, R>(m: Method, r: &str, re: I, mime: &str, f: F) -> Self
         where
             F: Fn(R) -> O + Send + Sync + 'static,

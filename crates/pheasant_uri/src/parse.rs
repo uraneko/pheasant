@@ -1,4 +1,25 @@
+//! parse step
+//! parses the components into a uri
+//! could parse into a general uri or any of the other downcasted uri types (route, origin...)
+//!
+
 use crate::{ParseError, Query, Scheme, Token, Url, lex};
+
+pub trait Uri {
+    fn from_token_tree(tree: AnnotatedComponentTree) -> Self;
+}
+
+impl Uri for Urn {}
+impl Uri for Origin {}
+impl Uri for Route {}
+impl Uri for Url {}
+
+// URI variations
+// /path/to/some/thing
+// scheme://user@domain:port
+// scheme://domain:port
+// /some/path?then&query=params
+// /p/s#frag
 
 #[derive(Debug)]
 pub struct PrologueParser {

@@ -13,7 +13,7 @@ use pheasant_uri::Route;
 
 /// a http server service type
 /// contains the logic that gets executed when a request is made
-// pub struct Service {
+// pub struct Process {
 //     method: Method,
 //     route: Route,
 //     redirects: Option<HashSet<Route>>,
@@ -23,20 +23,6 @@ use pheasant_uri::Route;
 //     cors: Option<Cors>,
 //     // TODO head: bool,
 // }
-
-struct Resource {
-    route: Route,
-    redirects: Option<HashSet<Route>>,
-    get: Option<Service>,
-    post: Option<Service>,
-    put: Option<Service>,
-    patch: Option<Service>,
-    delete: Option<Service>,
-    head: bool,
-    // WARN this method is a potential security vulnerability
-    // at least it may widen bad actors' attack vectors
-    trace: bool,
-}
 
 pub struct Builder {
     fun: BoxFun,
@@ -64,8 +50,8 @@ impl Builder {
         self
     }
 
-    fn build(self) -> Service {
-        Service {
+    fn build(self) -> Process {
+        Process {
             id: Uuid::new_v4(),
             fun: self.fun,
             cors: self.cors,
@@ -80,7 +66,7 @@ pub struct BuilderCors {
     cors: ResourceCors,
 }
 
-impl Service {
+impl Process {
     pub fn builder(fun: BoxFun) -> Builder {
         Builder {
             fun,
@@ -91,7 +77,7 @@ impl Service {
     }
 }
 
-pub struct Service {
+pub struct Process {
     id: uuid::Uuid,
     fun: BoxFun,
     cors: Option<ResourceCors>,
@@ -106,8 +92,8 @@ enum RequireQuery {
     Maybe,
 }
 
-unsafe impl Send for Service {}
-unsafe impl Sync for Service {}
+unsafe impl Send for Process {}
+unsafe impl Sync for Process {}
 
 // the future return type
 type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
@@ -115,8 +101,8 @@ type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
 // the wrapper function type
 type BoxFun = Box<dyn Fn(&Request) -> BoxFut<'static> + Send + Sync>;
 
-impl Service {
-    /// creates a new Service instance
+impl Process {
+    /// creates a new Process instance
     ///
     /// you would only use this function directly if you're not using the http method macros
     ///
@@ -129,7 +115,7 @@ impl Service {
     ///
     /// # fn main() {
     /// let mut phe = Server::new([127, 0, 0, 1], 8883, 3333).unwrap();
-    /// phe.service(|| Service::new(Method::Get, "/icon", [], "image/svg+xml", svg));
+    /// phe.service(|| Process::new(Method::Get, "/icon", [], "image/svg+xml", svg));
     /// # }
     ///
     /// async fn svg(who: Who) -> Vec<u8> {
@@ -263,28 +249,28 @@ impl Resource {
     }
 }
 
-impl Hash for Service {
+impl Hash for Process {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state)
     }
 }
 
-impl PartialEq for Service {
+impl PartialEq for Process {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for Service {}
+impl Eq for Process {}
 
-pub trait ServiceBundle {
-    fn iter(self) -> vec::IntoIter<Service>;
+pub trait ProcessBundle {
+    fn iter(self) -> vec::IntoIter<Process>;
 
     fn size(&self) -> usize;
 }
 
-impl ServiceBundle for Service {
-    fn iter(self) -> vec::IntoIter<Service> {
+impl ProcessBundle for Process {
+    fn iter(self) -> vec::IntoIter<Process> {
         vec![self].into_iter()
     }
 
@@ -293,8 +279,8 @@ impl ServiceBundle for Service {
     }
 }
 
-impl ServiceBundle for [Service; 2] {
-    fn iter(self) -> vec::IntoIter<Service> {
+impl ProcessBundle for [Process; 2] {
+    fn iter(self) -> vec::IntoIter<Process> {
         Vec::from(self).into_iter()
     }
 
@@ -303,8 +289,8 @@ impl ServiceBundle for [Service; 2] {
     }
 }
 
-impl ServiceBundle for [Service; 3] {
-    fn iter(self) -> vec::IntoIter<Service> {
+impl ProcessBundle for [Process; 3] {
+    fn iter(self) -> vec::IntoIter<Process> {
         Vec::from(self).into_iter()
     }
 
@@ -313,8 +299,8 @@ impl ServiceBundle for [Service; 3] {
     }
 }
 
-impl ServiceBundle for Vec<Service> {
-    fn iter(self) -> vec::IntoIter<Service> {
+impl ProcessBundle for Vec<Process> {
+    fn iter(self) -> vec::IntoIter<Process> {
         self.into_iter()
     }
 

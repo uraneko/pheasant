@@ -1,9 +1,9 @@
 // TODO this module is todo
 
 use super::{
-    ClientError, Cors, ErrorStatus, Failure, FindService, GoodStatus, HttpSocket, Method,
-    PheasantError, PheasantResult, Protocol, Redirection, Request, Respond, Response,
-    ResponseStatus, ServerError, Service, Status, Successful, TakeRequest,
+    ClientError, Cors, ErrorStatus, Fallback, FindProcess, GoodStatus, HttpSocket, Method,
+    PheasantError, PheasantResult, Process, Protocol, Redirection, Request, Respond, Response,
+    ResponseStatus, ServerError, Status, Successful, TakeRequest,
 };
 use std::io::{BufRead, Write};
 use std::net::{Ipv4Addr, TcpStream};
@@ -38,18 +38,18 @@ use std::net::{Ipv4Addr, TcpStream};
 
 // TODO user defined http statusin service macros
 
-pub trait ServiceClassifier {
+pub trait ProcessClassifier {
     /// returns all the registered services of a method
-    fn method_services(&self, method: Method) -> impl Iterator<Item = &Service>;
+    fn method_services(&self, method: Method) -> impl Iterator<Item = &Process>;
 
     /// returns all the allowed methods of a resource
     fn resource_methods(&self, route: &str) -> impl Iterator<Item = Method>;
 
-    fn service_variants(&self, route: &str) -> impl Iterator<Item = &Service>;
+    fn service_variants(&self, route: &str) -> impl Iterator<Item = &Process>;
 }
 
-impl ServiceClassifier for HttpSocket {
-    fn method_services(&self, method: Method) -> impl Iterator<Item = &Service> {
+impl ProcessClassifier for HttpSocket {
+    fn method_services(&self, method: Method) -> impl Iterator<Item = &Process> {
         self.services_iter().filter(move |s| s.method() == method)
     }
 
@@ -59,7 +59,7 @@ impl ServiceClassifier for HttpSocket {
             .map(|s| s.method())
     }
 
-    fn service_variants(&self, route: &str) -> impl Iterator<Item = &Service> {
+    fn service_variants(&self, route: &str) -> impl Iterator<Item = &Process> {
         // TODO
         self.services_iter().filter(move |s| s.route() == route)
     }
@@ -70,24 +70,24 @@ pub trait HttpBackAndForth {
     // returns the service matching the req method + route if it exists
     //
     // else returns the corresponding http error status
-    fn find_service(&self, method: Method, route: &str) -> Result<FindService, ErrorStatus>;
+    fn find_service(&self, method: Method, route: &str) -> Result<FindProcess, ErrorStatus>;
 
     // returns the corresponding failure service for this http error if it exists
     //
     // else returns None
-    fn http_error(&self, status: ErrorStatus) -> Option<&Failure>;
+    fn http_error(&self, status: ErrorStatus) -> Option<&Fallback>;
 
-    fn http_error_fallback(&self, err_stt: ErrorStatus) -> FindService {
+    fn http_error_fallback(&self, err_stt: ErrorStatus) -> FindProcess {
         match self.http_error(err_stt) {
-            Some(fail) => FindService::Error {
+            Some(fail) => FindProcess::Error {
                 failure: Ok(fail),
                 status: err_stt,
             },
-            None => FindService::error(err_stt),
+            None => FindProcess::error(err_stt),
         }
     }
 
-    fn responder(&self, method: Method, route: &str) -> FindService {
+    fn responder(&self, method: Method, route: &str) -> FindProcess {
         match self.find_service(method, route) {
             Ok(resp) => resp,
             Err(err_stt) => self.http_error_fallback(err_stt),
@@ -97,7 +97,7 @@ pub trait HttpBackAndForth {
 
 // F is the function that reads and parses the http 1.1 request
 impl HttpBackAndForth for HttpSocket {
-    fn find_service(&self, method: Method, route: &str) -> Result<FindService, ErrorStatus> {
+    fn find_service(&self, method: Method, route: &str) -> Result<FindProcess, ErrorStatus> {
         if !self.services_iter().any(|s| s.method() == method) {
             // from `https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status/501`
             // 501 is the appropriate response when the server does not recognize the request
@@ -110,7 +110,7 @@ impl HttpBackAndForth for HttpSocket {
             .filter(|s| s.method() == method)
             .find(|s| s.route() == route)
         {
-            Ok(FindService::success(service, method))
+            Ok(FindProcess::success(service, method))
         } else if let Some(service) = self
             .services_iter()
             .filter(|s| s.method() == method)
@@ -121,7 +121,7 @@ impl HttpBackAndForth for HttpSocket {
             // TODO service macro attr: #[variants(lang1, lang2)]
             // generates a service for each variant + sets a redirect for all of them from the
             // original service route
-            Ok(FindService::redirect(
+            Ok(FindProcess::redirect(
                 Status::Redirection(Redirection::SeeOther),
                 service.route(),
             ))
@@ -130,14 +130,14 @@ impl HttpBackAndForth for HttpSocket {
         }
     }
 
-    fn http_error(&self, err_stt: ErrorStatus) -> Option<&Failure> {
+    fn http_error(&self, err_stt: ErrorStatus) -> Option<&Fallback> {
         self.failures_iter().find(|f| f.code() == err_stt.code())
     }
 }
 
 impl HttpSocket {
     /// searches for the specified service
-    /// returns `(Status, &Service)`
+    /// returns `(Status, &Process)`
     ///
     /// ### Error
     /// returns an Err, a client error (404 not found) if the service is not found
@@ -145,8 +145,8 @@ impl HttpSocket {
         &self,
         method: Method,
         route: &str,
-    ) -> PheasantResult<(Status, &Service)> {
-        // FIXME this suddenly broke after implementing Hash, Eq, PartialEq on Service
+    ) -> PheasantResult<(Status, &Process)> {
+        // FIXME this suddenly broke after implementing Hash, Eq, PartialEq on Process
         match self
             .services_iter()
             // .inspect(|s| println!("{}:{:?}", s.route(), s.re()))
@@ -168,7 +168,7 @@ impl HttpSocket {
             }
             None => Err(PheasantError::ClientError(ClientError::NotFound)),
             Some(_) => unreachable!(
-                "logic break: the Service that matches the conditions didnt match the condititons"
+                "logic break: the Process that matches the conditions didnt match the condititons"
             ),
         }
     }
@@ -176,7 +176,7 @@ impl HttpSocket {
     /// searches for the speficied `Fail` (error status fallback service)
     /// returns `Some(&Fail)` if found
     /// else returns `None`
-    pub fn fail_status(&self, status_code: u16) -> Option<&Failure> {
+    pub fn fail_status(&self, status_code: u16) -> Option<&Fallback> {
         self.failures_iter().find(move |e| e.code() == status_code)
     }
 
@@ -213,7 +213,7 @@ impl HttpSocket {
         send_response(stream, resp)
     }
 
-    // TODO this and Response::from_err have become redundant since (Failure.callback)() now returns
+    // TODO this and Response::from_err have become redundant since (Fallback.callback)() now returns
     // a Response
     // TODO fix Response mess
     pub async fn error_template(&self, code: u16, proto: Option<Protocol>) -> Response {

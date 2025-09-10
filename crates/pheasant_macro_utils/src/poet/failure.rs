@@ -4,26 +4,26 @@ use std::collections::HashSet;
 use syn::{FnArg, Ident, ItemFn, PatType, Type, Visibility};
 
 use super::Altering;
-use crate::{FailurePlumber, Mining};
+use crate::{FallbackPlumber, Mining};
 use pheasant_core::{Cors, Method, Mime};
 use pheasant_uri::Route;
 
 #[derive(Debug)]
-pub struct FailurePoet {
+pub struct FallbackPoet {
     fun: ItemFn,
     status: u16,
     mime: Option<Mime>,
     decorated: bool,
 }
 
-impl FailurePoet {
-    pub fn new(mut plumber: FailurePlumber) -> Self {
+impl FallbackPoet {
+    pub fn new(mut plumber: FallbackPlumber) -> Self {
         let status = plumber.status();
         let mime = plumber.take_mime();
         let fun = plumber.into_fun();
         let decorated = fun.is_decorated();
 
-        FailurePoet {
+        FallbackPoet {
             status,
             fun,
             mime,
@@ -32,7 +32,7 @@ impl FailurePoet {
     }
 }
 
-pub trait FailureInscriptions {
+pub trait FallbackInscriptions {
     fn mime(&self) -> TS2;
 
     fn status(&self) -> TS2;
@@ -44,7 +44,7 @@ pub trait FailureInscriptions {
     fn assemble(&mut self) -> TS2;
 }
 
-impl FailureInscriptions for FailurePoet {
+impl FallbackInscriptions for FallbackPoet {
     fn mime(&self) -> TS2 {
         if let Some(ref mime) = self.mime {
             let mime = mime.essence_str();
@@ -95,8 +95,8 @@ impl FailureInscriptions for FailurePoet {
         };
 
         quote! {
-            #vis fn #bundler() -> pheasant::Failure {
-                pheasant::Failure::new(#status, #mime, #maybe_decorated)
+            #vis fn #bundler() -> pheasant::Fallback {
+                pheasant::Fallback::new(#status, #mime, #maybe_decorated)
             }
         }
     }

@@ -13,7 +13,8 @@ members = [
 	# "macros/pheasant_macro_fail",
 	"crates/pheasant_headers",
 	"crates/pheasant_message",
-	"crates/pheasant_server", "macros/byte_enum",
+	"crates/pheasant_server",
+	"macros/byte_enum",
 ]
 resolver = "3"
 
@@ -68,3 +69,4 @@ uuid = "1.18.1"
 rayon = "1.11.0"
 hashbrown = { workspace = true, features = ["serde"] }
 chrono.workspace = true
+embedded-io = "0.6.1"

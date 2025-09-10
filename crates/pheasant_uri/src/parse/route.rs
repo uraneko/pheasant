@@ -248,3 +248,20 @@ impl<'de> serde::Deserialize<'de> for Resource {
         deserializer.deserialize_struct("Resource", &["route", "query"], ResourceVisitor)
     }
 }
+
+impl From<&Route> for TokenTree {
+    fn from(route: &Route) -> Self {
+        let mut ts = TS2::new();
+        let ident = Ident::new("Route", Span::call_site());
+        ts.append(ident);
+
+        let lit = Group::new(
+            Delimiter::Parenthesis,
+            TokenTree::Literal(Literal::string(route.as_str())).into(),
+        );
+        ts.append(lit);
+
+        let group = Group::new(Delimiter::None, ts);
+        TokenTree::from(group)
+    }
+}

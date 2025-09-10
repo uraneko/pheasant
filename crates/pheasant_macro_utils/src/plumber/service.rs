@@ -10,7 +10,7 @@ use pheasant_core::{Cors, Method, Mime};
 use pheasant_uri::Route;
 
 #[derive(Debug)]
-pub struct ServicePlumber {
+pub struct ProcessPlumber {
     fun: ItemFn,
     method: Method,
     route: Route,
@@ -19,7 +19,7 @@ pub struct ServicePlumber {
     re: Option<HashSet<Route>>,
 }
 
-impl ServicePlumber {
+impl ProcessPlumber {
     /// consumes the macro inputs into a new Plumber
     pub fn new(method: Method, attr: TokenStream, fun: TokenStream) -> PRes<Self> {
         let mut fun: ItemFn = parse(fun)?;

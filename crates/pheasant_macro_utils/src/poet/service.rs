@@ -4,14 +4,14 @@ use std::collections::HashSet;
 use syn::{FnArg, Ident, ItemFn, PatType, Type, Visibility};
 
 use super::{Altering, Inscriptions, option_iter_quote, option_quote};
-use crate::{Mining, ServicePlumber};
+use crate::{Mining, ProcessPlumber};
 use mime::Mime;
 use pheasant_core::Method;
 use pheasant_headers::ResourceCors;
 use pheasant_uri::Route;
 
 #[derive(Debug)]
-pub struct ServicePoet {
+pub struct ProcessPoet {
     fun: ItemFn,
     method: Method,
     route: Route,
@@ -27,8 +27,8 @@ pub struct ServicePoet {
     re: Option<HashSet<Route>>,
 }
 
-impl ServicePoet {
-    pub fn new(mut plumber: ServicePlumber) -> Self {
+impl ProcessPoet {
+    pub fn new(mut plumber: ProcessPlumber) -> Self {
         let method = plumber.method();
         let route = plumber.take_route();
         let mime = plumber.take_mime();
@@ -50,7 +50,7 @@ impl ServicePoet {
     }
 }
 
-impl Inscriptions for ServicePoet {
+impl Inscriptions for ProcessPoet {
     fn mime(&self) -> TS2 {
         if let Some(ref mime) = self.mime {
             let mime = mime.essence_str();
@@ -70,7 +70,7 @@ impl Inscriptions for ServicePoet {
     fn origin_set(&self) -> TS2 {
         let Some(cors) = &self.cors else {
             panic!(
-                "this function should only be called from inside the is_some block of impl Inscriptions::cors for ServicePoet"
+                "this function should only be called from inside the is_some block of impl Inscriptions::cors for ProcessPoet"
             );
         };
 
@@ -136,16 +136,16 @@ impl Inscriptions for ServicePoet {
 //
 // the service function -> fun
 // <- the wrapper function is what the user passes to server.service()
-pub trait ServiceInscriptions {
+pub trait ProcessInscriptions {
     // this is only called if self.decorated is false
     // wraps the user fn in a Fn(UserInputType) -> Response
     fn assemble_decorator_fun(&self) -> TS2;
 
-    // makes the fun that returns a Service bundle
+    // makes the fun that returns a Process bundle
     fn assemble_bundler_fun(&self) -> TS2;
 
-    // returns the proc_macro2::TokenStream value of this ServicePoet's preflight fun
-    // i.e., this implements an Options service for this ServicePoet's Route
+    // returns the proc_macro2::TokenStream value of this ProcessPoet's preflight fun
+    // i.e., this implements an Options service for this ProcessPoet's Route
     // using the Cors at hand
     fn assemble_preflight_fun(&self) -> TS2;
 
@@ -153,10 +153,10 @@ pub trait ServiceInscriptions {
 }
 
 fn service(method: Method, route: &TS2, re: &TS2, mime: &TS2, cors: &TS2, fun: &Ident) -> TS2 {
-    quote! {pheasant::Service::new(pheasant::#method, #route, #re, #mime, #cors, #fun) }
+    quote! {pheasant::Process::new(pheasant::#method, #route, #re, #mime, #cors, #fun) }
 }
 
-impl ServiceInscriptions for ServicePoet {
+impl ProcessInscriptions for ProcessPoet {
     fn assemble_decorator_fun(&self) -> TS2 {
         let fun = &self.fun;
         let vis = fun.vis();
@@ -231,7 +231,7 @@ impl ServiceInscriptions for ServicePoet {
         let decorated = service(method, &route, &re, &mime, &cors, &decorated);
         let (return_type, service_bundle) = if self.cors.is_some() {
             (
-                Type::Verbatim("[pheasant::Service; 2]".parse().unwrap()),
+                Type::Verbatim("[pheasant::Process; 2]".parse().unwrap()),
                 quote! {[
                     #preflight,
                     #decorated
@@ -239,7 +239,7 @@ impl ServiceInscriptions for ServicePoet {
             )
         } else {
             (
-                Type::Verbatim("pheasant::Service".parse().unwrap()),
+                Type::Verbatim("pheasant::Process".parse().unwrap()),
                 quote! {#decorated},
             )
         };

@@ -4,7 +4,11 @@ mod lex;
 mod origin_set;
 mod parse;
 mod query;
+mod resolution;
+mod semantic;
+mod syntax;
 mod url;
+mod urn;
 
 pub use errors::{ParseError, ParseResult};
 pub use interpreter::{TransmuteError, origin::Origin, resource::Resource, route::Route};

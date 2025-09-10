@@ -1,7 +1,7 @@
 use crossbeam_utils::thread;
 use hashbrown::{HashMap, HashSet};
 use pheasant_core::Protocol;
-use pheasant_message::{Failure, Service, ServiceBundle};
+use pheasant_message::{Fallback, Process, ProcessBundle};
 use pheasant_uri::{Origin, Scheme};
 use std::io::Result as IOResult;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
@@ -23,7 +23,7 @@ pub struct HttpSocket<const BUF_SIZE: usize> {
     // set of registered socket services
     resources: HashSet<Resource>,
     // set of registered socket failures (http error status services)
-    errors: HashSet<Failure>,
+    errors: HashSet<Fallback>,
     // socket origin scheme part
     scheme: Scheme,
     // enables redirects socket wide
@@ -87,7 +87,7 @@ impl HttpSocket {
     ///
     /// let (addr, port) = ([127.0.0.1], 8883);
     /// let socket = HttpSocket::new(
-    ///     addr, port, None, SocketKind::Origin, Scheme::Http, &[Protocol::HTTP1_1]
+    ///     addr, port, None, SocketKind::Origin, Scheme::Http, &[Protocol::HTTP11]
     /// );
     /// ```
     ///
@@ -154,15 +154,15 @@ impl HttpSocket {
     pub fn supported_protocols(&self) -> &[Protocol] {
         match self.protos {
             0 => unreachable!("an empty protocol slice is an error at HttpSocket::new"),
-            1 => &[Protocol::HTTP1_1],
+            1 => &[Protocol::HTTP11],
             2 => &[Protocol::HTTP2],
-            3 => &[Protocol::HTTP1_1, Protocol::HTTP2],
+            3 => &[Protocol::HTTP11, Protocol::HTTP2],
             _ => unreachable!("unrecognized u8 protocols repr"),
         }
     }
 
     /// checks whether this socket supports the http1.1 protocol
-    pub fn supports_http1_1(&self) -> bool {
+    pub fn supports_http11(&self) -> bool {
         self.protos & 1 == 1
     }
 
@@ -181,7 +181,7 @@ impl HttpSocket {
     pub fn service<S, B>(&mut self, s: S) -> &mut Self
     where
         S: Fn() -> B,
-        B: ServiceBundle,
+        B: ProcessBundle,
     {
         let bundle = s();
         match bundle.size() {
@@ -205,7 +205,7 @@ impl HttpSocket {
     pub fn services<S, B, I>(&mut self, iter: I) -> &mut Self
     where
         S: Fn() -> B,
-        B: ServiceBundle,
+        B: ProcessBundle,
         I: IntoIterator<Item = S>,
     {
         iter.into_iter().for_each(|s| {
@@ -218,7 +218,7 @@ impl HttpSocket {
     /// registers a new http failure to this socket
     pub fn failure<F>(&mut self, f: F) -> &mut Self
     where
-        F: Fn() -> Failure,
+        F: Fn() -> Fallback,
     {
         self.failures.insert(f());
 
@@ -230,7 +230,7 @@ impl HttpSocket {
     /// self.failure but takes batches of failures
     pub fn failures<F, I>(&mut self, iter: I) -> &mut Self
     where
-        F: Fn() -> Failure,
+        F: Fn() -> Fallback,
         I: IntoIterator<Item = F>,
     {
         iter.into_iter().for_each(|f| {
@@ -263,12 +263,12 @@ impl HttpSocket {
     }
 
     /// returns an iterator to shared references of self.services items
-    pub fn services_iter(&self) -> impl Iterator<Item = &Service> {
+    pub fn services_iter(&self) -> impl Iterator<Item = &Process> {
         self.services.iter()
     }
 
     /// returns an iterator to shared references of self.failures items
-    pub fn failures_iter(&self) -> impl Iterator<Item = &Failure> {
+    pub fn failures_iter(&self) -> impl Iterator<Item = &Fallback> {
         self.failures.iter()
     }
 }
@@ -303,7 +303,7 @@ fn proto_slice_to_u8(protos: &[Protocol]) -> u8 {
     use Protocol::*;
 
     let mut byte = 0;
-    if protos.contains(&HTTP1_1) {
+    if protos.contains(&HTTP11) {
         byte |= 1;
     }
     if protos.contains(&HTTP2) {
