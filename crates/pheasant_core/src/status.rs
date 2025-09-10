@@ -1,5 +1,6 @@
 use crate::PheasantError;
-use std::fmt;
+use alloc::string::ToString;
+use core::fmt::{self, Debug};
 
 macro_rules! status_enum {
      ($name: ident, $($var: ident $code: literal),*) => {
@@ -48,7 +49,7 @@ status_enum!(ServerError,
     InternalServerError 500,
     NotImplemented 501,
     BadGateway 502,
-    ServiceUnavailable 503,
+    ProcessUnavailable 503,
     GatewayTimeout 504,
     HTTPVersionNotSupported 505,
     VariantAlsoNegotiates 506,
@@ -159,7 +160,7 @@ impl ResponseStatus for ServerError {
             Self::InternalServerError => "InternalServerError",
             Self::NotImplemented => "NotImplemented",
             Self::BadGateway => "BadGateway",
-            Self::ServiceUnavailable => "ServiceUnavailable",
+            Self::ProcessUnavailable => "ProcessUnavailable",
             Self::GatewayTimeout => "GatewayTimeout",
             Self::HTTPVersionNotSupported => "HTTPVersionNotSupported",
             Self::VariantAlsoNegotiates => "VariantAlsoNegotiates",
@@ -171,7 +172,7 @@ impl ResponseStatus for ServerError {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -211,7 +212,7 @@ impl ResponseStatus for ClientError {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -231,7 +232,7 @@ impl ResponseStatus for Redirection {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -254,7 +255,7 @@ impl ResponseStatus for Successful {
     fn code(&self) -> u16 {
         // NOTE this is safe
         // trust me bro
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 
@@ -269,7 +270,7 @@ impl ResponseStatus for Informational {
     }
 
     fn code(&self) -> u16 {
-        unsafe { std::mem::transmute::<Self, u16>(*self) }
+        unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
 }
 

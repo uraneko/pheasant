@@ -3,15 +3,15 @@ use quote::quote;
 use std::collections::HashSet;
 use syn::{FnArg, Ident, ItemFn, PatType, Type, Visibility};
 
-use crate::{FailurePlumber, Mining, Plumber, ServicePlumber};
+use crate::{FallbackPlumber, Mining, Plumber, ProcessPlumber};
 use pheasant_core::{Cors, Method, Mime};
 use pheasant_uri::Route;
 
 pub mod failure;
 pub mod service;
 
-pub use failure::{FailureInscriptions, FailurePoet};
-pub use service::{ServiceInscriptions, ServicePoet};
+pub use failure::{FallbackInscriptions, FallbackPoet};
+pub use service::{ProcessInscriptions, ProcessPoet};
 
 pub struct Poet<K>(K);
 
@@ -29,15 +29,15 @@ impl<K> std::ops::DerefMut for Poet<K> {
     }
 }
 
-impl Poet<ServicePoet> {
-    pub fn new(plumber: Plumber<ServicePlumber>) -> Self {
-        Self(ServicePoet::new(plumber.plumber()))
+impl Poet<ProcessPoet> {
+    pub fn new(plumber: Plumber<ProcessPlumber>) -> Self {
+        Self(ProcessPoet::new(plumber.plumber()))
     }
 }
 
-impl Poet<FailurePoet> {
-    pub fn new(plumber: Plumber<FailurePlumber>) -> Self {
-        Self(FailurePoet::new(plumber.plumber()))
+impl Poet<FallbackPoet> {
+    pub fn new(plumber: Plumber<FallbackPlumber>) -> Self {
+        Self(FallbackPoet::new(plumber.plumber()))
     }
 }
 

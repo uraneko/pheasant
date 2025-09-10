@@ -9,13 +9,13 @@ use crate::{IntAttr, Mining};
 use pheasant_core::Mime;
 
 #[derive(Debug)]
-pub struct FailurePlumber {
+pub struct FallbackPlumber {
     fun: ItemFn,
     mime: Option<Mime>,
     status: u16,
 }
 
-impl FailurePlumber {
+impl FallbackPlumber {
     pub fn new(attr: TokenStream, fun: TokenStream) -> PRes<Self> {
         let mut fun: ItemFn = parse(fun)?;
         let status: IntAttr = parse(attr)?;

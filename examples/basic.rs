@@ -1,13 +1,13 @@
 use chrono::{DateTime, Utc};
 use pheasant::{
-    Cookie, HeaderMap, Method, Mime, Protocol, Request, Response, Server, Service, fail, get,
+    Cookie, HeaderMap, Method, Mime, Process, Protocol, Request, Response, Server, fail, get,
 };
 
 #[tokio::main]
 async fn main() {
     let mut phe = Server::new([127, 0, 0, 1], 8883, 3333).unwrap();
     phe.service(hello).service(favicon).error(not_found);
-    // .service(|| Service::new(Method::Get, "/icon", [], "image/svg+xml", svg));
+    // .service(|| Process::new(Method::Get, "/icon", [], "image/svg+xml", svg));
 
     phe.serve().await;
 }

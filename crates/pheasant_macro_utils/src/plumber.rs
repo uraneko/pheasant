@@ -12,8 +12,8 @@ use pheasant_uri::Route;
 pub mod failure;
 pub mod service;
 
-pub use failure::FailurePlumber;
-pub use service::ServicePlumber;
+pub use failure::FallbackPlumber;
+pub use service::ProcessPlumber;
 
 pub struct Plumber<K>(K);
 
@@ -37,14 +37,14 @@ impl<K> Plumber<K> {
     }
 }
 
-impl Plumber<ServicePlumber> {
+impl Plumber<ProcessPlumber> {
     pub fn new(method: Method, attr: TokenStream, fun: TokenStream) -> PRes<Self> {
-        Ok(Self(ServicePlumber::new(method, attr, fun)?))
+        Ok(Self(ProcessPlumber::new(method, attr, fun)?))
     }
 }
 
-impl Plumber<FailurePlumber> {
+impl Plumber<FallbackPlumber> {
     pub fn new(attr: TokenStream, fun: TokenStream) -> PRes<Self> {
-        Ok(Self(FailurePlumber::new(attr, fun)?))
+        Ok(Self(FallbackPlumber::new(attr, fun)?))
     }
 }

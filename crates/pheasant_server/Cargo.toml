@@ -1,0 +1,13 @@
+[package]
+name = "pheasant_server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hashbrown.workspace = true
+mime.workspace = true
+pheasant_core = { version = "0.1.0", path = "../pheasant_core" }
+pheasant_headers = { version = "0.1.0", path = "../pheasant_headers" }
+pheasant_message = { version = "0.1.0", path = "../pheasant_message" }
+pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
+uuid = { version = "1.18.1", features = ["v4", "v6", "v8"] }

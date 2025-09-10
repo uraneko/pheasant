@@ -22,4 +22,7 @@ syn = { workspace = true }
 rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
 rcgen = { workspace = true }
+hashbrown = { workspace = true, features = ["serde"] }
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
+crossbeam-utils = "0.8.21"
+uuid = "1.18.1"
