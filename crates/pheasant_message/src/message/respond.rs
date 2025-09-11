@@ -1,6 +1,6 @@
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
-use pheasant_core::Protocol;
+use pheasant_core::{PassingStatus, Protocol};
 use pheasant_headers::{Cookie, ResponseCors};
 
 pub struct Respond {

@@ -3,7 +3,14 @@
 //! could parse into a general uri or any of the other downcasted uri types (route, origin...)
 //!
 
-use crate::{ParseError, Query, Scheme, Token, Url, lex};
+pub mod file;
+pub mod origin;
+pub mod resource;
+pub mod route;
+pub mod url;
+pub mod urn;
+
+use crate::{AnnotatedComponentTree, ParseError, Query, Scheme, Token, Url, lex};
 
 pub trait Uri {
     fn from_token_tree(tree: AnnotatedComponentTree) -> Self;

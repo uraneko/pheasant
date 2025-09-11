@@ -24,6 +24,37 @@ impl Resource {
     }
 }
 
+macro_rules! method {
+    (self $method: ident) => {
+        use Method::*;
+
+        match $method {
+            Get => self.get,
+            Post => self.post,
+            Put => self.put,
+            Patch => self.patch,
+            Delete => self.delete,
+        }
+    };
+}
+
+impl Resource {
+    pub fn method_is_cross_origin(&self, method: Method) -> bool {
+        use Method::*;
+
+        match method {
+            Head => self.head,
+            Trace => self.trace,
+            Options => true,
+            Connect => false,
+            _ => method!(self method)
+                .as_ref()
+                .map(|prc| prc.is_cross_origin())
+                .unwrap_or_default(),
+        }
+    }
+}
+
 #[derive(default)]
 pub struct Builder {
     head: bool,

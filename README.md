@@ -20,11 +20,11 @@ elColor=3a3a3a&color=ECD53F" height="25">](https://github.com/uraneko/pheasant/b
 ###
 ### Design 
 
-This table describes the implementation choices of this framework, it has to columns: 
+This table describes the implementation choices of this framework, it has two columns: 
 - Framework: the logic this framework chooses to implement 
-- Server: the logic this framework chooses to have the user implement 
+- User: the logic this framework chooses to have the user implement 
 
-| Logic | Framework | Server |
+| Feature | Framework | User |
 | :------------------------- | :-: | :-: |
 | Data Types                 |  x  |     |
 | Request Analysis           |  x  |     |
@@ -41,16 +41,17 @@ This table describes the implementation choices of this framework, it has to col
 
 | Goal | \*Basic | Full | Extra | 
 | :------------- | :--: | :--: | :--: | 
-| Origin Server             | x | | |
-| Http/1.1                  | x | | |
-| Http/2                    |   | | |
-| TLS/1.3 (Https)           |   | | |
-| DataBases Integration     |   | | |
-| Cors                      | x | | |
-| Cooks.                    | x | | |
-| Headers (Content-*)       | x | | |
-| Headers (Date, Host)      | x | | |
-| Http/1.1 Pipelining       |   | | |
+| no_std compatible     |   | | |
+| Origin Server         | x | | |
+| Http/1.1              | x | | |
+| Http/2                |   | | |
+| TLS/1.3 (Https)       |   | | |
+| DataBases Integration |   | | |
+| Cors                  | x | | |
+| Cookies               | x | | |
+| Headers (Content-*)   | x | | |
+| Headers (Date, Host)  | x | | |
+| Http/1.1 Pipelining   |   | | |
 
 ###
 

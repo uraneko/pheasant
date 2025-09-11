@@ -85,6 +85,12 @@ pub struct Process {
     query: RequireQuery,
 }
 
+impl Process {
+    pub fn is_cross_origin(&self) -> bool {
+        self.cors.is_some()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum RequireQuery {
     True,

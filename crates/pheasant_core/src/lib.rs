@@ -6,6 +6,7 @@
 
 extern crate alloc;
 extern crate std;
+
 use alloc::string::{FromUtf8Error, String, ToString};
 use alloc::{vec, vec::Vec};
 use core::error::Error;
@@ -13,7 +14,6 @@ use core::fmt::{self, Debug, Display, Formatter};
 use core::str::FromStr;
 use core::str::Utf8Error;
 use hashbrown::HashSet;
-
 use pheasant_uri::Route;
 
 // NOTE indefinitely experimental

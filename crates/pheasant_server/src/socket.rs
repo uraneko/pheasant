@@ -15,15 +15,16 @@ pub struct HttpSocket<const BUF_SIZE: usize> {
     /// byte repr of allowed http methods,
     methods: u8,
     /// tls configuration for use in https requests, if any
-    secure: Option<TlsConfig>,
+    // TODO
+    // secure: Option<TlsConfig>,
     /// the tcp listener socket
     socket: TcpListener,
     /// the class of the socket, specifies its functionality
     kind: SocketKind,
     // set of registered socket services
     resources: HashSet<Resource>,
-    // set of registered socket failures (http error status services)
-    errors: HashSet<Fallback>,
+    // set of registered socket fallbacks (http error status processes)
+    fallbacks: HashSet<Fallback>,
     // socket origin scheme part
     scheme: Scheme,
     // enables redirects socket wide
@@ -46,19 +47,19 @@ pub struct HttpSocket<const BUF_SIZE: usize> {
     headers_upper_size: usize,
     /// defines the strictness mode of the socket
     ///
-    /// strictness is the level of rfc compliance this socket demands from clients/user agents
-    mode: SocketMode,
-}
-
-pub enum SocketMode {
-    Strict,
-    Lenient,
+    /// strictness is the level of rfc and recency compliance this socket
+    /// demands from clients/user agents
+    strict: bool,
+    /// when this is on, the socket returns an 403 Forbidden error whenever it can/should
+    /// instead of returning the real error describing what happened
+    /// essentially keeping the user in the dark about the server inner workings
+    secretive: bool,
 }
 
 pub struct Builder {}
 
 impl Builder {
-    fn build(self) -> HttpSocket {}
+    fn build(self) -> Result<HttpSocket, PheasantError> {}
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
@@ -69,10 +70,6 @@ pub enum SocketKind {
     // Proxy,
     // LoadBalancer,
 }
-
-// placeholder type until tls crate is written
-// obviously does nothing
-pub struct TlsConfig;
 
 impl HttpSocket {
     /// creates a bew HttpSocket
@@ -107,13 +104,12 @@ impl HttpSocket {
         }
 
         Ok(Self {
-            secure: tls_config,
+            // secure: tls_config,
             socket: bind_socket(addr, port, scheme)?,
             protos: proto_slice_to_u8(protos),
             kind,
             scheme,
-            services: HashSet::new(),
-            failures: HashSet::new(),
+            fallbacks: HashSet::new(),
         })
     }
 
