@@ -34,3 +34,38 @@ pub use message_body_information::{
 };
 pub use other::{Date, SetDate};
 pub use request_context::Host;
+
+struct Headers {
+    entries: [Entry; 64],
+    size: usize,
+}
+
+// hash can be generated from key
+// Key -> Hash
+// index can be generated from hash
+// Hash -> Index
+//
+// Hash should be generated from key + unique + len/index
+// Cookie -> 53906 -> 539061 ->
+// gets hashed -> add unique -> rehash by index if not unique
+//
+// Condition if the header is unique then hashing Header+Unique should give us the index
+// if header is repeating then
+
+// entries -> [ContentTypeValue, ContentLengthValue, CookieValue, OriginValue]
+// indexes -> [ContentTypeHash,  ContentLengthHash,  CookieHash,  OriginHash]
+// headers.insert(cookie)
+// => entries -> [ContentTypeValue, ContentLengthValue, CookieValue, OriginValue, CookieValue]
+//    indexes -> [ContentTypeHash , ContentLengthHash , CookieHash ,               OriginHash]
+// need to know where each header index starts
+
+// struct Entry {
+//     value: Vec<u8>
+// }
+//
+// impl Entry {
+//     // e.g., Content-Type -> 34232
+//     const HeaderHash: u64;
+//     const Unique: bool;
+//     const Hash HeaderHash + Unique
+// }

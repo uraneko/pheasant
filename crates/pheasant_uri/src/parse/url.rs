@@ -4,62 +4,6 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{ParseError, ParseResult, Parser, Query, TransmuteError, lex, parse::ref_res};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum Scheme {
-    Http,
-    Https,
-    Ws,
-    Wss,
-    File,
-    Ftp,
-}
-
-impl Scheme {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::Http => "http",
-            Self::Https => "https",
-            Self::Ws => "ws",
-            Self::Wss => "wss",
-            Self::File => "file",
-            Self::Ftp => "ftp",
-        }
-    }
-
-    pub fn default_port(&self) -> u16 {
-        match self {
-            Self::Http => 80,
-            Self::Https => 443,
-            Self::Ws => 80,
-            Self::Wss => 443,
-            Self::File => 0,
-            Self::Ftp => 21,
-        }
-    }
-
-    pub fn is_scheme(s: &str) -> bool {
-        match s {
-            "http" | "https" | "ws" | "wss" | "file" | "ftp" => true,
-            _ => false,
-        }
-    }
-}
-
-impl std::str::FromStr for Scheme {
-    type Err = ParseError;
-    fn from_str(s: &str) -> ParseResult<Self> {
-        match s.to_uppercase().as_str() {
-            "HTTP" => Ok(Self::Http),
-            "HTTPS" => Ok(Self::Https),
-            "WS" => Ok(Self::Ws),
-            "WSS" => Ok(Self::Wss),
-            "FILE" => Ok(Self::File),
-            "FTP" => Ok(Self::Ftp),
-            _ => ParseError::url(0).map(|_| unsafe { std::mem::zeroed() }),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Url {
     scheme: Option<Scheme>,

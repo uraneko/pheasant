@@ -61,11 +61,11 @@ impl Token {
         }
     }
 
-    pub fn to_char(&self) -> Option<char> {
+    fn to_char(&self) -> Option<char> {
         match self {
-            Self::Seq(s) => None,
+            Self::Seq(_) => None,
             token => Some(match token {
-                Self::Seq(_) => unreachable!("matched out 2 line ago"),
+                Self::Seq(_) => unreachable!("matched out 2 lines ago"),
                 Self::QuestionMark => '?',
                 Self::Pound => '#',
                 Self::Colon => ':',
@@ -76,6 +76,14 @@ impl Token {
                 Self::Dot => '.',
             }),
         }
+    }
+
+    pub fn seq_str(self) -> Option<String> {
+        let Self::Seq(s) = self else {
+            return None;
+        };
+
+        Some(s)
     }
 }
 
@@ -107,7 +115,9 @@ pub fn lex(mut s: &str) -> Vec<Token> {
         .flatten()
         .collect::<Vec<Token>>();
 
-    v.push(Token::seq(s));
+    if !s.is_empty() {
+        v.push(Token::seq(s));
+    }
 
     v
 }

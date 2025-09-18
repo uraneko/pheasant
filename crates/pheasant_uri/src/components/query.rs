@@ -1,8 +1,4 @@
-use serde::de::{Deserialize, Deserializer, Error, Visitor};
-use serde::ser::{Serialize, SerializeTupleStruct, Serializer};
-use std::collections::{HashMap, HashSet};
-
-use crate::{ParseError, ParseResult};
+use hashbrown::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Query {
@@ -68,6 +64,10 @@ impl Query {
 }
 
 impl Query {
+    pub fn new(params: impl Iterator<Item = String>) -> Self {
+        Self::default()
+    }
+
     pub fn from_colls(map: HashMap<&str, &str>, set: HashSet<&str>) -> Self {
         Query {
             params: map.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
@@ -90,9 +90,9 @@ impl Query {
 }
 
 impl std::str::FromStr for Query {
-    type Err = ParseError;
+    type Err = ();
 
-    fn from_str(s: &str) -> ParseResult<Self> {
+    fn from_str(s: &str) -> Result<Self, ()> {
         let mut query = Query::default();
         str_to_pairs(&mut query, s);
 
@@ -123,122 +123,5 @@ fn str_to_pair(p: &str) -> [&str; 2] {
     } else {
         // TODO possibly make a HashSet of bool params alongside the HashMap of k -> v pairs
         [p, ""]
-    }
-}
-
-// serde traits
-impl serde::Serialize for Query {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // TODO
-        serializer.serialize_str(&self.sequence())
-    }
-}
-
-struct QueryVisitor;
-
-impl<'de> Visitor<'de> for QueryVisitor {
-    type Value = Query;
-
-    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("expected str value of a url query")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let query = v
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let query = v
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let query = v
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    fn visit_bytes<E>(self, b: &[u8]) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(b).map_err(|_| E::custom("invalid bytes"))?;
-
-        let query = s
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(v).map_err(|_| E::custom("invalid bytes"))?;
-
-        let query = s
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        let s = str::from_utf8(&v).map_err(|_| E::custom("invalid bytes"))?;
-
-        let query = s
-            .parse::<Query>()
-            .map_err(|_| E::custom("invalid str value"))?;
-
-        Ok(query)
-    }
-
-    // this means that none values would deserialize to mime default
-    // fn visit_none<E>(self) -> Result<Self::Value, E>
-    // where
-    //     E: Error,
-    // {
-    //     Ok(Mime::default())
-    // }
-
-    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_option(QueryVisitor)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for Query {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_struct("Query", &["params", "attrs"], QueryVisitor)
     }
 }
