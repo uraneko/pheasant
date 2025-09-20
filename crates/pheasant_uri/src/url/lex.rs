@@ -14,21 +14,6 @@ macro_rules! token {
     };
 }
 
-const SEPS: [char; 8] = ['@', '/', ':', '?', '#', '=', '&', '.'];
-
-fn find_all(mut s: &str, ch: char) -> Vec<(usize, char)> {
-    let mut v = vec![];
-    let mut last = 0;
-
-    while let Some(idx) = s.find(ch) {
-        v.push((idx + last, ch));
-        last += idx + 1;
-        s = &s[idx + 1..];
-    }
-
-    v
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Token {
     Seq(String),
@@ -40,6 +25,32 @@ pub enum Token {
     AddressSign,
     AmperSand,
     Equality,
+}
+
+macro_rules! token_is {
+    ($name: ident, $var: ident ()) => {
+        pub fn $name(&self) -> bool {
+            let Self::$var(_) = self else { return false };
+
+            true
+        }
+    };
+    ($name: ident, $var: ident) => {
+        pub fn $name(&self) -> bool {
+            let Self::$var = self else { return false };
+
+            true
+        }
+    };
+}
+
+impl Token {
+    token_is!(is_seq, Seq());
+    token_is!(is_dot, Dot);
+    token_is!(is_qmark, QuestionMark);
+    token_is!(is_pound, Pound);
+    token_is!(is_eql, Equality);
+    token_is!(is_colon, Colon);
 }
 
 impl Token {
@@ -87,8 +98,27 @@ impl Token {
     }
 }
 
+pub enum Error {
+    ExpectedTokensFoundNone,
+}
+
+const SEPS: [char; 8] = ['@', '/', ':', '?', '#', '=', '&', '.'];
+
+fn find_all(mut s: &str, ch: char) -> Vec<(usize, char)> {
+    let mut v = vec![];
+    let mut last = 0;
+
+    while let Some(idx) = s.find(ch) {
+        v.push((idx + last, ch));
+        last += idx + 1;
+        s = &s[idx + 1..];
+    }
+
+    v
+}
+
 // TODO return Result + error accordingly following the standard
-pub fn lex(mut s: &str) -> Vec<Token> {
+pub fn lex(mut s: &str) -> Result<Vec<Token>, Error> {
     let mut breakpoints = SEPS
         .into_iter()
         .map(|sep| find_all(s, sep))
@@ -111,7 +141,7 @@ pub fn lex(mut s: &str) -> Vec<Token> {
 
             toks
         })
-        .map(|toks| toks.unwrap())
+        .map(|toks| toks.ok_or_else(|| Error::ExpectedTokensFoundNone))
         .flatten()
         .collect::<Vec<Token>>();
 
@@ -119,5 +149,5 @@ pub fn lex(mut s: &str) -> Vec<Token> {
         v.push(Token::seq(s));
     }
 
-    v
+    Ok(v)
 }

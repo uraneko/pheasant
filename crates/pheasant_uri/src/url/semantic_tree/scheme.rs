@@ -1,3 +1,33 @@
+use super::Token;
+use crate::{SpellChecker, SpellingError as Error};
+
+impl<'a> SpellChecker for &'a Scheme {
+    const ALLOWED: &'static [char] = &['+', '-'];
+    type Input = &'a [Token];
+
+    fn spell_check(group: &[Token]) -> Result<(), Error> {
+        if !group.iter().all(|t| t.is_seq() || t.is_dot()) {
+            return Err(Error::InvalidTokenForComponent);
+        }
+
+        if group
+            .iter()
+            .filter_map(|t| match t {
+                Token::Seq(s) => Some(s),
+                _ => None,
+            })
+            .any(|seq| {
+                seq.chars()
+                    .any(|c| !c.is_alphanumeric() && !Self::ALLOWED.contains(&c))
+            })
+        {
+            return Err(Error::InvalidCharsForComponent);
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Scheme {
     // Git,

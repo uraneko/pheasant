@@ -9,6 +9,7 @@ fn main() {
     // FIXME this generates a trailing empty Seq("")
     let uri = "https://username:password@www.example.com:80/";
     // let uri = "http://localhost:3422";
+    let uri = "http://a/%%30%30";
     println!("{}", uri);
 
     let lex = lex(uri);

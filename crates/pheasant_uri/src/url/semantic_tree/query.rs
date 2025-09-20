@@ -1,3 +1,5 @@
+use super::Token;
+use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 use hashbrown::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -6,11 +8,39 @@ pub struct Query {
     attrs: HashSet<String>,
 }
 
+impl<'a> SpellChecker for &'a Query {
+    const ALLOWED: &'static [char] = &[':', '@', '/', '?'];
+    type Input = &'a [Token];
+
+    fn spell_check(group: &[Token]) -> Result<(), Error> {
+        if group.iter().any(|t| t.is_qmark() || t.is_pound()) {
+            return Err(Error::InvalidTokenForComponent);
+        }
+
+        if group
+            .iter()
+            .filter_map(|t| match t {
+                Token::Seq(s) => Some(s),
+                _ => None,
+            })
+            .any(|seq| {
+                seq.chars().any(|c| {
+                    !c.is_alphanumeric()
+                        && !Self::ALLOWED.contains(&c)
+                        && !UNRESERVED.contains(&c)
+                        && !SUB_DELIMS.contains(&c)
+                })
+            })
+        {
+            return Err(Error::InvalidCharsForComponent);
+        }
+
+        Ok(())
+    }
+}
+
 impl Query {
-    pub fn insert_param<S>(&mut self, k: S, v: S)
-    where
-        S: Into<String>,
-    {
+    pub fn insert_param(&mut self, k: impl Into<String>, v: impl Into<String>) {
         self.params.insert(k.into(), v.into());
     }
 

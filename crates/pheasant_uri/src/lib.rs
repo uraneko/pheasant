@@ -1,21 +1,81 @@
-pub mod components;
-pub mod encoding;
-pub mod parse;
-pub mod parsing;
-pub mod spell_checker;
+pub mod url;
 
-pub use components::{Component, Host, Path, Query, Scheme};
-pub use encoding::PercentEncoded;
-pub use parse::Parse;
-pub use parsing::{lex, semantic_tree, syntax_tree};
-pub use spell_checker::SpellChecker;
+pub use url::{AbsoluteUrl, PathRelativeUrl, SchemeRelativeUrl, Url};
+
 // pub use components::{Host, Nid, Nss, Path, Query, Scheme, User};
 // pub use parse::{Blob, Data, File, Host, Javascript, Origin, Resource, Route, Uri, Url, Urn};
 
 // WARN We assume Http/Https schemes only
 // we also assume no user nor fragment components
 
-pub trait Sanitizer {}
+// this is for individual components
+// e.g., url's Scheme, Path or urn's NSS...
+pub trait Sanitizer {
+    const FORBIDDEN: &'static [&'static str];
+    type Err;
+
+    fn sanitize(&self) -> Result<(), Self::Err>;
+}
+
+struct PercentEncodedChar(char);
+
+// this is for individual components
+// e.g., url's Scheme, Path or urn's NSS...
+pub trait PercentEncoded {
+    const TABLE: &'static [(PercentEncodedChar, char)];
+    type Err;
+
+    fn encode(s: &str) -> Result<String, Self::Err>;
+
+    fn decode(s: &str) -> Result<String, Self::Err>;
+}
+
+pub const SUB_DELIMS: [char; 11] = ['!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '='];
+pub const GEN_DELIMS: [char; 7] = [':', '/', '?', '#', '[', ']', '@'];
+pub const UNRESERVED: [char; 4] = ['.', '-', '_', '~']; // + alphanumeric
+
+// this is for individual components
+// e.g., url's Scheme, Path or urn's NSS...
+pub trait SpellChecker {
+    const ALLOWED: &'static [char];
+    type Input;
+
+    fn spell_check(group: Self::Input) -> Result<(), SpellingError>;
+}
+
+pub enum SpellingError {
+    InvalidCharsForComponent,
+    InvalidTokenForComponent,
+}
+
+// this is for uri sub-types
+// e.g., url, urn, file, data, blob, javascript...
+pub trait Parse: Sized {
+    type Token;
+    type TokenGroup;
+    type Component;
+
+    type LexError;
+    type SyntaxError;
+    type SemanticError;
+    type ParseError;
+
+    fn lex(s: &str) -> Result<Vec<Self::Token>, Self::LexError>;
+
+    fn syntax_tree(tokens: Vec<Self::Token>) -> Result<Vec<Self::TokenGroup>, Self::SyntaxError>;
+
+    fn semantic_tree(
+        groups: Vec<Self::TokenGroup>,
+    ) -> Result<Vec<Self::Component>, Self::SemanticError>;
+
+    /// final parse function call on input to do the whole parse operation
+    fn parse(tree: Vec<Self::Component>) -> Result<Self, Self::ParseError>;
+
+    // / after getting scheme from the tokens
+    // / we can then deduce the type of the uri
+    // / and use Parse methods on  the tokens iterator
+    // fn evaluate(&self, tokens: &mut impl Iterator<Item = Token>);
+}
 
 // Define the entities
 // input string = string repr of the uri
