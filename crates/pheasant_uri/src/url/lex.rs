@@ -27,6 +27,7 @@ pub enum Token {
     Equality,
 }
 
+#[macro_export]
 macro_rules! token_is {
     ($name: ident, $var: ident ()) => {
         pub fn $name(&self) -> bool {

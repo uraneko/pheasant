@@ -1,6 +1,8 @@
 pub mod url;
+pub mod urn;
 
 pub use url::{AbsoluteUrl, PathRelativeUrl, SchemeRelativeUrl, Url};
+pub use urn::Urn;
 
 // pub use components::{Host, Nid, Nss, Path, Query, Scheme, User};
 // pub use parse::{Blob, Data, File, Host, Javascript, Origin, Resource, Route, Uri, Url, Urn};
@@ -17,7 +19,7 @@ pub trait Sanitizer {
     fn sanitize(&self) -> Result<(), Self::Err>;
 }
 
-struct PercentEncodedChar(char);
+pub struct PercentEncodedChar(char);
 
 // this is for individual components
 // e.g., url's Scheme, Path or urn's NSS...

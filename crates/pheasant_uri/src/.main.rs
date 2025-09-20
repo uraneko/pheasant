@@ -1,4 +1,4 @@
-use pheasant_uri::{Parse, PathRelativeUrl, Url};
+use pheasant_uri::{Parse, PathRelativeUrl, Url, Urn};
 
 fn main() {
     let uri = "https://developer.mozilla.org/en-US/docs/Skills/Infrastructure/Understanding_URLs";
@@ -9,7 +9,11 @@ fn main() {
     // FIXME this generates a trailing empty Seq("")
     let uri = "https://username:password@www.example.com:80/";
     // let uri = "http://localhost:3422";
-    let uri = "http://a/%%30%30";
+    // let uri = "http://a/%%30%30";
+    // let urn = "URN:example:a123,z456";
+
+    // println!("{:?}", urn.parse::<Urn>());
+
     println!("{}", uri);
 
     let lex = Url::lex(uri);

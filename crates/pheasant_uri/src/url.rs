@@ -3,7 +3,6 @@
 //! could parse into a general uri or any of the other downcasted uri types (route, origin...)
 //!
 use crate::Parse;
-use core::str::FromStr;
 
 mod lex;
 mod semantic_tree;
@@ -408,7 +407,7 @@ error_inheritance!(Semantic {
 #[macro_export]
 macro_rules! from_str {
     ($uri: ty, $err: ty) => {
-        impl FromStr for $uri {
+        impl core::str::FromStr for $uri {
             type Err = $err;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
