@@ -430,7 +430,7 @@ pub enum LayoutError {
     ExpectedEarlySep,
 }
 
-// const SCHEME_SEP: [Token; 3] = [Token::Colon, Token::Slash, Token::Slash];
+const SCHEME_SEP: [Token; 3] = [Token::Colon, Token::Slash, Token::Slash];
 
 // scheme:// | path/bad/me
 fn scheme_or_path(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), LayoutError> {
@@ -471,6 +471,7 @@ fn user_or_host(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), Layout
         return Ok(());
     }
 
+    let mut idx = 0;
     let mut iter = tokens.iter();
     while let Some(tok) = iter.next() {
         if tok == &Token::Colon {
@@ -482,15 +483,26 @@ fn user_or_host(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), Layout
                     _ => return Ok(()),
                 },
                 Some(Token::AddressSign) => return Ok(()),
-                _ => return Err(LayoutError::ExpectedAddressOrSeq), // error expected address or seq
+                _ => continue,
+                // _ => return Err(LayoutError::ExpectedAddressOrSeq), // error expected address or seq
             }
         } else if tok == &Token::AddressSign {
             return Ok(());
         } else if tok == &Token::Slash {
-            return Ok(clear_user(layout));
-        } else {
-            return Err(LayoutError::ExpectedEarlySep); // error expected slash/colon/address
+            if idx > 2
+                && tokens[idx - 1..idx + 1] != SCHEME_SEP
+                && tokens[idx - 2..idx] != SCHEME_SEP
+            {
+                // this is completely messed up since it ignores the existence of scheme
+                return Ok(clear_user(layout));
+            }
         }
+        // doesnt make sense to error out when encountering a token
+        // else {
+        //     println!("{:?}", tok);
+        //     return Err(LayoutError::ExpectedEarlySep); // error expected slash/colon/address
+        // }
+        idx += 1;
     }
 
     Ok(())
