@@ -121,7 +121,7 @@ impl TryFrom<Vec<Token>> for User {
             [user, password]
         };
 
-        Ok(Self::new(user, password))
+        Ok(User::new(user, password))
     }
 }
 
@@ -129,7 +129,7 @@ impl TryFrom<Vec<Token>> for Host {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
-        Ok(Host::new(tokens.into_iter().filter_map(|t| t.seq_str())))
+        Ok(Host::from_iter(tokens))
     }
 }
 

@@ -650,6 +650,8 @@ where
     with_port: bool,
     with_query: bool,
     with_fragment: bool,
+    with_scheme: bool,
+    with_user: bool,
 }
 
 #[derive(Debug)]
@@ -704,6 +706,11 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
             return Err(Error::UnexpectedEoT);
         }
 
+        if !self.with_scheme {
+            self.iter.next();
+            self.iter.next();
+        }
+
         while let Some(token) = self.iter.next()
             && token != Token::AddressSign
         {
@@ -730,6 +737,11 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
         } else {
             Token::Slash
         };
+
+        if !self.with_scheme && !self.with_user {
+            self.iter.next();
+            self.iter.next();
+        }
 
         while let Some(token) = self.iter.next()
             && token != sep
@@ -850,10 +862,12 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
 pub fn syntax_tree(tokens: Vec<Token>) -> Result<Vec<TokenGroup>, Error> {
     let layout = layout(&tokens)?;
     println!("{:?}", layout);
-    let [with_port, with_query, with_fragment] = [
+    let [with_port, with_query, with_fragment, with_scheme, with_user] = [
         layout[3].is_some(),
         layout[5].is_some(),
         layout[6].is_some(),
+        layout[0].is_some(),
+        layout[1].is_some(),
     ];
     let layout = layout.into_iter().filter_map(|l| match l {
         Layout::None => None,
@@ -866,6 +880,8 @@ pub fn syntax_tree(tokens: Vec<Token>) -> Result<Vec<TokenGroup>, Error> {
         layout,
         with_port,
         with_query,
+        with_scheme,
+        with_user,
         with_fragment,
         groups: vec![],
         temp: vec![],

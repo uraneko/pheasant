@@ -1,7 +1,7 @@
 use super::Token;
 use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Default, Eq)]
 pub struct Host {
     labels: Vec<String>,
 }
@@ -43,14 +43,36 @@ impl Host {
     // all labels length sum
     const HOST_MAX: usize = 255;
 
-    pub fn new(labels: impl Iterator<Item = String>) -> Self {
-        Self {
-            labels: labels.collect(),
+    pub fn label_too_long(label: &str) -> bool {
+        label.len() > Self::LABEL_MAX
+    }
+}
+
+impl Host {
+    pub fn from_iter<I: IntoIterator<Item = Token>>(i: I) -> Self {
+        let mut iter = i.into_iter().peekable();
+        let mut label = String::new();
+        let mut path = Host::default();
+
+        while iter.peek().is_some() {
+            path.collect_label(&mut iter, &mut label);
         }
+
+        if !label.is_empty() {
+            path.labels.push(label);
+        }
+
+        path
     }
 
-    fn label_too_long(label: &str) -> bool {
-        label.len() > Self::LABEL_MAX
+    fn collect_label(&mut self, iter: &mut impl Iterator<Item = Token>, s: &mut String) {
+        while let Some(token) = iter.next() {
+            if token == Token::Dot {
+                return self.labels.push(s.drain(..).collect());
+            }
+
+            s.push_str(token.as_str());
+        }
     }
 }
 

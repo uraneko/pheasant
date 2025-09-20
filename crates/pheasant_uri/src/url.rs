@@ -280,6 +280,12 @@ impl SchemeRelativeUrl {
     }
 }
 
+impl SchemeRelativeUrl {
+    pub fn align_port(&mut self, port: u16) {
+        self.port = port;
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathRelativeUrl {
     path: Path,
