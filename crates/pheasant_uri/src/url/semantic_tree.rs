@@ -80,6 +80,7 @@ pub fn semantic_tree(groups: Vec<TokenGroup>) -> SemanticResult<Vec<Component>> 
         .collect())
 }
 
+// TODO everything below should be deprecated
 type SemanticResult<T> = Result<T, Error>;
 
 impl TryFrom<Vec<Token>> for Scheme {
@@ -168,6 +169,7 @@ impl TryFrom<Tokens> for String {
 
     fn try_from(tokens: Tokens) -> SemanticResult<Self> {
         let tokens = tokens.0;
+        // TODO implement fragment parser
         todo!()
     }
 }

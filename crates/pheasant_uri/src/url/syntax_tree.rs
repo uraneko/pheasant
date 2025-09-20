@@ -413,6 +413,10 @@ fn clear_port(layout: &mut [Layout; 7]) {
     layout[3] = Layout::None;
 }
 
+fn clear_path(layout: &mut [Layout; 7]) {
+    layout[2] = Layout::None;
+}
+
 fn clear_query(layout: &mut [Layout; 7]) {
     layout[5] = Layout::None;
 }
@@ -511,8 +515,21 @@ fn user_or_host(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), Layout
 // //auth | /path/to
 fn authority_or_path(tokens: &[Token], layout: &mut [Layout; 7]) {
     if tokens[1] != Token::Slash {
+        println!("you triggered me");
         // no authority
         clear_authority(layout);
+    }
+}
+
+fn maybe_path(tokens: &[Token], layout: &mut [Layout; 7]) {
+    if let [Token::Colon, Token::Seq(seq)] = &tokens[tokens.len() - 2..]
+        && seq.chars().all(|c| c.is_numeric())
+    {
+        clear_path(layout);
+    } else if let [Token::Seq(_), Token::Dot] = &tokens[tokens.len() - 2..] {
+        clear_path(layout);
+    } else if let [Token::Dot, Token::Seq(_)] = &tokens[tokens.len() - 2..] {
+        clear_path(layout);
     }
 }
 
@@ -524,6 +541,19 @@ fn maybe_port(tokens: &[Token], layout: &mut [Layout; 7]) {
     let Some(colon) = tokens.iter().position(|t| t == &Token::Colon) else {
         return clear_port(layout);
     };
+
+    let colon = if colon + 2 < tokens.len()
+        && tokens[colon + 1..=colon + 2] == [Token::Slash, Token::Slash]
+    {
+        let Some(cln) = &tokens[colon + 1..].iter().position(|t| t == &Token::Colon) else {
+            return clear_port(layout);
+        };
+
+        *cln + colon + 1
+    } else {
+        colon
+    };
+    println!("{}", colon);
 
     if let Some(addr) = tokens.iter().position(|t| t == &Token::AddressSign)
         && addr > colon
@@ -589,6 +619,7 @@ fn layout(tokens: &[Token]) -> Result<[Layout; 7], Error> {
         user_or_host(tokens, &mut layout)?;
     }
 
+    // maybe_path(tokens, &mut layout);
     maybe_port(tokens, &mut layout);
     maybe_query(tokens, &mut layout);
     maybe_fragment(tokens, &mut layout);
@@ -717,9 +748,7 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
             return Err(Error::UnexpectedEoT);
         }
 
-        if let Some(token) = self.iter.next()
-            && token.is_seq()
-        {
+        if let Some(token @ Token::Seq(_)) = self.iter.next() {
             self.groups.push(TokenGroup::Port(token));
         } else {
             return Err(Error::ExpectedPortSeq);
@@ -729,10 +758,11 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
     }
 
     fn path(mut self) -> Result<Self, Error> {
-        if self.iter.peek().is_none() {
-            // BUG this crashes on http://localhost:3422
-            return Err(Error::UnexpectedEoT);
-        }
+        // if self.iter.peek().is_none() {
+        // BUG this crashes on http://localhost:3422
+        // Layout error in which layout thinks we have a path when we dont
+        // return Err(Error::UnexpectedEoT);
+        // }
 
         let sep = match [self.with_query, self.with_fragment] {
             [false, false] => None,
@@ -819,6 +849,7 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
 
 pub fn syntax_tree(tokens: Vec<Token>) -> Result<Vec<TokenGroup>, Error> {
     let layout = layout(&tokens)?;
+    println!("{:?}", layout);
     let [with_port, with_query, with_fragment] = [
         layout[3].is_some(),
         layout[5].is_some(),
