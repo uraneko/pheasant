@@ -149,7 +149,7 @@ impl TryFrom<Vec<Token>> for Path {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
-        Ok(Path::new(tokens.into_iter().filter_map(|t| t.seq_str())))
+        Ok(Path::from_iter(tokens))
     }
 }
 

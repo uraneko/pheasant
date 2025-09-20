@@ -7,7 +7,7 @@ fn main() {
     // let uri = "/en-US/docs/Learn_web_development";
     let uri = "http://example.com/kb/index.php?cat=1&id=23";
     // let uri = "https://username:password@www.example.com:80/";
-    let uri = "http://localhost:3422?tera=543&hy#fewlm3;kr 3,4f";
+    // let uri = "http://localhost:3422?tera=543&hy#fewlm3;kr 3,4f";
     // let uri = "http://a/%%30%30";
     let urn = "URN:example:a123,z456";
 

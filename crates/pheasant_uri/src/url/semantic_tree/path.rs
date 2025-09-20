@@ -76,3 +76,31 @@ impl SpellChecker for String {
         Ok(())
     }
 }
+
+impl Path {
+    pub fn from_iter<I: IntoIterator<Item = Token>>(i: I) -> Self {
+        let mut iter = i.into_iter().peekable();
+        let mut segment = String::new();
+        let mut path = Path::default();
+
+        while iter.peek().is_some() {
+            path.collect_segment(&mut iter, &mut segment);
+        }
+
+        if !segment.is_empty() {
+            path.segments.push(segment);
+        }
+
+        path
+    }
+
+    fn collect_segment(&mut self, iter: &mut impl Iterator<Item = Token>, s: &mut String) {
+        while let Some(token) = iter.next() {
+            if token == Token::Slash {
+                return self.segments.push(s.drain(..).collect());
+            }
+
+            s.push_str(token.as_str());
+        }
+    }
+}
