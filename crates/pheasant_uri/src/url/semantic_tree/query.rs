@@ -65,6 +65,11 @@ impl Query {
     }
 }
 
+pub fn fragment_from_iter<I: IntoIterator<Item = Token>>(i: I) -> String {
+    i.into_iter()
+        .fold("".to_string(), |acc, t| acc + t.as_str())
+}
+
 impl Query {
     fn collect_key(&mut self, tokens: &mut impl Iterator<Item = Token>, key: &mut String) {
         while let Some(token) = tokens.next() {

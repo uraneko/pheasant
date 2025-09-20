@@ -169,7 +169,7 @@ impl TryFrom<Tokens> for String {
 
     fn try_from(tokens: Tokens) -> SemanticResult<Self> {
         let tokens = tokens.0;
-        // TODO implement fragment parser
-        todo!()
+
+        Ok(query::fragment_from_iter(tokens))
     }
 }
