@@ -55,10 +55,10 @@ pub trait Parse: Sized {
     type TokenGroup;
     type Component;
 
-    type LexError;
-    type SyntaxError;
-    type SemanticError;
-    type ParseError;
+    type LexError: Into<Self::ParseError>;
+    type SyntaxError: Into<Self::ParseError>;
+    type SemanticError: Into<Self::ParseError>;
+    type ParseError: Into<Self::ParseError>;
 
     fn lex(s: &str) -> Result<Vec<Self::Token>, Self::LexError>;
 

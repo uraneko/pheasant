@@ -1,4 +1,4 @@
-use pheasant_uri::{lex, semantic_tree, syntax_tree};
+use pheasant_uri::{Parse, PathRelativeUrl, Url};
 
 fn main() {
     let uri = "https://developer.mozilla.org/en-US/docs/Skills/Infrastructure/Understanding_URLs";
@@ -12,12 +12,14 @@ fn main() {
     let uri = "http://a/%%30%30";
     println!("{}", uri);
 
-    let lex = lex(uri);
+    let lex = Url::lex(uri);
     println!("{:?}", lex);
 
-    let syn_tree = syntax_tree(lex).unwrap();
+    let syn_tree = Url::syntax_tree(lex.unwrap());
     println!("{:?}", syn_tree);
 
-    let sem_tree = semantic_tree(syn_tree);
+    let sem_tree = Url::semantic_tree(syn_tree.unwrap());
     println!("{:?}", sem_tree);
+
+    println!("{:#?}", uri.parse::<Url>());
 }

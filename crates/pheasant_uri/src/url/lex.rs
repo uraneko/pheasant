@@ -98,6 +98,7 @@ impl Token {
     }
 }
 
+#[derive(Debug)]
 pub enum Error {
     ExpectedTokensFoundNone,
 }
@@ -127,6 +128,7 @@ pub fn lex(mut s: &str) -> Result<Vec<Token>, Error> {
     breakpoints.sort_by(|a, b| a.0.cmp(&b.0));
 
     let mut last = 0;
+    // NOTE not sure why i return Option::Some when I will never return None
     let mut v = breakpoints
         .into_iter()
         .map(|(idx, ch)| {
@@ -141,7 +143,8 @@ pub fn lex(mut s: &str) -> Result<Vec<Token>, Error> {
 
             toks
         })
-        .map(|toks| toks.ok_or_else(|| Error::ExpectedTokensFoundNone))
+        // .map(|toks| toks.ok_or_else(|| Error::ExpectedTokensFoundNone))
+        .flatten()
         .flatten()
         .collect::<Vec<Token>>();
 
