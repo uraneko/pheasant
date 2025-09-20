@@ -8,6 +8,8 @@ mod lex;
 mod semantic_tree;
 mod syntax_tree;
 
+pub mod derivatives;
+
 // reflect result on itself
 pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
     match res {
