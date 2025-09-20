@@ -52,6 +52,7 @@ impl Token {
     token_is!(is_pound, Pound);
     token_is!(is_eql, Equality);
     token_is!(is_colon, Colon);
+    token_is!(is_amper, AmperSand);
 }
 
 impl Token {

@@ -157,7 +157,7 @@ impl TryFrom<Vec<Token>> for Query {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
-        Ok(Query::new(tokens.into_iter().filter_map(|t| t.seq_str())))
+        Ok(Query::from_iter(tokens))
     }
 }
 

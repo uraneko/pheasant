@@ -40,6 +40,69 @@ impl SpellChecker for Query {
 }
 
 impl Query {
+    pub fn from_iter<I: IntoIterator<Item = Token>>(i: I) -> Self {
+        let mut query = Query::default();
+        let mut iter = i.into_iter().peekable();
+        let mut key = String::new();
+        let mut val = String::new();
+
+        while iter.peek().is_some() {
+            query.collect_key(&mut iter, &mut key);
+            query.collect_val(&mut iter, &mut val, &mut key);
+        }
+
+        match [key.is_empty(), val.is_empty()] {
+            [false, false] => {
+                query.params.insert(key, val);
+            }
+            [false, true] => {
+                query.attrs.insert(key);
+            }
+            _ => (),
+        };
+
+        query
+    }
+}
+
+impl Query {
+    fn collect_key(&mut self, tokens: &mut impl Iterator<Item = Token>, key: &mut String) {
+        while let Some(token) = tokens.next() {
+            if token.is_eql() {
+                return;
+            } else if token.is_amper() {
+                self.attrs.insert(key.drain(..).collect());
+
+                return;
+            }
+
+            key.push_str(token.as_str());
+        }
+    }
+
+    fn collect_val(
+        &mut self,
+        tokens: &mut impl Iterator<Item = Token>,
+        val: &mut String,
+        key: &mut String,
+    ) {
+        if key.is_empty() {
+            return;
+        }
+
+        while let Some(token) = tokens.next() {
+            if token.is_amper() {
+                self.params
+                    .insert(key.drain(..).collect(), val.drain(..).collect());
+                return;
+            }
+
+            val.push_str(token.as_str());
+        }
+    }
+}
+
+impl Query {
     pub fn insert_param(&mut self, k: impl Into<String>, v: impl Into<String>) {
         self.params.insert(k.into(), v.into());
     }
