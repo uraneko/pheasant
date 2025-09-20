@@ -1,9 +1,9 @@
 use super::Token;
 use crate::{SpellChecker, SpellingError as Error};
 
-impl<'a> SpellChecker for &'a Scheme {
+impl SpellChecker for Scheme {
     const ALLOWED: &'static [char] = &['+', '-'];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if !group.iter().all(|t| t.is_seq() || t.is_dot()) {

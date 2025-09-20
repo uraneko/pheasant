@@ -57,6 +57,9 @@ impl Component {
     comp_is!(is_path, Path);
 }
 
+// BUG query parses to nothing
+// BUG path parsing ignores the str values of non-seq tokens
+// e.g., `index.html` parses to [`index`, `html`] <- as if it was `index/html`
 pub fn semantic_tree(groups: Vec<TokenGroup>) -> SemanticResult<Vec<Component>> {
     Ok(groups
         .into_iter()

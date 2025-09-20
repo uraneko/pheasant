@@ -11,18 +11,18 @@ fn main() {
     // let uri = "http://a/%%30%30";
     let urn = "URN:example:a123,z456";
 
-    println!("{:?}", urn.parse::<Urn>());
+    // println!("{:?}", urn.parse::<Urn>());
 
-    println!("{}", uri);
-    //
-    // let lex = Url::lex(uri);
-    // println!("{:?}", lex);
-    //
-    // let syn_tree = Url::syntax_tree(lex.unwrap());
-    // println!("{:?}", syn_tree);
-    //
-    // let sem_tree = Url::semantic_tree(syn_tree.unwrap());
-    // println!("{:?}", sem_tree);
+    println!("{}\n", uri);
+
+    let lex = Url::lex(uri);
+    println!("lex -> {:?}\n", lex);
+
+    let syn_tree = Url::syntax_tree(lex.unwrap());
+    println!("syn -> {:?}\n", syn_tree);
+
+    let sem_tree = Url::semantic_tree(syn_tree.unwrap());
+    println!("sem -> {:?}\n", sem_tree);
 
     println!("{:#?}", uri.parse::<Url>());
 }

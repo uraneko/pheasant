@@ -6,9 +6,9 @@ pub struct Path {
     segments: Vec<String>,
 }
 
-impl<'a> SpellChecker for &'a Path {
+impl SpellChecker for Path {
     const ALLOWED: &'static [char] = &[':', '@'];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if group.iter().any(|t| t.is_qmark() || t.is_pound()) {
@@ -46,9 +46,9 @@ impl Path {
 }
 
 // fragment
-impl<'a> SpellChecker for &'a String {
+impl SpellChecker for String {
     const ALLOWED: &'static [char] = &[':', '@', '/', '?'];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if group.iter().any(|t| t.is_pound()) {

@@ -6,9 +6,9 @@ pub struct Host {
     labels: Vec<String>,
 }
 
-impl<'a> SpellChecker for &'a Host {
+impl SpellChecker for Host {
     const ALLOWED: &'static [char] = &[];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if group
@@ -55,9 +55,9 @@ impl Host {
 }
 
 // port
-impl<'a> SpellChecker for &'a u16 {
+impl SpellChecker for u16 {
     const ALLOWED: &'static [char] = &[];
-    type Input = &'a Token;
+    type Input<'a> = &'a Token;
 
     fn spell_check(token: &Token) -> Result<(), Error> {
         let Token::Seq(seq) = token else {

@@ -8,9 +8,9 @@ pub struct Query {
     attrs: HashSet<String>,
 }
 
-impl<'a> SpellChecker for &'a Query {
+impl SpellChecker for Query {
     const ALLOWED: &'static [char] = &[':', '@', '/', '?'];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if group.iter().any(|t| t.is_qmark() || t.is_pound()) {

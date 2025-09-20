@@ -730,13 +730,14 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
 
     fn path(mut self) -> Result<Self, Error> {
         if self.iter.peek().is_none() {
+            // BUG this crashes on http://localhost:3422
             return Err(Error::UnexpectedEoT);
         }
 
         let sep = match [self.with_query, self.with_fragment] {
-            [true, true] => None,
-            [false, _] => Some(Token::QuestionMark),
-            [true, false] => Some(Token::Pound),
+            [false, false] => None,
+            [true, _] => Some(Token::QuestionMark),
+            [false, true] => Some(Token::Pound),
         };
 
         while let Some(token) = self.iter.next()
@@ -753,6 +754,7 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
 
     fn query(mut self) -> Result<Self, Error> {
         if self.iter.peek().is_none() {
+            // BUG this triggers when a url has query
             return Err(Error::UnexpectedEoT);
         }
 

@@ -7,9 +7,9 @@ pub struct User {
     password: String,
 }
 
-impl<'a> SpellChecker for &'a User {
+impl SpellChecker for User {
     const ALLOWED: &'static [char] = &[':'];
-    type Input = &'a [Token];
+    type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
         if group
