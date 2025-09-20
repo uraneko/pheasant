@@ -40,11 +40,12 @@ pub const UNRESERVED: [char; 4] = ['.', '-', '_', '~']; // + alphanumeric
 // e.g., url's Scheme, Path or urn's NSS...
 pub trait SpellChecker {
     const ALLOWED: &'static [char];
-    type Input;
+    type Input<'a>;
 
-    fn spell_check(group: Self::Input) -> Result<(), SpellingError>;
+    fn spell_check<'a>(group: Self::Input<'a>) -> Result<(), SpellingError>;
 }
 
+#[derive(Debug)]
 pub enum SpellingError {
     InvalidCharsForComponent,
     InvalidTokenForComponent,

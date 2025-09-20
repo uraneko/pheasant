@@ -15,7 +15,6 @@ mod lex {
 
     #[derive(Debug)]
     pub enum Token {
-        Urn(String),
         Nid(String),
         Nss(String),
     }
@@ -46,11 +45,21 @@ mod lex {
 }
 
 mod semantic_tree {
-    use super::{Nid, Nss, lex::Token};
+    use super::{Nid, Nss, error_inheritance, lex::Token};
     use crate::{SUB_DELIMS, SpellChecker, SpellingError, UNRESERVED};
+
+    impl Token {
+        fn comp(self) -> Component {
+            match self {
+                Self::Nid(nid) => Component::Nid(Nid(nid)),
+                Self::Nss(nss) => Component::Nss(Nss(nss)),
+            }
+        }
+    }
 
     #[derive(Debug)]
     pub enum Error {
+        Spelling(SpellingError),
         ExpectedNidThenNss,
         ExpectedEoT,
     }
@@ -60,22 +69,31 @@ mod semantic_tree {
         Nss(Nss),
     }
 
+    error_inheritance!(Spelling {
+        SpellingError,
+        Error
+    });
+
     pub fn semantic_tree(tokens: Vec<Token>) -> Result<Vec<Component>, Error> {
         let mut iter = tokens.into_iter();
-        let (Some(Token::Nid(nid)), Some(Token::Nss(nss))) = (iter.next(), iter.next()) else {
+        let (Some(tnid @ Token::Nid(_)), Some(tnss @ Token::Nss(_))) = (iter.next(), iter.next())
+        else {
             return Err(Error::ExpectedNidThenNss);
         };
+
+        Nid::spell_check(&tnid)?;
+        Nss::spell_check(&tnss)?;
 
         if iter.next().is_some() {
             return Err(Error::ExpectedEoT);
         }
 
-        Ok(vec![Component::Nid(Nid(nid)), Component::Nss(Nss(nss))])
+        Ok(vec![tnid.comp(), tnss.comp()])
     }
 
-    impl<'a> SpellChecker for &'a Nid {
+    impl SpellChecker for Nid {
         const ALLOWED: &'static [char] = &['-'];
-        type Input = &'a Token;
+        type Input<'a> = &'a Token;
 
         fn spell_check(token: &Token) -> Result<(), SpellingError> {
             let Token::Nid(nid) = token else {
@@ -93,9 +111,9 @@ mod semantic_tree {
         }
     }
 
-    impl<'a> SpellChecker for &'a Nss {
+    impl SpellChecker for Nss {
         const ALLOWED: &'static [char] = &[':', '@', '/'];
-        type Input = &'a Token;
+        type Input<'a> = &'a Token;
 
         fn spell_check(token: &Token) -> Result<(), SpellingError> {
             let Token::Nss(nss) = token else {
