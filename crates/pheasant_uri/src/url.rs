@@ -24,6 +24,7 @@ use syntax_tree::{Error as SyntaxError, TokenGroup, syntax_tree};
 
 #[derive(Debug)]
 pub enum Error {
+    Str(core::str::Utf8Error),
     Lex(LexError),
     Syntax(SyntaxError),
     Semantic(SemanticError),

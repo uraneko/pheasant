@@ -85,6 +85,20 @@ impl FromStr for Route {
     }
 }
 
+impl TryFrom<&[u8]> for Route {
+    type Error = <PathRelativeUrl as Parse>::ParseError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        core::str::from_utf8(bytes)?.parse::<Self>()
+    }
+}
+
+impl From<core::str::Utf8Error> for super::Error {
+    fn from(err: core::str::Utf8Error) -> Self {
+        Self::Str(err)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resource {
     path: Path,
