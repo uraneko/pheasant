@@ -104,7 +104,6 @@ impl ResourceCors {
     ) -> Self {
         Self {
             credentials,
-            method,
             headers,
             expose,
             origins,
@@ -134,12 +133,6 @@ impl ResourceCors {
     /// using the glob operator
     pub fn glob_origin(&mut self) -> &mut Self {
         self.origins = WildCardish::Glob;
-
-        self
-    }
-
-    pub fn method(&mut self, method: Method) -> &mut Self {
-        self.method = method;
 
         self
     }
@@ -191,6 +184,8 @@ impl ResourceCors {
 }
 
 impl ResourceCors {
+    // TODO better not compare str but actual fields in origin
+    // origin == other_origin
     pub fn allows_access_for_origin(&self, origin: &str) -> bool {
         if origin == "*" {
             return true;
@@ -199,15 +194,11 @@ impl ResourceCors {
         match self
             .origins
             .as_ref()
-            .map(|inner| inner.iter().any(|o| o.as_str() == origin))
+            .map(|inner| inner.iter().any(|o| &o.to_string() == origin))
         {
             Some(b) => b,
             None => false,
         }
-    }
-
-    pub fn method_cpy(&self) -> Method {
-        self.method
     }
 
     pub fn expose_ref(&self) -> Option<&HashSet<String>> {
@@ -230,7 +221,7 @@ impl ResourceCors {
         let Some(Some(origin)) = self
             .origins
             .as_ref()
-            .map(|inner| inner.iter().find(|o| o.as_str() == origin))
+            .map(|inner| inner.iter().find(|o| o.to_string() == origin))
         else {
             unreachable!("origin is not allowed by the registered cors")
         };
@@ -339,17 +330,17 @@ impl ToHeader for HashSet<String> {
 }
 
 impl ToHeader for WildCardish<&Origin> {
-    fn to_header(&self) -> &str {
+    fn to_header(&self) -> String {
         match self {
-            Self::Glob => "*",
-            Self::Value(o) => o.as_str(),
+            Self::Glob => "*".to_owned(),
+            Self::Value(o) => o.to_string(),
         }
     }
 }
 
 impl ToHeader for Origin {
-    fn to_header(&self) -> &str {
-        self.as_str()
+    fn to_header(&self) -> String {
+        self.to_string()
     }
 }
 

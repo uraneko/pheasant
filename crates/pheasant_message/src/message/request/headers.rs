@@ -34,49 +34,48 @@ macro_rules! fn_to_header {
 }
 
 macro_rules! header {
-    ($t: ty, $n: ident) => {
-        pub fn $n(&self) -> Option<$t> {
+    ($n: ident ( $t: ty )) => {
+        pub fn $n(&mut self) -> Option<$t> {
             self.headers
-                .remove(fn_to_header!($n))
-                .map(|s| s.from_header())
+                .remove(stringify!($n))
+                .map(|s| <$t>::from_header(s))
         }
     };
 }
 
 macro_rules! header_group {
-    ($t: ty, $n: ident ) => {
+    ($n: ident [ $t: ty ]) => {
         pub fn $n(&self) -> Option<$t> {
-            $t::from_headers(&mut self.headers)
+            <$t>::from_headers(&mut self.headers)
         }
     };
 }
 
 macro_rules! headers {
-    ($($t: ty { $n: ident }),+) => {
+    ($($n: ident ( $t : ty )),+) => {
         $(
-            header!($t, $n);
+            header!($n ($t ));
         )*
     };
-    ($($t: ty [ $n: ident ]),+) => {
+    ($($n: ident [ $t: ty ]),+) => {
         $(
-            header_group!($t, $n);
+            header_group!($n [ $t ]);
         )*
     };
 }
 
 impl Request {
     headers!(
-        // DateTime<Utc>
-        Date { date },
+        // should be DateTime<Utc>
+        date(Date),
         // Mime
-        ContentType { content_type },
+        content_type(ContentType),
         // usize
-        ContentLength { content_length },
+        content_length(ContentLength),
         // should be Origin
-        Host { host },
-        WildCardish<Origin> { origin },
+        host(Host),
+        origin(WildCardish<Origin>)
     );
 
-    headers!(RequestCors[cors]);
-    headers!(HashSet<Cookie>[cookies]);
+    headers!(cors[RequestCors], cookies[ HashSet<Cookie> ] );
 }

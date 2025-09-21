@@ -4,9 +4,10 @@ use super::{
 use crate::Parse;
 use core::str::FromStr;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Origin {
     scheme: Scheme,
-    user: Option<User>,
+    // user: Option<User>,
     host: Host,
     port: u16,
 }
@@ -14,28 +15,16 @@ pub struct Origin {
 impl From<AbsoluteUrl> for Origin {
     fn from(url: AbsoluteUrl) -> Self {
         let AbsoluteUrl {
-            scheme,
-            user,
-            host,
-            port,
-            ..
+            scheme, host, port, ..
         } = url;
-        Self {
-            scheme,
-            user,
-            host,
-            port,
-        }
+        Self { scheme, host, port }
     }
 }
 impl From<SchemeRelativeUrl> for Origin {
     fn from(url: SchemeRelativeUrl) -> Self {
-        let SchemeRelativeUrl {
-            user, host, port, ..
-        } = url;
+        let SchemeRelativeUrl { host, port, .. } = url;
         Self {
             scheme: Scheme::Https,
-            user,
             host,
             port,
         }
@@ -62,6 +51,17 @@ impl FromStr for Origin {
     }
 }
 
+impl Origin {
+    pub fn to_string(&self) -> String {
+        if self.port != self.scheme.default_port() {
+            format!("{}://{:?}:{}", self.scheme.as_str(), self.host, self.port)
+        } else {
+            format!("{}://{:?}", self.scheme.as_str(), self.host,)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Route {
     path: Path,
 }
@@ -85,6 +85,7 @@ impl FromStr for Route {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Resource {
     path: Path,
     query: Option<Query>,

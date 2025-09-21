@@ -1,5 +1,5 @@
 use crate::PheasantError;
-use crate::{ClientError, ErrorStatus, ServerError};
+use crate::{ByteIterator, ClientError, ErrorStatus, ServerError};
 use alloc::str::FromStr;
 use core::fmt;
 use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
@@ -83,25 +83,6 @@ impl TryFrom<&[u8]> for Method {
     }
 }
 
-impl TryFrom<&str> for Method {
-    type Error = PheasantError;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s.to_uppercase().as_str() {
-            "HEAD" => Ok(Self::Head),
-            "GET" => Ok(Self::Get),
-            "POST" => Ok(Self::Post),
-            "PUT" => Ok(Self::Put),
-            "PATCH" => Ok(Self::Patch),
-            "DELETE" => Ok(Self::Delete),
-            "CONNECT" => Ok(Self::Connect),
-            "OPTIONS" => Ok(Self::Options),
-            "TRACE" => Ok(Self::Trace),
-            _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
-        }
-    }
-}
-
 impl FromStr for Method {
     type Err = PheasantError;
 
@@ -121,13 +102,20 @@ impl FromStr for Method {
     }
 }
 
-impl<I> TryFrom<I> for Method
+impl Method {
+    pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {
+        ByteIterator::new(i).try_into()
+    }
+}
+
+impl<I> TryFrom<ByteIterator<I>> for Method
 where
     I: Iterator<Item = u8>,
 {
     type Error = ErrorStatus;
 
-    fn try_from(mut iter: I) -> Result<Self, Self::Error> {
+    fn try_from(iter: ByteIterator<I>) -> Result<Self, Self::Error> {
+        let mut iter = iter.iter;
         while let Some(num) = iter.next() {
             match num {
                 b'G' => try_method_get(&mut iter)?,

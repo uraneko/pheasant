@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 chrono.workspace = true
 deflate = { workspace = true, features = ["gzip"] }
+embedded-io = "0.6.1"
 hashbrown.workspace = true
 mime.workspace = true
 pheasant_core = { version = "0.1.0", path = "../pheasant_core" }

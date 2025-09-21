@@ -1,3 +1,7 @@
+use crate::io::Requester;
+use pheasant_core::ErrorStatus;
+use pheasant_headers::ResourceCors;
+use pheasant_uri::Route;
 use request::lex::lex;
 
 pub mod error;
@@ -12,8 +16,8 @@ pub use preflight::Preflight;
 pub use request::Request;
 pub use respond::Respond;
 
-impl Message {
-    pub fn request<R: Requester>(buf: &mut [u8], read: &mut R) -> Self {
+impl<'a> Message<'a, ErrorStatus> {
+    pub fn request<R: Requester>(buf: &mut [u8], read: &mut R) -> Result<Self, ErrorStatus> {
         let tokens = lex(read, buf)?;
         if tokens.is_empty() {}
 
@@ -24,7 +28,7 @@ impl Message {
         // }
     }
 
-    pub fn error(err: StatusError) -> Self {
+    pub fn error(err: ErrorStatus) -> Self {
         todo!()
     }
 
@@ -54,10 +58,10 @@ impl Message {
     }
 }
 
-pub enum Message {
+pub enum Message<'a, E> {
     Request(Request),
-    Respond(Respond),
+    Respond(Respond<'a>),
     Forward(Forward),
     Preflight(Preflight),
-    Error(ErrorMessage),
+    Error(ErrorMessage<E>),
 }

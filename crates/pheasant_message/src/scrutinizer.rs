@@ -1,3 +1,5 @@
+use pheasant_core::ErrorStatus;
+
 /// validates that the read request's various parts are valid
 /// e.g., Pragma: ... header + Http1.1 protocol is an error
 ///

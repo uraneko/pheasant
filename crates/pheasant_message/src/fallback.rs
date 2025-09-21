@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use core::hash::{Hash, Hasher};
 use core::pin::Pin;
 
-use crate::Response;
+use crate::Respond;
 use mime::Mime;
 use pheasant_core::Status;
 
@@ -17,17 +17,17 @@ unsafe impl Send for Fallback {}
 unsafe impl Sync for Fallback {}
 
 // the future return type
-type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
+type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond<'a>> + Send + 'a>>;
 
 // the wrapper function type
 type BoxFun = Box<dyn Fn() -> BoxFut<'static> + Send + Sync>;
 
 impl Fallback {
-    pub fn new<F, O>(status: u16, mime: Option<Mime>, fun: F) -> Self
+    pub fn new<'a, F, O>(status: u16, mime: Option<Mime>, fun: F) -> Self
     where
         // probably give the Fn an input of ErrorStatus
         F: Fn() -> O + Send + Sync + 'static,
-        O: Future<Output = Response> + Send + 'static,
+        O: Future<Output = Respond<'a>> + Send + 'static,
     {
         Self {
             status,

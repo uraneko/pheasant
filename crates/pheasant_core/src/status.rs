@@ -15,10 +15,12 @@ macro_rules! status {
 #[macro_export]
 macro_rules! err_stt {
     ($code: expr) => {
-        ErrorStatus::try_from($code).unwrap()
+        pheasant_core::ErrorStatus::try_from($code).unwrap()
     };
     ($var: ident) => {
-        ErrorStatus::from_text(stringify($var))
+        stringify!($var)
+            .parse::<pheasant_core::ErrorStatus>()
+            .unwrap()
     };
 }
 

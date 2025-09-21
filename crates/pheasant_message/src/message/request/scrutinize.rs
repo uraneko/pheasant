@@ -1,7 +1,6 @@
-use crate::Scrutinizer;
+use crate::{Request, Resource, Scrutinizer};
 use hashbrown::HashMap;
-use pheasant_core::{Method, Protocol, err_stt};
-use pheasant_uri::Scheme;
+use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 
 struct ScrutinizeProto<'a>
 // where I: Iterator<Item = (&'a str, &'a str)>
@@ -41,7 +40,8 @@ struct ScrutinizeHeaders<'a> {
 impl<'a> Scrutinizer for ScrutinizeHeaders<'a> {
     fn scrutinize(&self) -> Result<(), ErrorStatus> {
         if self.headers.contains_key("Pragma") || self.headers.contains_key("Warning") {
-            return Err(err_stt());
+            // not sure what goes here
+            return Err(err_stt!(BadRequest));
         }
 
         Ok(())

@@ -17,10 +17,13 @@ members = [
 	"macros/byte_enum",
 ]
 resolver = "3"
+# _mre is for trying stuff out 
+exclude = ["_mre"]
+
 
 [[example]]
-name = "e1"
-path = "src/basic.rs"
+name = "io"
+path = "src/_io.rs"
 
 [workspace.dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }

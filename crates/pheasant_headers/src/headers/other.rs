@@ -7,7 +7,7 @@ use hashbrown::{HashMap, HashSet};
 use mime::Mime;
 
 use pheasant_core::WildCardish;
-use pheasant_uri::{Origin, OriginSet};
+use pheasant_uri::Origin;
 
 use crate::{FromHeader, HttpResult, ToHeader};
 

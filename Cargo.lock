@@ -832,6 +832,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "deflate",
+ "embedded-io",
  "hashbrown",
  "mime",
  "pheasant_core",

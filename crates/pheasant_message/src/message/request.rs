@@ -1,7 +1,8 @@
 use crate::Scrutinizer;
-use pheasant_core::err_stt;
+use hashbrown::{HashMap, HashSet};
+use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 use pheasant_headers::{Cookie, RequestCors};
-use pheasant_uri::{Query, Resource};
+use pheasant_uri::{Query, Resource, Route};
 
 pub mod headers;
 pub mod lex;
@@ -30,7 +31,7 @@ pub struct Builder {
 
 impl Builder {
     fn header(&mut self, h: Vec<u8>, f: Vec<u8>) {
-        let Some(headers) = self.headers else {
+        let Some(ref mut headers) = self.headers else {
             self.headers = Some(HashMap::from([(h, f)]));
             return;
         };
@@ -55,6 +56,7 @@ impl Builder {
     fn build(self) -> Request {
         let cors = RequestCors::from_headers(&mut self.headers);
         let cookies = <HashSet<Cookie>>::from_headers(&mut self.headers);
+        let headers = self.headers;
         let [resource, query] = self.resource.into();
 
         Request {

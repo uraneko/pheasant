@@ -1,6 +1,6 @@
 use pheasant_core::{ErrorStatus, Method, Protocol};
 
-struct ErrorMessage<E> {
+pub struct ErrorMessage<E> {
     resource: String,
     method: Method,
     proto: Protocol,
@@ -9,5 +9,7 @@ struct ErrorMessage<E> {
 }
 
 impl<E> ErrorMessage<E> {
-    pub fn from_err(err: E) -> Self {}
+    pub fn from_err(err: E) -> Self {
+        todo!()
+    }
 }

@@ -1,7 +1,7 @@
 use super::Token;
 use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 
-#[derive(Debug, Clone, PartialEq, Default, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Host {
     labels: Vec<String>,
 }

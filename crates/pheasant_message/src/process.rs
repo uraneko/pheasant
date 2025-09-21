@@ -6,7 +6,7 @@ use hashbrown::HashSet;
 use mime::Mime;
 use uuid::Uuid;
 
-use crate::{Request, Response};
+use crate::{Request, Respond};
 use pheasant_core::{ClientError, ErrorStatus, Method, Protocol};
 use pheasant_headers::cors::ResourceCors;
 use pheasant_uri::Route;
@@ -102,7 +102,7 @@ unsafe impl Send for Process {}
 unsafe impl Sync for Process {}
 
 // the future return type
-type BoxFut<'a> = Pin<Box<dyn Future<Output = Response> + Send + 'a>>;
+type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond<'a>> + Send + 'a>>;
 
 // the wrapper function type
 type BoxFun = Box<dyn Fn(&Request) -> BoxFut<'static> + Send + Sync>;
@@ -152,7 +152,7 @@ impl Process {
     /// }
     /// ```
     ///
-    pub fn new<F, O, R>(
+    pub fn new<'a, F, O, R>(
         method: Method,
         route: Route,
         redirects: Option<HashSet<Route>>,
@@ -163,8 +163,8 @@ impl Process {
     ) -> Self
     where
         F: Fn(R, Protocol) -> O + Send + Sync + 'static,
-        O: Future<Output = Response> + Send + 'static,
-        R: for<'a> From<&'a Request>,
+        O: Future<Output = Respond<'a>> + Send + 'static,
+        R: for<'b> From<&'b Request>,
     {
         Self {
             id: uuid::Uuid::new_v4(),
@@ -225,33 +225,6 @@ impl Process {
 
     pub fn route(&self) -> &str {
         todo!()
-    }
-}
-
-impl Resource {
-    // returns a copy of the service Method
-    pub fn methods(&self) -> impl Iterator<Item = Method> {
-        self.services.keys().map(|m| *m)
-    }
-
-    // TODO maybe change this to route_str
-    /// returns a reference to the String value of the service route
-    pub fn route(&self) -> &str {
-        &self.route
-    }
-
-    /// returns the routes that redirect to this service
-    /// if any
-    pub fn re(&self) -> Option<&HashSet<Route>> {
-        self.redirects.as_ref()
-    }
-
-    // checks if the passed route &str value redirects to this service
-    pub(crate) fn redirects_to(&self, route: &str) -> bool {
-        let Some(ref re) = self.redirects else {
-            return false;
-        };
-        re.iter().find(|r| r.as_str() == route).is_some()
     }
 }
 

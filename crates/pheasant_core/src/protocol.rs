@@ -1,5 +1,5 @@
 use crate::ErrorStatus;
-use crate::{ClientError, PheasantError, ServerError};
+use crate::{ByteIterator, ClientError, PheasantError, ServerError};
 use alloc::str::FromStr;
 use core::fmt::{self, Display, Formatter};
 /// Http protocol version
@@ -41,20 +41,6 @@ impl TryFrom<&[u8]> for Protocol {
     }
 }
 
-impl TryFrom<&str> for Protocol {
-    type Error = PheasantError;
-
-    fn try_from(v: &str) -> Result<Self, Self::Error> {
-        match v {
-            "HTTP/1.1" => Ok(Self::HTTP11),
-            "HTTP/2" | "HTTP/3" => Err(Self::Error::ServerError(
-                ServerError::HTTPVersionNotSupported,
-            )),
-            _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
-        }
-    }
-}
-
 impl FromStr for Protocol {
     type Err = PheasantError;
 
@@ -69,13 +55,20 @@ impl FromStr for Protocol {
     }
 }
 
-impl<I> TryFrom<I> for Protocol
+impl Protocol {
+    pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {
+        ByteIterator::new(i).try_into()
+    }
+}
+
+impl<I> TryFrom<ByteIterator<I>> for Protocol
 where
     I: Iterator<Item = u8>,
 {
     type Error = ErrorStatus;
 
-    fn try_from(mut iter: I) -> Result<Self, Self::Error> {
+    fn try_from(iter: ByteIterator<I>) -> Result<Self, Self::Error> {
+        let mut iter = iter.iter;
         while let Some(num) = iter.next() {
             match num {
                 b'H' => {

@@ -1,18 +1,20 @@
 use crate::Process;
+use hashbrown::HashSet;
+use pheasant_core::Method;
 use pheasant_uri::Route;
 
-struct Resource {
+pub struct Resource {
     route: Route,
     redirects: Option<HashSet<Route>>,
-    get: Option<Process>,
-    post: Option<Process>,
-    put: Option<Process>,
-    patch: Option<Process>,
-    delete: Option<Process>,
-    head: bool,
+    pub get: Option<Process>,
+    pub post: Option<Process>,
+    pub put: Option<Process>,
+    pub patch: Option<Process>,
+    pub delete: Option<Process>,
+    pub head: bool,
     // WARN this method is a potential security vulnerability
     // at least it may widen bad actors' attack vectors
-    trace: bool,
+    pub trace: bool,
 }
 
 impl Resource {
@@ -25,15 +27,14 @@ impl Resource {
 }
 
 macro_rules! method {
-    (self $method: ident) => {
-        use Method::*;
-
+    ($self:ident.$method: ident) => {
         match $method {
-            Get => self.get,
-            Post => self.post,
-            Put => self.put,
-            Patch => self.patch,
-            Delete => self.delete,
+            Get => $self.get,
+            Post => $self.post,
+            Put => $self.put,
+            Patch => $self.patch,
+            Delete => $self.delete,
+            _ => (),
         }
     };
 }
@@ -47,7 +48,7 @@ impl Resource {
             Trace => self.trace,
             Options => true,
             Connect => false,
-            _ => method!(self method)
+            _ => method!(self.method)
                 .as_ref()
                 .map(|prc| prc.is_cross_origin())
                 .unwrap_or_default(),
@@ -55,7 +56,60 @@ impl Resource {
     }
 }
 
-#[derive(default)]
+impl Resource {
+    pub fn allows_options(&self) -> bool {
+        [
+            self.get.as_ref(),
+            self.post.as_ref(),
+            self.put.as_ref(),
+            self.patch.as_ref(),
+            self.delete.as_ref(),
+        ]
+        .into_iter()
+        .filter(|m| m.is_some())
+        .any(|p| p.cors.is_some())
+    }
+
+    // returns an iterator over copies of the resource Methods
+    pub fn methods(&self) -> impl Iterator<Item = Method> {
+        use Method::*;
+        [
+            self.get.is_some().then(|| Get),
+            self.post.is_some().then(|| Post),
+            self.put.is_some().then(|| Put),
+            self.patch.is_some().then(|| Patch),
+            self.delete.is_some().then(|| Delete),
+            self.head.then(|| Head),
+            self.trace.then(|| Trace),
+            self.allows_options().then(|| Options),
+        ]
+        .into_iter()
+        .filter(|m| m.is_some())
+        .flatten()
+    }
+
+    // TODO maybe change this to route_str
+    /// returns a reference to the String value of the service route
+    pub fn route(&self) -> &str {
+        &self.route
+    }
+
+    /// returns the routes that redirect to this service
+    /// if any
+    pub fn re(&self) -> Option<&HashSet<Route>> {
+        self.redirects.as_ref()
+    }
+
+    // checks if the passed route &str value redirects to this service
+    pub(crate) fn redirects_to(&self, route: &str) -> bool {
+        let Some(ref re) = self.redirects else {
+            return false;
+        };
+        re.iter().find(|r| r.as_str() == route).is_some()
+    }
+}
+
+#[derive(Default)]
 pub struct Builder {
     head: bool,
     trace: bool,

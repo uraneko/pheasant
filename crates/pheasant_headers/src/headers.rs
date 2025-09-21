@@ -29,16 +29,15 @@ pub mod request_context;
 pub use cookies::Cookie;
 pub use cors::{RequestCors, ResourceCors, ResponseCors};
 pub use message_body_information::{
-    ContentEncoding, ContentEncodingBits, ContentLength, ContentType, EncodeBody, Encoding,
-    SetContentLength,
+    ContentEncoding, ContentEncodingBits, ContentLength, ContentType, Encoding, SetContentLength,
 };
 pub use other::{Date, SetDate};
 pub use request_context::Host;
 
-struct Headers {
-    entries: [Entry; 64],
-    size: usize,
-}
+// struct Headers {
+//     entries: [Entry; 64],
+//     size: usize,
+// }
 
 // hash can be generated from key
 // Key -> Hash
