@@ -1,4 +1,4 @@
-use pheasant_uri::{Token, lex};
+use pheasant_uri::lex::{Token, lex};
 
 #[test]
 fn empty() {
