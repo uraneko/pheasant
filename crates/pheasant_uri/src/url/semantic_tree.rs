@@ -7,7 +7,7 @@
 // SpellChecker and Sanitizer
 
 use super::{lex::Token, syntax_tree::TokenGroup};
-use crate::{PercentEncoded, SpellChecker};
+use crate::{SpellChecker, SpellingError, error_inheritance};
 
 mod host;
 mod path;
@@ -23,8 +23,14 @@ pub use scheme::Scheme;
 pub use user::User;
 // TODO on http1.1 Host header must always be set once.
 
+error_inheritance!(Spelling {
+    SpellingError,
+    Error
+});
+
 #[derive(Debug)]
 pub enum Error {
+    Spelling(SpellingError),
     ComponentTokensMismatch,
     ExpectedSequence,
     SchemeNotRecognized,
@@ -87,6 +93,8 @@ impl TryFrom<Vec<Token>> for Scheme {
     type Error = Error;
 
     fn try_from(mut tokens: Vec<Token>) -> SemanticResult<Self> {
+        Scheme::spell_check(&tokens)?;
+
         if tokens.len() == 1 {
             let Some(Token::Seq(seq)) = tokens.pop() else {
                 return Err(Error::ExpectedSequence);
@@ -108,6 +116,8 @@ impl TryFrom<Vec<Token>> for User {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+        User::spell_check(&tokens)?;
+
         let [user, password] = {
             let mut iter = tokens.into_iter();
             let Token::Seq(user) = iter.next().unwrap() else {
@@ -129,6 +139,8 @@ impl TryFrom<Vec<Token>> for Host {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+        Host::spell_check(&tokens)?;
+
         Ok(Host::from_iter(tokens))
     }
 }
@@ -137,6 +149,8 @@ impl TryFrom<Token> for u16 {
     type Error = Error;
 
     fn try_from(token: Token) -> SemanticResult<Self> {
+        u16::spell_check(&token)?;
+
         let Token::Seq(port) = token else {
             return Err(Error::ComponentTokensMismatch);
         };
@@ -149,6 +163,8 @@ impl TryFrom<Vec<Token>> for Path {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+        Path::spell_check(&tokens)?;
+
         Ok(Path::from_iter(tokens))
     }
 }
@@ -157,6 +173,8 @@ impl TryFrom<Vec<Token>> for Query {
     type Error = Error;
 
     fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+        Query::spell_check(&tokens)?;
+
         Ok(Query::from_iter(tokens))
     }
 }
@@ -169,6 +187,7 @@ impl TryFrom<Tokens> for String {
 
     fn try_from(tokens: Tokens) -> SemanticResult<Self> {
         let tokens = tokens.0;
+        String::spell_check(&tokens)?;
 
         Ok(query::fragment_from_iter(tokens))
     }
