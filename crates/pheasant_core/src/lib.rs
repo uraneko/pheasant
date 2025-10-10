@@ -1,8 +1,13 @@
+//! this crate defines some primitive types apis
+//!
+//! ### APIs
+//! - Method
+//! - Protocol
+//! - Status
+//! - Wildcardish
+
 #![no_std]
 #![forbid(clippy::unwrap_used, clippy::expect_used)]
-// #![allow(unused_imports)]
-// #![allow(dead_code)]
-// #![allow(unused_variables)]
 
 extern crate alloc;
 extern crate std;
@@ -16,22 +21,18 @@ use core::str::Utf8Error;
 use hashbrown::HashSet;
 use pheasant_uri::Route;
 
-// NOTE indefinitely experimental
-// mod monopoly;
-
 pub mod method;
 pub mod mime;
-pub mod monopoly;
 pub mod protocol;
 pub mod status;
 pub mod wildcardish;
 
 pub use method::Method;
 pub use mime::Mime;
-pub use monopoly::MonoPoly;
+// pub use monopoly::MonoPoly;
 pub use protocol::Protocol;
 pub use status::{
-    ClientError, ErrorStatus, Informational, Redirection, ResponseStatus, ServerError, Status,
+    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiteral,
     Successful,
 };
 pub use wildcardish::WildCardish;

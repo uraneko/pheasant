@@ -6,6 +6,12 @@ pub struct Path {
     segments: Vec<String>,
 }
 
+impl Path {
+    pub fn len(&self) -> usize {
+        self.segments.iter().map(|s| s.len()).sum()
+    }
+}
+
 impl SpellChecker for Path {
     const ALLOWED: &'static [char] = &[':', '@'];
     type Input<'a> = &'a [Token];

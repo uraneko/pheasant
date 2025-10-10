@@ -1,11 +1,13 @@
-use crate::io::ReadExt;
+extern crate std;
+use crate::socket::io::ReadUntil;
 use pheasant_core::{Method, Protocol};
-use pheasant_uri::Route;
+use pheasant_uri::Resource;
+use std::io::Read;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
     Method(Method),
-    Uri(Route),
+    Uri(Resource),
     Proto(Protocol),
     Header(Vec<u8>),
     Field(Vec<u8>),
@@ -32,6 +34,21 @@ gen_token!(
     field / Field,
     body / Body
 );
+
+impl Token {
+    pub fn is_body(&self) -> bool {
+        let Self::Body(_) = self else { return false };
+
+        true
+    }
+
+    pub fn into_vec(self) -> Option<Vec<u8>> {
+        match self {
+            Self::Header(v) | Self::Field(v) | Self::Body(v) => Some(v),
+            _ => None,
+        }
+    }
+}
 
 // buf is the socket's buffer
 pub fn lex(reader: &[u8], buf: &mut [u8]) -> Vec<Token> {
@@ -70,7 +87,7 @@ struct ReadUri<'a> {
 impl<'a> ReadUri<'a> {
     fn uri(mut self) -> ReadProto<'a> {
         let n = self.reader.read_until(&mut self.buf, 32).unwrap();
-        let uri = Route::try_from(&self.buf[..n]).unwrap();
+        let uri = Resource::try_from(&self.buf[..n]).unwrap();
         self.tokens.push(uri!(uri));
 
         ReadProto {
@@ -193,7 +210,7 @@ impl ReadBody<'_> {
         };
 
         // self.buf.resize_with(n, Default::default);
-        self.reader.read_to(&mut self.buf, n).unwrap();
+        self.reader.read_exact(&mut self.buf[..n]).unwrap();
         self.tokens.push(body!(self.buf[..n].to_vec()));
 
         self.tokens

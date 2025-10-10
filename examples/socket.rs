@@ -1,0 +1,34 @@
+use pheasant_core::{Protocol, Status, status};
+use pheasant_headers::{CorsConfigs, Encoding};
+use pheasant_server::{
+    request::Request, resource::Resource, respond::Respond, servlet::Servlet, socket::HttpSocket,
+};
+
+#[tokio::main]
+async fn main() {
+    let servlet = Servlet::builder(index).query(true).build();
+    let resource = Resource::builder("/index.html")
+        .forward("/")
+        .get(servlet)
+        .head(true)
+        .build();
+    let mut socket: HttpSocket<4096> = HttpSocket::builder([127, 0, 0, 1], 7070)
+        .unwrap()
+        .resource(resource)
+        .build()
+        .unwrap();
+    socket.fireup().await.unwrap();
+}
+
+async fn index(req: Request) -> Respond {
+    let body = format!("<h1>Hello {}</h1>", req.param("who").unwrap_or("wakanda"));
+    let len = body.len();
+    let resp = Respond::builder(status!(200), Protocol::Http11)
+        .body(body)
+        .content_length(len)
+        .content_encoding(Encoding::Deflate)
+        .encoding(Encoding::Gzip)
+        .encode();
+
+    resp.build().unwrap()
+}

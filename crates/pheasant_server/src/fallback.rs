@@ -17,7 +17,7 @@ unsafe impl Send for Fallback {}
 unsafe impl Sync for Fallback {}
 
 // the future return type
-type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond<'a>> + Send + 'a>>;
+type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond> + Send + 'a>>;
 
 // the wrapper function type
 type BoxFun = Box<dyn Fn() -> BoxFut<'static> + Send + Sync>;
@@ -27,7 +27,7 @@ impl Fallback {
     where
         // probably give the Fn an input of ErrorStatus
         F: Fn() -> O + Send + Sync + 'static,
-        O: Future<Output = Respond<'a>> + Send + 'static,
+        O: Future<Output = Respond> + Send + 'static,
     {
         Self {
             status,

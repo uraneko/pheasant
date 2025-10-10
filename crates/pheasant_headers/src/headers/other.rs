@@ -6,23 +6,18 @@ use core::fmt::{self, Debug, Display, Formatter};
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
 
-use pheasant_core::WildCardish;
-use pheasant_uri::Origin;
+use crate::{FromHeader, IntoHeader};
+use pheasant_core::{ErrorStatus, err_stt};
 
-use crate::{FromHeader, HttpResult, ToHeader};
-
-pub struct Date(DateTime<Utc>);
-
-impl FromHeader for Date {
-    fn from_header(header: String) -> HttpResult<Self> {
-        Ok(Self(header.parse::<DateTime<Utc>>().unwrap()))
+impl IntoHeader<DateTime<Utc>> for String {
+    fn into_header(self) -> Result<DateTime<Utc>, ErrorStatus> {
+        self.parse::<DateTime<Utc>>()
+            .map_err(|_| err_stt!(BadRequest))
     }
 }
 
-pub struct SetDate;
-
-impl ToHeader for SetDate {
-    fn to_header(&self) -> String {
+impl FromHeader<DateTime<Utc>> for String {
+    fn from_header(_header: DateTime<Utc>) -> String {
         Utc::now().to_string()
     }
 }

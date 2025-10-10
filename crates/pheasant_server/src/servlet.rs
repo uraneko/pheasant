@@ -1,3 +1,4 @@
+extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec;
 use core::hash::{Hash, Hasher};
@@ -7,39 +8,55 @@ use mime::Mime;
 use uuid::Uuid;
 
 use crate::{Request, Respond};
-use pheasant_core::{ClientError, ErrorStatus, Method, Protocol};
-use pheasant_headers::cors::ResourceCors;
+use pheasant_core::{
+    ClientError, ErrorStatus, Method, Protocol, Status, Successful, err_stt, status,
+};
+use pheasant_headers::CorsConfigs;
 use pheasant_uri::Route;
 
-/// a http server service type
-/// contains the logic that gets executed when a request is made
-// pub struct Process {
-//     method: Method,
-//     route: Route,
-//     redirects: Option<HashSet<Route>>,
-//     mime: Option<Mime>,
-//     service: BoxFun,
-//     // TODO this should become options: ...
-//     cors: Option<Cors>,
-//     // TODO head: bool,
-// }
-
 pub struct Builder {
-    fun: BoxFun,
-    cors: Option<ResourceCors>,
-    mime: Option<Mime>,
-    query: RequireQuery,
+    pub(crate) fun: BoxFun,
+    pub(crate) status: Status,
+    pub(crate) cors: Option<CorsConfigs>,
+    pub(crate) mime: Mime,
+    pub(crate) query: RequireQuery,
 }
 
 impl Builder {
-    pub fn cors(mut self, cors: impl Into<ResourceCors>) -> Self {
+    pub fn cors(mut self, cors: impl Into<CorsConfigs>) -> Self {
         self.cors = Some(cors.into());
 
         self
     }
 
+    pub fn headers(mut self, headers: String) -> Self {
+        self
+    }
+
+    pub fn expose(mut self, expose: &str) -> Self {
+        self
+    }
+
+    pub fn origins(mut self, origin: String) -> Self {
+        self
+    }
+
+    pub fn credentials(mut self, creds: bool) -> Self {
+        self
+    }
+
+    pub fn max_age(mut self, max_age: i64) -> Self {
+        self
+    }
+
     pub fn mime(mut self, mime: impl Into<Mime>) -> Self {
-        self.mime = Some(mime.into());
+        self.mime = mime.into();
+
+        self
+    }
+
+    pub fn status(mut self, status: impl Into<Status>) -> Self {
+        self.status = status.into();
 
         self
     }
@@ -50,10 +67,11 @@ impl Builder {
         self
     }
 
-    fn build(self) -> Process {
-        Process {
+    pub fn build(self) -> Servlet {
+        Servlet {
             id: Uuid::new_v4(),
             fun: self.fun,
+            status: self.status,
             cors: self.cors,
             mime: self.mime,
             query: self.query,
@@ -63,29 +81,49 @@ impl Builder {
 
 pub struct BuilderCors {
     builder: Builder,
-    cors: ResourceCors,
+    cors: CorsConfigs,
 }
 
-impl Process {
-    pub fn builder(fun: BoxFun) -> Builder {
+impl Servlet {
+    pub fn builder<F, O, R>(fun: F) -> Builder
+    where
+        F: Fn(R) -> O + Send + Sync + 'static,
+        O: Future<Output = Respond> + Send + 'static,
+        R: From<Request>,
+    {
         Builder {
-            fun,
+            fun: Box::new(move |req: Request| {
+                let proto = req.proto();
+
+                let input: R = req.into();
+
+                Box::pin(fun(input))
+            }),
             cors: None,
-            mime: None,
+            status: status!(200),
+            mime: mime::APPLICATION_OCTET_STREAM,
             query: RequireQuery::False,
         }
     }
 }
 
-pub struct Process {
-    id: uuid::Uuid,
-    fun: BoxFun,
-    cors: Option<ResourceCors>,
-    mime: Option<Mime>,
-    query: RequireQuery,
+/// a http service type
+/// contains the logic that gets executed when a request is made
+pub struct Servlet {
+    pub(crate) id: uuid::Uuid,
+    pub(crate) fun: BoxFun,
+    pub(crate) status: Status,
+    pub(crate) cors: Option<CorsConfigs>,
+    pub(crate) mime: Mime,
+    pub(crate) query: RequireQuery,
 }
 
-impl Process {
+impl Servlet {
+    /// processes the request
+    pub async fn process(&self, req: Request) -> Respond {
+        (self.fun)(req).await
+    }
+
     pub fn is_cross_origin(&self) -> bool {
         self.cors.is_some()
     }
@@ -98,17 +136,23 @@ enum RequireQuery {
     Maybe,
 }
 
-unsafe impl Send for Process {}
-unsafe impl Sync for Process {}
+impl From<bool> for RequireQuery {
+    fn from(b: bool) -> Self {
+        if b { Self::True } else { Self::False }
+    }
+}
+
+unsafe impl Send for Servlet {}
+unsafe impl Sync for Servlet {}
 
 // the future return type
-type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond<'a>> + Send + 'a>>;
+type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond> + Send + 'a>>;
 
 // the wrapper function type
-type BoxFun = Box<dyn Fn(&Request) -> BoxFut<'static> + Send + Sync>;
+type BoxFun = Box<dyn Fn(Request) -> BoxFut<'static> + Send + Sync>;
 
-impl Process {
-    /// creates a new Process instance
+impl Servlet {
+    /// creates a new Servlet instance
     ///
     /// you would only use this function directly if you're not using the http method macros
     ///
@@ -121,7 +165,7 @@ impl Process {
     ///
     /// # fn main() {
     /// let mut phe = Server::new([127, 0, 0, 1], 8883, 3333).unwrap();
-    /// phe.service(|| Process::new(Method::Get, "/icon", [], "image/svg+xml", svg));
+    /// phe.service(|| Servlet::new(Method::Get, "/icon", [], "image/svg+xml", svg));
     /// # }
     ///
     /// async fn svg(who: Who) -> Vec<u8> {
@@ -152,29 +196,28 @@ impl Process {
     /// }
     /// ```
     ///
-    pub fn new<'a, F, O, R>(
-        method: Method,
-        route: Route,
-        redirects: Option<HashSet<Route>>,
+    pub fn new<F, O, R>(
         mime: Option<Mime>,
-        cors: Option<ResourceCors>,
+        status: Status,
+        cors: Option<CorsConfigs>,
         call: F,
         query: RequireQuery,
     ) -> Self
     where
         F: Fn(R, Protocol) -> O + Send + Sync + 'static,
-        O: Future<Output = Respond<'a>> + Send + 'static,
-        R: for<'b> From<&'b Request>,
+        O: Future<Output = Respond> + Send + 'static,
+        R: From<Request>,
     {
         Self {
             id: uuid::Uuid::new_v4(),
             query,
             // method,
             // route,
-            mime,
+            mime: mime.unwrap_or_else(|| mime::APPLICATION_OCTET_STREAM),
+            status,
             cors,
             // redirects,
-            fun: Box::new(move |req: &Request| {
+            fun: Box::new(move |req: Request| {
                 let proto = req.proto();
 
                 let input: R = req.into();
@@ -185,7 +228,7 @@ impl Process {
     }
 
     // returns a ref to the service logic callback
-    pub fn service(&self) -> &BoxFun {
+    pub fn servlet(&self) -> &BoxFun {
         &self.fun
     }
 
@@ -200,7 +243,7 @@ impl Process {
 
     /// if a service supports cors returns &Cors
     ///
-    /// else return StatusError
+    /// else return ErrorStatus
     ///
     /// # Error
     /// 403 Forbidden
@@ -210,16 +253,14 @@ impl Process {
     //
     // - or 404 not found instead of 403
     // in case server wants to hide the lack of permission from client
-    pub fn cors(&self) -> Result<&ResourceCors, ErrorStatus> {
-        self.cors
-            .as_ref()
-            .ok_or_else(|| ErrorStatus::Client(ClientError::Forbidden))
+    pub fn cors(&self) -> Result<&CorsConfigs, ErrorStatus> {
+        self.cors.as_ref().ok_or_else(|| err_stt!(Forbidden))
     }
 
     // returns a ref to the Mime type if it was provided
     //
     // otherwise returns None
-    pub fn clone_mime(&self) -> Option<Mime> {
+    pub fn clone_mime(&self) -> Mime {
         self.mime.clone()
     }
 
@@ -228,28 +269,28 @@ impl Process {
     }
 }
 
-impl Hash for Process {
+impl Hash for Servlet {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state)
     }
 }
 
-impl PartialEq for Process {
+impl PartialEq for Servlet {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
-impl Eq for Process {}
+impl Eq for Servlet {}
 
-pub trait ProcessBundle {
-    fn iter(self) -> vec::IntoIter<Process>;
+pub trait ServletBundle {
+    fn iter(self) -> vec::IntoIter<Servlet>;
 
     fn size(&self) -> usize;
 }
 
-impl ProcessBundle for Process {
-    fn iter(self) -> vec::IntoIter<Process> {
+impl ServletBundle for Servlet {
+    fn iter(self) -> vec::IntoIter<Servlet> {
         vec![self].into_iter()
     }
 
@@ -258,8 +299,8 @@ impl ProcessBundle for Process {
     }
 }
 
-impl ProcessBundle for [Process; 2] {
-    fn iter(self) -> vec::IntoIter<Process> {
+impl ServletBundle for [Servlet; 2] {
+    fn iter(self) -> vec::IntoIter<Servlet> {
         Vec::from(self).into_iter()
     }
 
@@ -268,8 +309,8 @@ impl ProcessBundle for [Process; 2] {
     }
 }
 
-impl ProcessBundle for [Process; 3] {
-    fn iter(self) -> vec::IntoIter<Process> {
+impl ServletBundle for [Servlet; 3] {
+    fn iter(self) -> vec::IntoIter<Servlet> {
         Vec::from(self).into_iter()
     }
 
@@ -278,8 +319,8 @@ impl ProcessBundle for [Process; 3] {
     }
 }
 
-impl ProcessBundle for Vec<Process> {
-    fn iter(self) -> vec::IntoIter<Process> {
+impl ServletBundle for Vec<Servlet> {
+    fn iter(self) -> vec::IntoIter<Servlet> {
         self.into_iter()
     }
 

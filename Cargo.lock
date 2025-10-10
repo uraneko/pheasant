@@ -783,10 +783,10 @@ dependencies = [
  "hashbrown",
  "pheasant_core",
  "pheasant_headers",
- "pheasant_message",
  "pheasant_server",
  "pheasant_uri",
  "rayon",
+ "tokio",
  "uuid",
 ]
 
@@ -827,29 +827,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "pheasant_message"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "deflate",
- "embedded-io",
- "hashbrown",
- "mime",
- "pheasant_core",
- "pheasant_headers",
- "pheasant_uri",
- "uuid",
-]
-
-[[package]]
 name = "pheasant_server"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "hashbrown",
  "mime",
  "pheasant_core",
  "pheasant_headers",
- "pheasant_message",
  "pheasant_uri",
  "uuid",
 ]

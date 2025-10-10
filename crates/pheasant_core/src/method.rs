@@ -1,6 +1,7 @@
 use crate::PheasantError;
-use crate::{ByteIterator, ClientError, ErrorStatus, ServerError};
+use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt};
 use alloc::str::FromStr;
+use alloc::string::String;
 use core::fmt;
 use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
 use quote::{ToTokens, TokenStreamExt};
@@ -8,20 +9,18 @@ use syn::Ident;
 
 /// HTTP Method enum
 /// only Get method is somewhat supported at the moment
-#[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
-)]
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Method {
-    Head,
-    #[default]
-    Get,
-    Post,
-    Put,
-    Patch,
-    Delete,
-    Connect,
-    Options,
-    Trace,
+    Head = 1,
+    Get = 2,
+    Post = 4,
+    Put = 8,
+    Patch = 16,
+    Delete = 32,
+    Connect = 64,
+    Options = 128,
+    Trace = 256,
 }
 
 impl ToTokens for Method {
@@ -84,7 +83,7 @@ impl TryFrom<&[u8]> for Method {
 }
 
 impl FromStr for Method {
-    type Err = PheasantError;
+    type Err = ErrorStatus;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
@@ -97,7 +96,7 @@ impl FromStr for Method {
             "CONNECT" => Ok(Self::Connect),
             "OPTIONS" => Ok(Self::Options),
             "TRACE" => Ok(Self::Trace),
-            _ => Err(Self::Err::ClientError(ClientError::BadRequest)),
+            _ => err_stt!(?BadRequest),
         }
     }
 }
@@ -286,4 +285,12 @@ where
     }
 
     return Err(ErrorStatus::Server(ServerError::NotImplemented));
+}
+
+impl TryFrom<String> for Method {
+    type Error = ErrorStatus;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
 }

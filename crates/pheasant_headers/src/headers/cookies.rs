@@ -8,26 +8,50 @@ use chrono::{DateTime, TimeDelta, Utc};
 use core::fmt::Debug;
 use core::str::FromStr;
 use hashbrown::HashSet;
-use pheasant_core::{ClientError, ErrorStatus, ServerError};
 
-use crate::{FromHeader, FromHeaders, HttpResult, ToHeader, ToHeaders};
+use crate::{Header, Headers};
+use pheasant_core::{ClientError, ErrorStatus, ServerError, err_stt};
 
-impl ToHeaders for HashSet<Cookie> {
-    fn to_headers(&self) -> impl Iterator<Item = (&str, String)> {
-        self.iter().map(|cookie| ("Set-Cookie", cookie.to_header()))
+/// collect cookies from headers map
+pub struct Cookies;
+
+impl Cookies {
+    pub fn from_header(set: HashSet<String>) -> Result<HashSet<Cookie>, ErrorStatus> {
+        let iter: Result<_, ErrorStatus> = set
+            .into_iter()
+            .map(move |mut header| {
+                if let Some(kv) = take_key_val(&mut header) {
+                    let [ref k, ref v] = kv?;
+
+                    Cookie::new(k, v).fill_out(&mut header)
+                } else {
+                    err_stt!(?NotImplemented)
+                }
+            })
+            .collect();
+        iter
     }
 }
 
-impl ToHeader for HashSet<Cookie> {
-    fn to_header(&self) -> String {
-        let mut header = self.iter().fold("".to_owned(), |acc, cookie| {
+// impl<T: Iterator<Item = (&'static str, String)>> From<HashSet<Cookie>> for T {
+// impl From<Header> for HashSet<Cookie> {
+//     fn from(h: Header) -> HashSet<Cookie> {
+//         h.into_iter()
+//             .map(|cookie| ("Set-Cookie", cookie.to_string()))
+//     }
+// }
+
+// many cookies into 1 Cookie field
+impl From<HashSet<Cookie>> for Header {
+    fn from(h: HashSet<Cookie>) -> Header {
+        let mut header = h.iter().fold("".to_owned(), |acc, cookie| {
             acc + &cookie.to_string() + "; "
         });
 
         header.pop();
         header.pop();
 
-        header
+        Header::Field(header)
     }
 }
 
@@ -71,7 +95,7 @@ fn split_on_key(s: &mut String, delim: &str) -> Option<String> {
     s.find(delim).map(|idx| s.drain(..idx).collect())
 }
 
-fn split_on_val(s: &mut String, delim: &str) -> HttpResult<String> {
+fn split_on_val(s: &mut String, delim: &str) -> Result<String, ErrorStatus> {
     if !EXTS.iter().any(|ext| s.starts_with(ext)) {
         return Err(ErrorStatus::Client(ClientError::BadRequest));
     }
@@ -81,7 +105,7 @@ fn split_on_val(s: &mut String, delim: &str) -> HttpResult<String> {
         .ok_or_else(|| ErrorStatus::Client(ClientError::BadRequest))
 }
 
-fn take_key_val(s: &mut String) -> Option<HttpResult<[String; 2]>> {
+fn take_key_val(s: &mut String) -> Option<Result<[String; 2], ErrorStatus>> {
     if s.is_empty() {
         return None;
     }
@@ -102,50 +126,43 @@ fn take_key_val(s: &mut String) -> Option<HttpResult<[String; 2]>> {
 
 // WARN HTTP/2 allows requests to have many Cookie headers for compression optimizations
 // HTTP/1.1 tho, doesnt allow this feature
-impl FromHeaders<'_> for HashSet<Cookie> {
-    type Headers = HashSet<String>;
+impl TryFrom<Header> for HashSet<Cookie> {
+    type Error = ErrorStatus;
 
-    fn from_headers(mut h: HashSet<String>) -> HttpResult<Self> {
-        let mut err = false;
-        if h.is_empty() {
-            return Err(ErrorStatus::Server(ServerError::NotImplemented));
-        }
+    fn try_from(h: Header) -> Result<HashSet<Cookie>, ErrorStatus> {
+        let Header::Set(s) = h else {
+            return err_stt!(?500);
+        };
 
-        let mut iter = h.into_iter().map(|mut header| {
-            if let Some(kv) = take_key_val(&mut header) {
-                let [ref k, ref v] = kv?;
+        let iter: Result<_, ErrorStatus> = s
+            .into_iter()
+            .map(move |mut header| {
+                if let Some(kv) = take_key_val(&mut header) {
+                    let [ref k, ref v] = kv?;
 
-                Ok(Cookie::new(k, v).fill_out(&mut header))
-            } else {
-                err = true;
-                Err(ErrorStatus::Server(ServerError::NotImplemented))
-            }
-        });
-
-        // TODO
-        // if err {
-        //     let Some(Err(err)) = iter.find(|c| c.is_err()) else {
-        //         unreachable!("the logic commands you to stop");
-        //     };
-        //
-        //     return Err(err);
-        // }
-
-        iter.map(|c| c.unwrap()).collect()
+                    Cookie::new(k, v).fill_out(&mut header)
+                } else {
+                    err_stt!(?NotImplemented)
+                }
+            })
+            .collect();
+        iter
     }
 }
 
-impl FromHeader for HashSet<Cookie> {
-    fn from_header(mut header: String) -> HttpResult<Self> {
-        let mut set = HashSet::new();
-        while let Some(kv) = take_key_val(&mut header) {
-            let [ref k, ref v] = kv?;
-            set.insert(Cookie::new(k, v).fill_out(&mut header)?);
-        }
-
-        Ok(set)
-    }
-}
+// impl TryFrom<Header> for HashSet<Cookie> {
+//     type Error = ErrorStatus;
+//
+//     fn try_from(mut self) -> Result<HashSet<Cookie>, ErrorStatus> {
+//         let mut set = HashSet::new();
+//         while let Some(kv) = take_key_val(&mut self) {
+//             let [ref k, ref v] = kv?;
+//             set.insert(Cookie::new(k, v).fill_out(&mut self)?);
+//         }
+//
+//         Ok(set)
+//     }
+// }
 
 impl Cookie {
     pub fn new(k: &str, v: &str) -> Self {
@@ -231,7 +248,7 @@ impl Cookie {
 }
 
 impl Cookie {
-    fn fill_out(mut self, header: &mut String) -> HttpResult<Self> {
+    fn fill_out(mut self, header: &mut String) -> Result<Self, ErrorStatus> {
         while let Some(ref ext) = split_on_key(header, "=") {
             match ext.as_str() {
                 "Domain" => self.domain(&split_on_val(header, "; ")?),
@@ -256,9 +273,9 @@ impl Cookie {
     }
 }
 
-impl ToHeader for Cookie {
-    fn to_header(&self) -> String {
-        self.to_string()
+impl From<Cookie> for String {
+    fn from(header: Cookie) -> String {
+        header.to_string()
     }
 }
 

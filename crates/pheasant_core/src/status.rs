@@ -1,28 +1,57 @@
 use crate::PheasantError;
 use alloc::string::ToString;
 use core::fmt::{self, Debug};
+use core::str::FromStr;
 
 #[macro_export]
 macro_rules! status {
+    ($var: ident) => {
+        stringify!($var).parse::<Status>().unwrap()
+    };
     ($code: expr) => {
         Status::try_from($code).unwrap()
-    };
-    ($var: ident) => {
-        Status::from_text(stringify($var))
     };
 }
 
 #[macro_export]
 macro_rules! err_stt {
-    ($code: expr) => {
-        pheasant_core::ErrorStatus::try_from($code).unwrap()
-    };
     ($var: ident) => {
-        stringify!($var)
-            .parse::<pheasant_core::ErrorStatus>()
-            .unwrap()
+        stringify!($var).parse::<$crate::ErrorStatus>().unwrap()
+    };
+    ($code: expr) => {
+        $crate::ErrorStatus::try_from($code).unwrap()
+    };
+    (? $var: ident) => {
+        Err(stringify!($var).parse::<$crate::ErrorStatus>().unwrap())
+    };
+    (? $code: expr) => {
+        Err($crate::ErrorStatus::try_from($code).unwrap())
     };
 }
+
+// #[macro_export]
+// macro_rules! s_err {
+//     ($var: ident) => {
+//         stringify!($var)
+//             .parse::<pheasant_core::ErrorStatus>()
+//             .unwrap()
+//     };
+//     ($code: expr) => {
+//         pheasant_core::ErrorStatus::try_from($code).unwrap()
+//     };
+// }
+
+// #[macro_export]
+// macro_rules! c_err {
+//     ($var: ident) => {
+//         stringify!($var)
+//             .parse::<pheasant_core::ErrorStatus>()
+//             .unwrap()
+//     };
+//     ($code: expr) => {
+//         pheasant_core::ErrorStatus::try_from($code).unwrap()
+//     };
+// }
 
 macro_rules! status_enum {
      ($name: ident, $($var: ident $code: literal),*) => {
@@ -170,7 +199,7 @@ impl From<PheasantError> for Status {
 }
 
 /// implements shared behavior amongst response status
-pub trait ResponseStatus {
+pub trait StatusLiteral {
     /// returns the status text value
     fn text(&self) -> &str;
 
@@ -178,7 +207,7 @@ pub trait ResponseStatus {
     fn code(&self) -> u16;
 }
 
-impl ResponseStatus for ServerError {
+impl StatusLiteral for ServerError {
     fn text(&self) -> &str {
         match self {
             Self::InternalServerError => "InternalServerError",
@@ -200,7 +229,7 @@ impl ResponseStatus for ServerError {
     }
 }
 
-impl ResponseStatus for ClientError {
+impl StatusLiteral for ClientError {
     fn text(&self) -> &str {
         match self {
             Self::BadRequest => "BadRequest",
@@ -240,7 +269,7 @@ impl ResponseStatus for ClientError {
     }
 }
 
-impl ResponseStatus for Redirection {
+impl StatusLiteral for Redirection {
     fn text(&self) -> &str {
         match self {
             Self::PermanentRedirect => "PermanentRedirect",
@@ -260,7 +289,7 @@ impl ResponseStatus for Redirection {
     }
 }
 
-impl ResponseStatus for Successful {
+impl StatusLiteral for Successful {
     fn text(&self) -> &str {
         match self {
             Self::IMUsed => "IMUsed",
@@ -283,7 +312,7 @@ impl ResponseStatus for Successful {
     }
 }
 
-impl ResponseStatus for Informational {
+impl StatusLiteral for Informational {
     fn text(&self) -> &str {
         match self {
             Self::EarlyHints => "EarlyHints",
@@ -308,9 +337,15 @@ pub enum Status {
     ServerError(ServerError),
 }
 
-impl TryFrom<&str> for Status {
-    type Error = ();
-    fn try_from(text: &str) -> Result<Self, ()> {
+impl Default for Status {
+    fn default() -> Self {
+        status!(Ok)
+    }
+}
+
+impl FromStr for Status {
+    type Err = ();
+    fn from_str(text: &str) -> Result<Self, ()> {
         match text {
             "EarlyHints" => Ok(Self::Informational(Informational::EarlyHints)),
             "ProcessingDeprecated" => Ok(Self::Informational(Informational::ProcessingDeprecated)),
@@ -414,7 +449,7 @@ impl TryFrom<u16> for Status {
     }
 }
 
-impl ResponseStatus for Status {
+impl StatusLiteral for Status {
     fn text(&self) -> &str {
         match self {
             Self::Redirection(r) => r.text(),
@@ -444,7 +479,7 @@ pub enum PassingStatus {
     Successful(Successful),
 }
 
-impl ResponseStatus for PassingStatus {
+impl StatusLiteral for PassingStatus {
     fn text(&self) -> &str {
         match self {
             Self::Informational(i) => i.text(),
@@ -474,7 +509,21 @@ pub enum ErrorStatus {
     Server(ServerError),
 }
 
-impl ResponseStatus for ErrorStatus {
+impl ErrorStatus {
+    fn is_server_err(&self) -> bool {
+        let Self::Server(_) = self else { return false };
+
+        true
+    }
+
+    fn is_client_err(&self) -> bool {
+        let Self::Client(_) = self else { return false };
+
+        true
+    }
+}
+
+impl StatusLiteral for ErrorStatus {
     fn text(&self) -> &str {
         match self {
             Self::Client(ce) => ce.text(),
@@ -504,9 +553,9 @@ impl TryFrom<u16> for ErrorStatus {
     }
 }
 
-impl TryFrom<&str> for ErrorStatus {
-    type Error = ();
-    fn try_from(text: &str) -> Result<Self, ()> {
+impl FromStr for ErrorStatus {
+    type Err = ();
+    fn from_str(text: &str) -> Result<Self, ()> {
         match text {
             "BadRequest" => Ok(Self::Client(ClientError::BadRequest)),
             "Unauthorized" => Ok(Self::Client(ClientError::Unauthorized)),
