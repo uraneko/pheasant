@@ -17,6 +17,7 @@ async fn main() {
         .resource(resource)
         .build()
         .unwrap();
+    socket.init_message();
     socket.fireup().await.unwrap();
 }
 

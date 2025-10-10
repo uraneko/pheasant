@@ -514,7 +514,8 @@ fn user_or_host(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), Layout
 
 // //auth | /path/to
 fn authority_or_path(tokens: &[Token], layout: &mut [Layout; 7]) {
-    if tokens[1] != Token::Slash {
+    // len == 1 means "/" common /index.html alt route
+    if tokens.len() == 1 || tokens[1] != Token::Slash {
         println!("you triggered me");
         // no authority
         clear_authority(layout);
