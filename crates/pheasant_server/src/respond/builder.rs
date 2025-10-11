@@ -1,4 +1,4 @@
-use super::Respond;
+use super::{Respond, ScrutinizeCors};
 use chrono::{DateTime, Utc};
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
@@ -11,16 +11,18 @@ pub struct Builder<'a> {
     status: Status,
     proto: Protocol,
     body: Option<Vec<u8>>,
+    cross_origin: bool,
     headers: Headers,
     cookies: Option<HashSet<Cookie>>,
     cors: Option<RespondCors<'a>>,
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(status: Status, proto: Protocol) -> Self {
+    pub fn new(status: Status, proto: Protocol, cross_origin: bool) -> Self {
         Self {
             status,
             proto,
+            cross_origin,
             body: None,
             headers: Headers::default(),
             cors: None,
@@ -29,16 +31,6 @@ impl<'a> Builder<'a> {
     }
 
     // WARN use Scrutinizer for checks
-
-    // checks that status and mime are set before building respond
-    pub fn check_basic_fields(&self) -> Result<(), ErrorStatus> {
-        todo!()
-    }
-
-    // checks that cors field is set when we handle a cross origin request
-    pub fn check_cors_fields(&self) -> Result<(), ErrorStatus> {
-        todo!()
-    }
 
     pub fn serialize_headers(&self) -> Headers {
         todo!()
@@ -49,16 +41,11 @@ impl<'a> Builder<'a> {
     }
 
     pub fn build(self) -> Result<Respond, ErrorStatus> {
-        self.check_basic_fields()?;
-        self.check_cors_fields()?;
-        let headers = self.serialize_headers();
-        let body = self.serialize_body();
-
         Ok(Respond {
             status: self.status,
             proto: self.proto,
-            body,
-            headers,
+            body: self.body,
+            headers: self.headers,
         })
     }
 }

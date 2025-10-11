@@ -163,28 +163,29 @@ impl Headers {
         self.headers.is_empty()
     }
 
-    pub fn write_to(self, mut buf: &mut [u8]) -> Result<(), std::io::Error> {
+    pub fn write_to(self, mut buf: &mut [u8]) -> Result<usize, std::io::Error> {
         extern crate std;
         use std::io::Write;
+        let mut n = 0;
         for (k, v) in self.headers.into_iter() {
-            buf.write(k.as_bytes())?;
-            buf.write(b":")?;
+            n += buf.write(k.as_bytes())?;
+            n += buf.write(b":")?;
             match v {
                 Header::Field(f) => {
-                    buf.write(f.as_bytes())?;
-                    buf.write(&[10])?;
+                    n += buf.write(f.as_bytes())?;
+                    n += buf.write(&[10])?;
                     buf.flush()?;
                 }
                 Header::Set(s) => {
                     // This means im writing repeating headers as a single header
-                    buf.write(unify_header_fields(s).as_bytes())?;
-                    buf.write(&[10])?;
+                    n += buf.write(unify_header_fields(s).as_bytes())?;
+                    n += buf.write(&[10])?;
                     buf.flush()?;
                 }
             }
         }
 
-        Ok(())
+        Ok(n)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&String, &Header)> {

@@ -102,7 +102,15 @@ impl From<PathRelativeUrl> for Route {
 
 impl Display for Route {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtRes {
-        write!(f, "{:?}", self.path)
+        write!(f, "{}", {
+            let mut p = self
+                .path
+                .segments()
+                .iter()
+                .fold("".to_owned(), |p, s| p + s + "/");
+            p.pop();
+            p
+        })
     }
 }
 

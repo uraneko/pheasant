@@ -10,6 +10,10 @@ impl Path {
     pub fn len(&self) -> usize {
         self.segments.iter().map(|s| s.len()).sum()
     }
+
+    pub fn segments(&self) -> &[String] {
+        &self.segments
+    }
 }
 
 impl SpellChecker for Path {

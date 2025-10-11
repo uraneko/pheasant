@@ -13,18 +13,16 @@ use pheasant_uri::{Query, Resource, Route};
 pub mod builder;
 pub mod headers;
 pub mod http11;
-pub mod scrutinizer;
 
 use builder::Builder;
 use http11::lex::Token;
-pub use scrutinizer::Scrutinizer;
 
 #[derive(Debug)]
 enum Error {
     TokenMismatch,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct Request {
     headers: Headers,
     proto: Protocol,
@@ -34,6 +32,35 @@ pub struct Request {
     cors: Option<RequestCors>,
     cookies: Option<HashSet<Cookie>>,
     body: Option<Vec<u8>>,
+}
+
+impl core::fmt::Debug for Request {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "Request {{\n   {} {} {}\n   headers: {:#?},\n   cookies: {:?},\n   cors: {:?},\n   body: {:?}\n}}",
+            self.method,
+            {
+                if let Some(q) = &self.query {
+                    format!("{}{}", self.route.to_string(), q.sequence())
+                } else {
+                    self.route.to_string()
+                }
+            },
+            self.proto,
+            self.headers,
+            self.cors,
+            self.cookies,
+            self.body
+                .as_ref()
+                .map(|b| if b.len() > 19 {
+                    format!("{:?}...", &b[..20])
+                } else {
+                    format!("{:?}", &b)
+                })
+                .unwrap_or_default()
+        )
+    }
 }
 
 impl Request {
@@ -71,7 +98,9 @@ impl Request {
                 return Err(err_stt!(BadRequest));
                 // "expected field after header token"
             };
-            builder.header(header, field);
+            builder
+                .header(header, field)
+                .map_err(|_| err_stt!(BadRequest))?;
         }
 
         builder.build()

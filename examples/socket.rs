@@ -24,7 +24,7 @@ async fn main() {
 async fn index(req: Request) -> Respond {
     let body = format!("<h1>Hello {}</h1>", req.param("who").unwrap_or("wakanda"));
     let len = body.len();
-    let resp = Respond::builder(status!(200), Protocol::Http11)
+    let resp = Respond::builder(status!(200), Protocol::Http11, false)
         .body(body)
         .content_length(len)
         .content_encoding(Encoding::Deflate)

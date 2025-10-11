@@ -1,5 +1,6 @@
 extern crate std;
 use hashbrown::HashSet;
+use pheasant_core::ErrorStatus;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::net::{Ipv4Addr, TcpListener, TcpStream};
 
@@ -11,14 +12,26 @@ pub mod servlet;
 pub mod socket;
 
 pub use fallback::Fallback;
-pub use request::{Request, Scrutinizer};
+pub use request::Request;
 pub use resource::Resource;
 pub use respond::Respond;
 pub use servlet::{Servlet, ServletBundle};
 pub use socket::{HttpSocket, SocketRef};
 
+// TODO Respond Forward Preflight and HttpError logic
+// TODO Scrutinizer impls
+
+/// data types that can be sent in http message
 pub trait OctetStream {
-    fn as_bytes(&self) -> &[u8];
+    fn octet_stream(&self) -> &[u8];
+}
+
+/// validates that the read request's various parts are valid
+/// e.g., Pragma: ... header + Http1.1 protocol is an error
+///
+/// scrutinize a request's contents
+pub trait Scrutinizer {
+    fn scrutinize(&self) -> Result<(), ErrorStatus>;
 }
 
 pub trait Server {

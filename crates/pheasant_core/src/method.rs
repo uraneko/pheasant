@@ -40,9 +40,10 @@ impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}{}",
-            self.as_str().chars().next().unwrap(),
-            &self.as_str()[1..].to_lowercase(),
+            "{}",
+            // self.as_str().chars().next().unwrap(),
+            // &self.as_str()[1..].to_lowercase(),
+            self.as_str()
         )
     }
 }

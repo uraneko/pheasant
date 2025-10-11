@@ -8,13 +8,14 @@
 use crate::Request;
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
-use pheasant_core::{ErrorStatus, Protocol, Status, Successful};
+use pheasant_core::{ErrorStatus, Protocol, Status, StatusLiteral, Successful};
 use pheasant_headers::{Cookie, Headers, RespondCors};
 
 pub mod builder;
 pub mod http11;
 
-use builder::Builder;
+pub use builder::Builder;
+pub use http11::ScrutinizeCors;
 
 pub struct Respond {
     proto: Protocol,
@@ -28,8 +29,8 @@ pub struct Respond {
 }
 
 impl Respond {
-    pub fn builder<'a>(status: Status, proto: Protocol) -> Builder<'a> {
-        Builder::new(status, proto)
+    pub fn builder<'a>(status: Status, proto: Protocol, cross_origin: bool) -> Builder<'a> {
+        Builder::new(status, proto, cross_origin)
     }
 }
 
@@ -40,5 +41,26 @@ impl Respond {
 
     pub fn status(&self) -> Status {
         self.status
+    }
+}
+
+impl core::fmt::Debug for Respond {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "Respond {{\n   {} {} {}\n   headers: {:#?}\n   body: {:?}\n}}",
+            self.proto,
+            self.status.code(),
+            self.status.text(),
+            self.headers,
+            self.body
+                .as_ref()
+                .map(|b| if b.len() > 19 {
+                    format!("{:?}...", &b[..20])
+                } else {
+                    format!("{:?}", &b)
+                })
+                .unwrap_or_default()
+        )
     }
 }

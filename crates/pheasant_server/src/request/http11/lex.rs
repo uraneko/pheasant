@@ -52,6 +52,7 @@ impl Token {
 
 // buf is the socket's buffer
 pub fn lex(reader: &[u8], buf: &mut [u8]) -> Vec<Token> {
+    println!("{}", str::from_utf8(reader).unwrap());
     // let mut reader = BufReader::new(inner);
     let toks = Vec::with_capacity(128);
 
@@ -86,7 +87,7 @@ struct ReadUri<'a> {
 
 impl<'a> ReadUri<'a> {
     fn uri(mut self) -> ReadProto<'a> {
-        let n = self.reader.read_until(&mut self.buf, 32).unwrap();
+        let n = self.reader.read_until(self.buf, 32).unwrap();
         let uri = Resource::try_from(&self.buf[..n]).unwrap();
         self.tokens.push(uri!(uri));
 
@@ -106,7 +107,7 @@ struct ReadProto<'a> {
 
 impl<'a> ReadProto<'a> {
     fn proto(mut self) -> ReadHeaders<'a> {
-        let n = self.reader.read_until(&mut self.buf, 10).unwrap();
+        let n = self.reader.read_until(self.buf, 10).unwrap();
         let proto = Protocol::try_from(&self.buf[..n]).unwrap();
         self.tokens.push(proto!(proto));
 
@@ -125,12 +126,19 @@ impl ReadHeader {
     fn header<'a>(buf: &'a mut [u8], tokens: &'a mut Vec<Token>) -> ReadField<'a> {
         let parse_len = Self::is_content_length(&buf);
 
-        let Some(idx) = buf.iter().find(|b| **b == b':') else {
+        let Some(idx) = buf
+            .iter()
+            .enumerate()
+            .find(|(i, b)| **b == b':')
+            .map(|(i, b)| i)
+        else {
             // actually not a header
             unreachable!("expected header line, got something else");
         };
-        let bytes = &buf[..*idx as usize - 1];
+
+        let bytes = &buf[..idx];
         tokens.push(header!(bytes.to_vec()));
+        let buf = &mut buf[idx + 2..];
 
         ReadField {
             tokens,
@@ -179,10 +187,10 @@ struct ReadHeaders<'a> {
 
 impl<'a> ReadHeaders<'a> {
     fn headers(mut self) -> ReadBody<'a> {
-        while let Ok(n) = self.reader.read_until(&mut self.buf, 10)
+        while let Ok(n) = self.reader.read_until(self.buf, 10)
             && n != 1
         {
-            if let Some(len) = ReadHeader::header(self.buf, &mut self.tokens).field() {
+            if let Some(len) = ReadHeader::header(&mut self.buf[..n], &mut self.tokens).field() {
                 self.content_length = Some(len);
             }
         }

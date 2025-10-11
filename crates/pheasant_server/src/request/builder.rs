@@ -31,7 +31,7 @@ impl Builder {
         if header == "Cookie" {
             self.headers.headers(header, field);
         } else {
-            self.headers.insert(header, field);
+            self.headers.header(header, field);
         }
 
         Ok(())

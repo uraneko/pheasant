@@ -171,12 +171,12 @@ impl core::ops::Index<&str> for Resource {
 
     fn index(&self, method: &str) -> &Self::Output {
         match method {
-            "Get" => &self.get,
-            "Post" => &self.post,
-            "Patch" => &self.patch,
-            "Put" => &self.put,
-            "Delete" => &self.delete,
-            "Head" => &self.get,
+            "GET" => &self.get,
+            "POST" => &self.post,
+            "PATCH" => &self.patch,
+            "PUT" => &self.put,
+            "DELETE" => &self.delete,
+            "HEAD" => &self.get,
             _ => panic!("trace doesnt use servlets and connect is a proxy thing"),
         }
     }

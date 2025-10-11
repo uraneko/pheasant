@@ -21,6 +21,11 @@ pub use io::{ReceiveStream, SendStream};
 
 // TODO implement Keep-Alive header for http request pipelining
 
+// pub enum SocketError {
+//     ReadFailed,
+//     WriteFailed,
+// }
+
 pub struct HttpSocket<const BUF_SIZE: usize> {
     /// byte repr of allowed socket protocols ( http1.1, 2, ws,...)
     protos: u8,
@@ -311,7 +316,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
 
     pub fn init_message(&self) {
         println!(
-            "\x1b[1;38;2;111;163;204mSocket listening on http://localhost:{}",
+            "\x1b[1;38;2;111;163;204mSocket listening on http://localhost:{}\x1b[0m",
             self.port()
         );
     }
@@ -427,7 +432,7 @@ impl<'a> Lookup<'a> {
 type IoErr = std::io::Error;
 
 impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
-    pub fn lookup(&self, req: Request) -> Result<ProcessReq, ErrorStatus> {
+    pub fn lookup(&self, req: Request) -> Result<ProcessReq<'_>, ErrorStatus> {
         Lookup {
             res: &self.resources,
             req,
@@ -455,6 +460,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
         let recv = self.reader(stream);
 
         recv.recv()
+            .map_err(|_| std::io::Error::other("read failed"))
     }
 
     /// generates a new SendStream
@@ -476,12 +482,12 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
     pub async fn fireup(&mut self) -> Result<(), std::io::Error> {
         while let Ok(mut stream) = self.stream() {
             let request = self.receive(&mut stream)?;
+            println!("{:#?}", request);
             let process = self
                 .lookup(request)
                 .map_err(|_| std::io::Error::other("wakanda"))?;
             let respond = process.run().await;
-
-            self.send(&mut stream, respond)?
+            self.send(&mut stream, respond)?;
         }
 
         Ok(())
