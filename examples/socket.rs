@@ -12,9 +12,10 @@ async fn main() {
         .get(servlet)
         .head(true)
         .build();
-    let mut socket: HttpSocket<4096> = HttpSocket::builder([127, 0, 0, 1], 7070)
+    let mut socket: HttpSocket = HttpSocket::builder([127, 0, 0, 1], 7070)
         .unwrap()
         .resource(resource)
+        .buf_size1(4096)
         .build()
         .unwrap();
     socket.init_message();

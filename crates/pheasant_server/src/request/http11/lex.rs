@@ -1,8 +1,7 @@
 extern crate std;
-use crate::socket::io::ReadUntil;
 use pheasant_core::{Method, Protocol};
 use pheasant_uri::Resource;
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
@@ -51,7 +50,7 @@ impl Token {
 }
 
 // buf is the socket's buffer
-pub fn lex(reader: &[u8], buf: &mut [u8]) -> Vec<Token> {
+pub fn lex(reader: &[u8], buf: &mut Vec<u8>) -> Vec<Token> {
     println!("{}", str::from_utf8(reader).unwrap());
     // let mut reader = BufReader::new(inner);
     let toks = Vec::with_capacity(128);
@@ -66,8 +65,12 @@ pub fn lex(reader: &[u8], buf: &mut [u8]) -> Vec<Token> {
 struct ReadMethod;
 
 impl ReadMethod {
-    fn method<'a>(mut reader: &'a [u8], buf: &'a mut [u8], mut tokens: Vec<Token>) -> ReadUri<'a> {
-        let n = reader.read_until(buf, 32).unwrap();
+    fn method<'a>(
+        mut reader: &'a [u8],
+        buf: &'a mut Vec<u8>,
+        mut tokens: Vec<Token>,
+    ) -> ReadUri<'a> {
+        let n = reader.read_until(32, buf).unwrap();
         let method = Method::try_from(&buf[..n]).unwrap();
         tokens.push(method!(method));
 
@@ -82,12 +85,12 @@ impl ReadMethod {
 struct ReadUri<'a> {
     tokens: Vec<Token>,
     reader: &'a [u8],
-    buf: &'a mut [u8],
+    buf: &'a mut Vec<u8>,
 }
 
 impl<'a> ReadUri<'a> {
     fn uri(mut self) -> ReadProto<'a> {
-        let n = self.reader.read_until(self.buf, 32).unwrap();
+        let n = self.reader.read_until(32, self.buf).unwrap();
         let uri = Resource::try_from(&self.buf[..n]).unwrap();
         self.tokens.push(uri!(uri));
 
@@ -102,12 +105,12 @@ impl<'a> ReadUri<'a> {
 struct ReadProto<'a> {
     tokens: Vec<Token>,
     reader: &'a [u8],
-    buf: &'a mut [u8],
+    buf: &'a mut Vec<u8>,
 }
 
 impl<'a> ReadProto<'a> {
     fn proto(mut self) -> ReadHeaders<'a> {
-        let n = self.reader.read_until(self.buf, 10).unwrap();
+        let n = self.reader.read_until(10, self.buf).unwrap();
         let proto = Protocol::try_from(&self.buf[..n]).unwrap();
         self.tokens.push(proto!(proto));
 
@@ -129,8 +132,8 @@ impl ReadHeader {
         let Some(idx) = buf
             .iter()
             .enumerate()
-            .find(|(i, b)| **b == b':')
-            .map(|(i, b)| i)
+            .find(|(_, b)| **b == b':')
+            .map(|(i, _)| i)
         else {
             // actually not a header
             unreachable!("expected header line, got something else");
@@ -182,12 +185,12 @@ struct ReadHeaders<'a> {
     tokens: Vec<Token>,
     reader: &'a [u8],
     content_length: Option<usize>,
-    buf: &'a mut [u8],
+    buf: &'a mut Vec<u8>,
 }
 
 impl<'a> ReadHeaders<'a> {
     fn headers(mut self) -> ReadBody<'a> {
-        while let Ok(n) = self.reader.read_until(self.buf, 10)
+        while let Ok(n) = self.reader.read_until(10, self.buf)
             && n != 1
         {
             if let Some(len) = ReadHeader::header(&mut self.buf[..n], &mut self.tokens).field() {

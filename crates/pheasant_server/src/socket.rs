@@ -7,7 +7,7 @@
 //! - fallbacks
 //! - stream/io
 
-use crate::{Fallback, Request, Resource, Respond, Servlet};
+use crate::{Fallback, Request, Resource, Respond, Servlet, request::http11::lex};
 use hashbrown::HashSet;
 use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 use pheasant_uri::Scheme;
@@ -26,7 +26,7 @@ pub use io::{ReceiveStream, SendStream};
 //     WriteFailed,
 // }
 
-pub struct HttpSocket<const BUF_SIZE: usize> {
+pub struct HttpSocket {
     /// byte repr of allowed socket protocols ( http1.1, 2, ws,...)
     protos: u8,
     /// the actively used socket protocol
@@ -47,14 +47,18 @@ pub struct HttpSocket<const BUF_SIZE: usize> {
     fallbacks: HashSet<Fallback>,
     // enables redirects socket wide
     forwarding: bool,
-    /// the socket buffer for http io
-    buffer: [u8; BUF_SIZE],
+    /// a socket buffer for http io
+    primary_buffer: Vec<u8>,
+    /// a second socket buffer for http io
+    secondary_buffer: Vec<u8>,
+    /// a third socket buffer for http io
+    tertiary_buffer: Vec<u8>,
     /// max allowed len for request uris
-    uri_upper_size: usize,
+    uri_max: usize,
     /// the max allowed octets size of a header field
-    header_upper_size: usize,
+    header_max: usize,
     /// the max allowed octets size of all headers fields
-    headers_upper_size: usize,
+    headers_max: usize,
     /// defines the strictness mode of the socket
     ///
     /// strictness is the level of rfc and recency compliance this socket
@@ -75,7 +79,7 @@ pub struct HttpSocket<const BUF_SIZE: usize> {
 //     // LoadBalancer,
 // }
 
-impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
+impl HttpSocket {
     /// creates a bew HttpSocket
     ///
     /// # Error
@@ -115,7 +119,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
     //     })
     // }
 
-    pub fn builder(addr: impl Into<Ipv4Addr>, port: u16) -> IoRes<builder::Builder<BUF_SIZE>> {
+    pub fn builder(addr: impl Into<Ipv4Addr>, port: u16) -> IoRes<builder::Builder> {
         let socket = bind_socket(addr, port)?;
 
         Ok(builder::Builder::new(socket))
@@ -213,7 +217,7 @@ macro_rules! byte_enum_match {
     };
 }
 
-impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
+impl HttpSocket {
     byte_enum_match!(protos<Protocol, u8> { supports_http11: Http11, supports_http2: Http2 });
 
     byte_enum_match!(methods<Method, u16> {
@@ -228,7 +232,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
     });
 }
 
-impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
+impl HttpSocket {
     /// registers a new service(s) to this socket
     // pub fn servlet<S, B>(&mut self, s: S) -> &mut Self
     // where
@@ -293,7 +297,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
     // }
 }
 
-impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
+impl HttpSocket {
     /// returns a shared reference of self
     pub fn as_ref(&self) -> &Self {
         self
@@ -431,7 +435,7 @@ impl<'a> Lookup<'a> {
 
 type IoErr = std::io::Error;
 
-impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
+impl HttpSocket {
     pub fn lookup(&self, req: Request) -> Result<ProcessReq<'_>, ErrorStatus> {
         Lookup {
             res: &self.resources,
@@ -440,7 +444,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
         .find()
     }
 
-    pub fn stream(&mut self) -> Result<impl Read + Write + use<BUF_SIZE>, std::io::Error> {
+    pub fn stream<'a>(&mut self) -> Result<impl Read + Write + use<'a>, std::io::Error> {
         match self.socket.accept() {
             Ok((stream, _)) => Ok(stream),
             Err(e) => Err(e),
@@ -449,7 +453,7 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
 
     /// generates a new ReceiverStream
     pub fn reader<'a, R: Read>(&'a mut self, stream: &'a mut R) -> ReceiveStream<'a, R> {
-        ReceiveStream::new(&mut self.buffer, stream)
+        ReceiveStream::new(stream, &mut self.primary_buffer)
     }
 
     /// receives the request stream and parse it into a request
@@ -459,22 +463,34 @@ impl<const BUF_SIZE: usize> HttpSocket<BUF_SIZE> {
     ) -> Result<Request, std::io::Error> {
         let recv = self.reader(stream);
 
-        recv.recv()
-            .map_err(|_| std::io::Error::other("read failed"))
+        let read = recv
+            .recv()
+            .map_err(|_| std::io::Error::other("read failed"))?;
+
+        let tokens = lex(&self.primary_buffer[..read], &mut self.secondary_buffer);
+        if tokens.is_empty() {
+            return err_stt!(?BadRequest).map_err(|_| std::io::Error::other("read failed"));
+        }
+
+        Request::parse(tokens).map_err(|_| std::io::Error::other("read failed"))
     }
 
     /// generates a new SendStream
     pub fn writer<'a, W: Write>(
         &'a mut self,
         stream: &'a mut W,
-        res: Respond,
+        amount: usize,
     ) -> SendStream<'a, W> {
-        SendStream::new(stream, &mut self.buffer, res)
+        SendStream::new(stream, &mut self.primary_buffer, amount)
     }
 
     /// sends the respond byte stream back to the client
     pub fn send<W: Write>(&mut self, stream: &mut W, res: Respond) -> Result<(), std::io::Error> {
-        let send = self.writer(stream, res);
+        let n = res
+            .parse(&mut self.primary_buffer)
+            .map_err(|_| std::io::Error::other("respond parse failed"))?;
+        let send = self.writer(stream, n);
+
         send.send()
     }
 

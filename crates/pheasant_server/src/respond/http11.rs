@@ -21,7 +21,6 @@ impl Respond {
         n += buf.write(&[32])?;
         n += buf.write(self.status.text().as_bytes())?;
         n += buf.write(&[10])?;
-        println!(">>{:?}", &buf[..n + 2]);
         self.headers.write_to(buf)?;
         n += buf.write(&[10])?;
         if let Some(body) = self.body {

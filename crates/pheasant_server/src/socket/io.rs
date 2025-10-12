@@ -44,134 +44,53 @@ use std::{
 };
 
 // use super::SocketError;
-use crate::request::http11::lex;
-use crate::{Request, Respond};
+use crate::Respond;
 use pheasant_core::{ErrorStatus, err_stt};
-
-#[derive(Debug)]
-pub enum ReadUntilError {
-    DelimNotFound,
-    BufTooSmall,
-    // Other(E),
-}
-
-// TODO account for read not reading all bytes for sure
-// extended io methods for the embedded_io
-pub trait ReadUntil: Read {
-    // if delim in self.inner this reads until delim
-    // else reads to the end
-    fn read_until(&mut self, buf: &mut [u8], delim: u8) -> Result<usize, ReadUntilError>;
-}
-
-impl ReadUntil for &[u8] {
-    fn read_until(&mut self, mut buf: &mut [u8], delim: u8) -> Result<usize, ReadUntilError> {
-        let mut read = match self.iter().position(|b| b == &delim) {
-            Some(idx) => {
-                if buf.len() < idx {
-                    return Err(ReadUntilError::BufTooSmall);
-                }
-                self.read_exact(&mut buf[..idx + 1]).unwrap();
-                buf[idx] = 0;
-
-                idx
-            }
-            None => {
-                let n = core::cmp::min(buf.len(), self.len());
-
-                while let Ok(r) = self.read(&mut buf) {
-                    if r == 0 {
-                        break;
-                    }
-                }
-
-                n
-            }
-        };
-
-        if read > 1 && buf[read - 1] == 13 {
-            buf[read - 1] = 0;
-
-            read -= 1;
-        }
-
-        Ok(read)
-    }
-}
-
-impl<'a, R: Read> Read for ReceiveStream<'a, R> {
-    fn read(&mut self, buf: &mut [u8]) -> IoRes<usize> {
-        self.stream.read(buf)
-    }
-}
-
-// impl<'a, R: Read> Read for ReceiveStream<'a, R> {
-//     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-//         self.stream.fill_buf()
-//     }
-//
-//     fn consume(&mut self, amount: usize) {
-//         self.stream.consume(amount)
-//     }
-// }
-//
-// impl<'a, W: Write> Write for SendStream<'a, W> {
-//     fn write(&mut self, buf: &[u8]) -> IoRes<usize> {
-//         self.stream.write(buf)
-//     }
-//
-//     fn flush(&mut self) -> IoRes<()> {
-//         self.stream.flush()
-//     }
-// }
 
 pub struct ReceiveStream<'a, R: Read> {
     pub stream: &'a mut R,
-    buf: &'a mut [u8],
+    buf1: &'a mut Vec<u8>,
 }
 
 impl<'a, R: Read> ReceiveStream<'a, R> {
-    pub fn new(buf: &'a mut [u8], stream: &'a mut R) -> Self {
-        Self { buf, stream }
+    pub fn new(stream: &'a mut R, buf1: &'a mut Vec<u8>) -> Self {
+        Self { buf1, stream }
     }
 
-    pub fn recv(mut self) -> Result<Request, ErrorStatus> {
+    pub fn recv(self) -> Result<usize, ErrorStatus> {
         let mut read = 0;
-        let buf = core::mem::take(&mut self.buf);
+        let mut buf = core::mem::take(self.buf1);
         loop {
-            match self.read(&mut buf[read..]) {
+            match self.stream.read(&mut buf[read..]) {
                 Ok(0) => break,
                 Ok(n) => read += n,
                 Err(_e) => return err_stt!(?InternalServerError),
                 // return SocketError::ReadFailed,
             }
         }
-        self.buf = buf;
+        *self.buf1 = buf;
 
-        let mut temp = [0; 1024];
-        let tokens = lex(&self.buf[..read], &mut temp);
-        if tokens.is_empty() {
-            return err_stt!(?BadRequest);
-        }
-
-        Request::parse(tokens)
+        Ok(read)
     }
 }
 
 pub struct SendStream<'a, W: Write> {
     stream: &'a mut W,
-    buf: &'a mut [u8],
-    res: Respond,
+    buf: &'a mut Vec<u8>,
+    amount: usize,
 }
 
 impl<'a, W: Write> SendStream<'a, W> {
-    pub fn new(stream: &'a mut W, buf: &'a mut [u8], res: Respond) -> Self {
-        Self { res, buf, stream }
+    pub fn new(stream: &'a mut W, buf: &'a mut Vec<u8>, amount: usize) -> Self {
+        Self {
+            stream,
+            buf,
+            amount,
+        }
     }
 
     pub fn send(self) -> Result<(), std::io::Error> {
-        let n = self.res.parse(self.buf)?;
-        println!("{:?}", &self.buf[..n]);
-        self.stream.write(&self.buf[..n])?;
+        self.stream.write(&self.buf[..self.amount])?;
         self.stream.flush()?;
 
         Ok(())

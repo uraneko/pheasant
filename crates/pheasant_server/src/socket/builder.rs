@@ -7,23 +7,24 @@ use pheasant_uri::Scheme;
 use std::net::TcpListener;
 
 // #[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
-pub struct Builder<const BUF_SIZE: usize> {
+pub struct Builder {
     protos: u8,
     proto: Protocol,
     methods: u16,
     scheme: Scheme,
     socket: TcpListener,
     forwarding: bool,
-    uri_upper_size: usize,
-    header_upper_size: usize,
-    headers_upper_size: usize,
+    buf_sizes: [usize; 3],
+    uri_max: usize,
+    header_max: usize,
+    headers_max: usize,
     strict: bool,
     secretive: bool,
     resources: HashSet<Resource>,
     fallbacks: HashSet<Fallback>,
 }
 
-impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
+impl Builder {
     byte_enum_delegate!(protos<Protocol, u8> { http11: Http11, http2: Http2 });
     byte_enum_delegate!(methods<Method, u16> {
         get: Get,
@@ -43,7 +44,7 @@ pub enum Error {
     MustServeAtLeastOneResource,
 }
 
-impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
+impl Builder {
     pub fn new(socket: TcpListener) -> Self {
         Self {
             socket,
@@ -52,9 +53,10 @@ impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
             methods: 6,
             scheme: Scheme::Http,
             forwarding: false,
-            uri_upper_size: 1024,
-            headers_upper_size: 2048,
-            header_upper_size: 256,
+            buf_sizes: [4069, 1028, 512],
+            uri_max: 1024,
+            headers_max: 2048,
+            header_max: 256,
             strict: true,
             secretive: true,
             resources: HashSet::new(),
@@ -62,11 +64,11 @@ impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
         }
     }
 
-    pub fn build(self) -> Result<HttpSocket<BUF_SIZE>, Error> {
-        if self.header_upper_size == 0
-            || self.headers_upper_size == 0
-            || BUF_SIZE == 0
-            || self.uri_upper_size == 0
+    pub fn build(self) -> Result<HttpSocket, Error> {
+        if self.header_max == 0
+            || self.headers_max == 0
+            || self.buf_sizes[0] == 0
+            || self.uri_max == 0
         {
             return Err(Error::UpperSizesCanNotBeNull);
         }
@@ -83,14 +85,34 @@ impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
             proto: self.proto,
             fallbacks: self.fallbacks,
             resources: self.resources,
-            uri_upper_size: self.uri_upper_size,
-            header_upper_size: self.header_upper_size,
-            headers_upper_size: self.headers_upper_size,
+            uri_max: self.uri_max,
+            header_max: self.header_max,
+            headers_max: self.headers_max,
             forwarding: self.forwarding,
             strict: self.strict,
             secretive: self.secretive,
-            buffer: [0; BUF_SIZE],
+            primary_buffer: Vec::with_capacity(self.buf_sizes[0]),
+            secondary_buffer: Vec::with_capacity(self.buf_sizes[1]),
+            tertiary_buffer: Vec::with_capacity(self.buf_sizes[2]),
         })
+    }
+
+    pub fn buf_size1(mut self, size: usize) -> Self {
+        self.buf_sizes[0] = size;
+
+        self
+    }
+
+    pub fn buf_size2(mut self, size: usize) -> Self {
+        self.buf_sizes[1] = size;
+
+        self
+    }
+
+    pub fn buf_size3(mut self, size: usize) -> Self {
+        self.buf_sizes[2] = size;
+
+        self
     }
 
     pub fn forwarding(mut self, bool: bool) -> Self {
@@ -111,20 +133,20 @@ impl<const BUF_SIZE: usize> Builder<BUF_SIZE> {
         self
     }
 
-    pub fn uri_upper_size(mut self, upper: usize) -> Self {
-        self.uri_upper_size = upper;
+    pub fn uri_max(mut self, upper: usize) -> Self {
+        self.uri_max = upper;
 
         self
     }
 
-    pub fn header_upper_size(mut self, upper: usize) -> Self {
-        self.header_upper_size = upper;
+    pub fn header_max(mut self, upper: usize) -> Self {
+        self.header_max = upper;
 
         self
     }
 
-    pub fn headers_upper_size(mut self, upper: usize) -> Self {
-        self.headers_upper_size = upper;
+    pub fn headers_max(mut self, upper: usize) -> Self {
+        self.headers_max = upper;
 
         self
     }
