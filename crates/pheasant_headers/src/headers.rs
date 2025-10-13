@@ -1,9 +1,9 @@
 extern crate alloc;
+extern crate std;
 use alloc::borrow::ToOwned;
 use alloc::string::{String, ToString};
 use hashbrown::{HashMap, HashSet};
-extern crate std;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 
 // pub mod authentication;
 // pub mod caching;
@@ -163,10 +163,9 @@ impl Headers {
         self.headers.is_empty()
     }
 
-    pub fn write_to(self, mut buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        extern crate std;
-        use std::io::Write;
+    pub fn write_to(self, buf: &mut BufWriter<&mut impl Write>) -> Result<usize, std::io::Error> {
         let mut n = 0;
+
         for (k, v) in self.headers.into_iter() {
             n += buf.write(k.as_bytes())?;
             n += buf.write(b":")?;
@@ -174,13 +173,11 @@ impl Headers {
                 Header::Field(f) => {
                     n += buf.write(f.as_bytes())?;
                     n += buf.write(&[10])?;
-                    buf.flush()?;
                 }
                 Header::Set(s) => {
-                    // This means im writing repeating headers as a single header
+                    // using unify_header_fields means im writing repeating headers as a single header
                     n += buf.write(unify_header_fields(s).as_bytes())?;
                     n += buf.write(&[10])?;
-                    buf.flush()?;
                 }
             }
         }

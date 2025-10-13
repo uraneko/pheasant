@@ -11,13 +11,10 @@ use crate::{Fallback, Request, Resource, Respond, Servlet, request::http11::lex}
 use hashbrown::HashSet;
 use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 use pheasant_uri::Scheme;
-use std::io::{Read, Result as IoRes, Write};
+use std::io::{BufReader, BufWriter, Read, Result as IoRes, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 
 pub mod builder;
-pub mod io;
-
-pub use io::{ReceiveStream, SendStream};
 
 // TODO implement Keep-Alive header for http request pipelining
 
@@ -444,6 +441,43 @@ impl HttpSocket {
         .find()
     }
 
+    /// cant use embedded_io until no_std ip/tcp is implemented
+    /// until then will be using std's Read and TcpStream
+
+    /// the request is processed once it's raw data is received through a client connection
+    ///
+    /// the prerequisite to respond needs 2 inputs: request + resource
+    /// the condition is
+    /// req.method == res.method && req.route == res.route -> Respond
+    ///
+    /// the prerequisite for a forward is that the response condition fails at route matching
+    /// the condition is
+    /// there exists a resource such that res.allows_method(req.method) &&
+    /// res.redirects.contains(req.route)
+    ///
+    /// the prerequisite for a preflight is that req.method == Options
+    /// the condition is
+    /// referring to req.requested_method as m; there exists a resource such that res.m is registered
+    /// and allows cors requests
+    ///
+    /// the prerequisite to negotiate is that the request includes the Expect or the Upgrade&Connection headers
+    /// the condition is
+    /// 101 -
+    /// req.headers.contains(Upgrade + Connection) && the server decides to follow through with the
+    /// upgrade -> we respond with a 101 switching protos
+    /// 100 -
+    /// req.headers.contains(Expect = 100-Continue) -> server returns that status code iif it
+    /// decides to keep the first part of the request and process it
+    /// 102 -
+    /// 102 status is deprecated
+    /// 103 -
+    /// rarely supported on proto < http2
+    /// server sends 103 with a Link header to tell the client to preload a resource before the server
+    /// sends its actual response
+    ///
+    /// the prerequisite for an error is that any of the preceeding message variants (req/res/frd/prf)
+    /// errors out at any point before responding to the client
+    /// the condition is nothing
     pub fn stream<'a>(&mut self) -> Result<impl Read + Write + use<'a>, std::io::Error> {
         match self.socket.accept() {
             Ok((stream, _)) => Ok(stream),
@@ -451,23 +485,13 @@ impl HttpSocket {
         }
     }
 
-    /// generates a new ReceiverStream
-    pub fn reader<'a, R: Read>(&'a mut self, stream: &'a mut R) -> ReceiveStream<'a, R> {
-        ReceiveStream::new(stream, &mut self.primary_buffer)
-    }
-
     /// receives the request stream and parse it into a request
     pub fn receive<'a, R: Read>(
         &'a mut self,
         stream: &'a mut R,
     ) -> Result<Request, std::io::Error> {
-        let recv = self.reader(stream);
-
-        let read = recv
-            .recv()
-            .map_err(|_| std::io::Error::other("read failed"))?;
-
-        let tokens = lex(&self.primary_buffer[..read], &mut self.secondary_buffer);
+        let stream = BufReader::new(stream);
+        let tokens = lex(stream, &mut self.secondary_buffer);
         if tokens.is_empty() {
             return err_stt!(?BadRequest).map_err(|_| std::io::Error::other("read failed"));
         }
@@ -475,34 +499,26 @@ impl HttpSocket {
         Request::parse(tokens).map_err(|_| std::io::Error::other("read failed"))
     }
 
-    /// generates a new SendStream
-    pub fn writer<'a, W: Write>(
-        &'a mut self,
-        stream: &'a mut W,
-        amount: usize,
-    ) -> SendStream<'a, W> {
-        SendStream::new(stream, &mut self.primary_buffer, amount)
-    }
-
     /// sends the respond byte stream back to the client
     pub fn send<W: Write>(&mut self, stream: &mut W, res: Respond) -> Result<(), std::io::Error> {
-        let n = res
-            .parse(&mut self.primary_buffer)
+        let stream = BufWriter::new(stream);
+        let _n = res
+            .parse(stream)
             .map_err(|_| std::io::Error::other("respond parse failed"))?;
-        let send = self.writer(stream, n);
 
-        send.send()
+        Ok(())
     }
 
     /// starts up the socket server
     pub async fn fireup(&mut self) -> Result<(), std::io::Error> {
         while let Ok(mut stream) = self.stream() {
             let request = self.receive(&mut stream)?;
-            println!("{:#?}", request);
+
             let process = self
                 .lookup(request)
-                .map_err(|_| std::io::Error::other("wakanda"))?;
+                .map_err(|_| std::io::Error::other("requested resource/method not found"))?;
             let respond = process.run().await;
+
             self.send(&mut stream, respond)?;
         }
 

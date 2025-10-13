@@ -1,7 +1,7 @@
 extern crate std;
 use pheasant_core::{Method, Protocol};
 use pheasant_uri::Resource;
-use std::io::{BufRead, Read};
+use std::io::{BufRead, BufReader, Read};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
@@ -50,9 +50,7 @@ impl Token {
 }
 
 // buf is the socket's buffer
-pub fn lex(reader: &[u8], buf: &mut Vec<u8>) -> Vec<Token> {
-    println!("{}", str::from_utf8(reader).unwrap());
-    // let mut reader = BufReader::new(inner);
+pub fn lex(reader: BufReader<&mut impl Read>, buf: &mut Vec<u8>) -> Vec<Token> {
     let toks = Vec::with_capacity(128);
 
     ReadMethod::method(reader, buf, toks)
@@ -66,12 +64,13 @@ struct ReadMethod;
 
 impl ReadMethod {
     fn method<'a>(
-        mut reader: &'a [u8],
+        mut reader: BufReader<&'a mut impl Read>,
         buf: &'a mut Vec<u8>,
         mut tokens: Vec<Token>,
-    ) -> ReadUri<'a> {
-        let n = reader.read_until(32, buf).unwrap();
+    ) -> ReadUri<'a, impl Read> {
+        let n = reader.read_until(32, buf).unwrap() - 1;
         let method = Method::try_from(&buf[..n]).unwrap();
+        buf.clear();
         tokens.push(method!(method));
 
         ReadUri {
@@ -82,16 +81,17 @@ impl ReadMethod {
     }
 }
 
-struct ReadUri<'a> {
+struct ReadUri<'a, R: Read> {
     tokens: Vec<Token>,
-    reader: &'a [u8],
+    reader: BufReader<&'a mut R>,
     buf: &'a mut Vec<u8>,
 }
 
-impl<'a> ReadUri<'a> {
-    fn uri(mut self) -> ReadProto<'a> {
-        let n = self.reader.read_until(32, self.buf).unwrap();
+impl<'a, R: Read> ReadUri<'a, R> {
+    fn uri(mut self) -> ReadProto<'a, impl Read> {
+        let n = self.reader.read_until(32, self.buf).unwrap() - 1;
         let uri = Resource::try_from(&self.buf[..n]).unwrap();
+        self.buf.clear();
         self.tokens.push(uri!(uri));
 
         ReadProto {
@@ -102,16 +102,18 @@ impl<'a> ReadUri<'a> {
     }
 }
 
-struct ReadProto<'a> {
+struct ReadProto<'a, R: Read> {
     tokens: Vec<Token>,
-    reader: &'a [u8],
+    reader: BufReader<&'a mut R>,
     buf: &'a mut Vec<u8>,
 }
 
-impl<'a> ReadProto<'a> {
-    fn proto(mut self) -> ReadHeaders<'a> {
-        let n = self.reader.read_until(10, self.buf).unwrap();
+impl<'a, R: Read> ReadProto<'a, R> {
+    fn proto(mut self) -> ReadHeaders<'a, impl Read> {
+        let mut n = self.reader.read_until(10, self.buf).unwrap();
+        n -= if self.buf[n - 2] == 13 { 2 } else { 1 };
         let proto = Protocol::try_from(&self.buf[..n]).unwrap();
+        self.buf.clear();
         self.tokens.push(proto!(proto));
 
         ReadHeaders {
@@ -141,7 +143,14 @@ impl ReadHeader {
 
         let bytes = &buf[..idx];
         tokens.push(header!(bytes.to_vec()));
-        let buf = &mut buf[idx + 2..];
+        let start = idx
+            + match buf[idx + 1] {
+                32 => 2,
+                _ => 1,
+            };
+        let len = buf.len();
+        let end = len - if &buf[len - 2..] == &[13, 10] { 2 } else { 1 };
+        let buf = &mut buf[start..end];
 
         ReadField {
             tokens,
@@ -168,34 +177,45 @@ impl ReadField<'_> {
         // if mode.is_strict() {
         //     return Err();
         // }
-        let bytes = self.buf.to_vec();
+
         // FIXME this is currently wrong
         // need to use the str_to_num crate functions
         // to convert from the ascii chars to bytes then to usize
-        let len = self
-            .parse_len
-            .then(|| usize::from_ne_bytes(bytes.clone().try_into().unwrap()));
-        self.tokens.push(field!(bytes));
+        let len = self.parse_len.then(|| {
+            usize::from_ne_bytes([
+                self.buf[0],
+                self.buf[1],
+                self.buf[2],
+                self.buf[3],
+                self.buf[4],
+                self.buf[5],
+                self.buf[6],
+                self.buf[7],
+            ])
+        });
+        self.tokens.push(field!(self.buf.to_vec()));
 
         len
     }
 }
 
-struct ReadHeaders<'a> {
+struct ReadHeaders<'a, R: Read> {
     tokens: Vec<Token>,
-    reader: &'a [u8],
+    reader: BufReader<&'a mut R>,
     content_length: Option<usize>,
     buf: &'a mut Vec<u8>,
 }
 
-impl<'a> ReadHeaders<'a> {
-    fn headers(mut self) -> ReadBody<'a> {
+impl<'a, R: Read> ReadHeaders<'a, R> {
+    fn headers(mut self) -> ReadBody<'a, impl Read> {
         while let Ok(n) = self.reader.read_until(10, self.buf)
-            && n != 1
+            && n > 2
         {
-            if let Some(len) = ReadHeader::header(&mut self.buf[..n], &mut self.tokens).field() {
+            // n -= if self.buf[n - 2] == 13 { 2 } else { 1 };
+            if let Some(len) = ReadHeader::header(self.buf, &mut self.tokens).field() {
                 self.content_length = Some(len);
             }
+            self.buf.clear();
         }
 
         return ReadBody {
@@ -207,22 +227,22 @@ impl<'a> ReadHeaders<'a> {
     }
 }
 
-struct ReadBody<'a> {
+struct ReadBody<'a, R: Read> {
     size: Option<usize>,
     tokens: Vec<Token>,
-    reader: &'a [u8],
-    buf: &'a mut [u8],
+    reader: BufReader<&'a mut R>,
+    buf: &'a mut Vec<u8>,
 }
 
-impl ReadBody<'_> {
+impl<R: Read> ReadBody<'_, R> {
     fn body(mut self) -> Vec<Token> {
         let Some(n) = self.size else {
             return self.tokens;
         };
 
-        // self.buf.resize_with(n, Default::default);
-        self.reader.read_exact(&mut self.buf[..n]).unwrap();
-        self.tokens.push(body!(self.buf[..n].to_vec()));
+        self.buf.resize_with(n, Default::default);
+        self.reader.read_exact(&mut self.buf).unwrap();
+        self.tokens.push(body!(self.buf.to_vec()));
 
         self.tokens
     }

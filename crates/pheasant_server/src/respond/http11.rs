@@ -1,5 +1,5 @@
 extern crate std;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 
 use super::Respond;
 use crate::Scrutinizer;
@@ -7,23 +7,20 @@ use pheasant_core::{ErrorStatus, StatusLiteral, err_stt};
 use pheasant_headers::Headers;
 
 impl Respond {
-    pub fn parse(self, mut buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        println!("{:#?}", self);
+    pub fn parse(self, mut buf: BufWriter<&mut impl Write>) -> Result<usize, std::io::Error> {
         let mut n = buf.write(self.proto.as_bytes())?;
         n += buf.write(&[32])?;
 
-        let code = self.status.code().to_ne_bytes();
-        match code.strip_suffix(&[0]) {
-            Some(b) => n += buf.write(b)?,
-            None => n += buf.write(&code)?,
-        }
-
+        let code = self.status.code().to_string();
+        n += buf.write(code.as_bytes())?;
         n += buf.write(&[32])?;
         n += buf.write(self.status.text().as_bytes())?;
         n += buf.write(&[10])?;
-        self.headers.write_to(buf)?;
+        self.headers.write_to(&mut buf)?;
         n += buf.write(&[10])?;
         if let Some(body) = self.body {
+            // NOTE body is not sure to be valid utf8
+            // since it could have gone through some sort of encoding
             n += buf.write(body.as_slice())?;
         }
         buf.flush()?;

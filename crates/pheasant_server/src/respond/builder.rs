@@ -1,6 +1,6 @@
 use super::{Respond, ScrutinizeCors};
-use chrono::{DateTime, Utc};
-use hashbrown::{HashMap, HashSet};
+use chrono::{TimeDelta, Utc};
+use hashbrown::HashSet;
 use mime::Mime;
 use pheasant_core::{ErrorStatus, Protocol, Status, Successful};
 use pheasant_headers::{ContentEncoding, Cookie, Encoding, Headers, RespondCors};
@@ -76,14 +76,18 @@ impl<'a> EncodeBody<'a> {
 }
 
 impl<'a> Builder<'a> {
-    pub fn content_length(mut self, len: usize) -> Self {
-        self.headers.header("Content-Length", len);
+    pub fn content_length(mut self) -> Self {
+        self.headers.header(
+            "Content-Length",
+            self.body.as_ref().map(|b| b.len()).unwrap_or_default(),
+        );
 
         self
     }
 
-    pub fn content_type(mut self, mime: Mime) -> Self {
-        self.headers.header("Content-Type", mime);
+    pub fn content_type(mut self, mime: &str) -> Self {
+        self.headers
+            .header("Content-Type", mime.parse::<Mime>().unwrap());
 
         self
     }
@@ -121,8 +125,14 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn date(mut self, date: DateTime<Utc>) -> Self {
-        self.headers.header("Date", date);
+    pub fn date(mut self) -> Self {
+        self.headers.header("Date", Utc::now());
+
+        self
+    }
+
+    pub fn server(mut self, server: &str) -> Self {
+        self.headers.header("Server", server);
 
         self
     }
