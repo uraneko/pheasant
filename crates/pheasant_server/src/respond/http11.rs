@@ -27,11 +27,26 @@ impl Respond {
 
         Ok(n)
     }
+
+    pub fn scrutinize(&self, is_cross_origin: bool) -> Result<(), ErrorStatus> {
+        ScrutinizeCors::new(&self.headers, is_cross_origin).scrutinize()?;
+
+        Ok(())
+    }
 }
 
 pub struct ScrutinizeCors<'a> {
     headers: &'a Headers,
     cross_origin: bool,
+}
+
+impl<'a> ScrutinizeCors<'a> {
+    fn new(headers: &'a Headers, cross_origin: bool) -> Self {
+        Self {
+            headers,
+            cross_origin,
+        }
+    }
 }
 
 impl<'a> Scrutinizer for ScrutinizeCors<'a> {

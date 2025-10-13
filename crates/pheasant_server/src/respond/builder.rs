@@ -1,4 +1,4 @@
-use super::{Respond, ScrutinizeCors};
+use super::Respond;
 use chrono::{TimeDelta, Utc};
 use hashbrown::HashSet;
 use mime::Mime;

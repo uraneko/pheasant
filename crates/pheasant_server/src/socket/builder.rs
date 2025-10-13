@@ -14,10 +14,11 @@ pub struct Builder {
     scheme: Scheme,
     socket: TcpListener,
     forwarding: bool,
-    buf_sizes: [usize; 3],
+    buf_size: usize,
     uri_max: usize,
     header_max: usize,
     headers_max: usize,
+    body_max: usize,
     strict: bool,
     secretive: bool,
     resources: HashSet<Resource>,
@@ -53,10 +54,11 @@ impl Builder {
             methods: 6,
             scheme: Scheme::Http,
             forwarding: false,
-            buf_sizes: [4069, 1028, 512],
-            uri_max: 1024,
+            buf_size: 4069,
+            uri_max: 256,
             headers_max: 2048,
             header_max: 256,
+            body_max: 4096,
             strict: true,
             secretive: true,
             resources: HashSet::new(),
@@ -65,10 +67,7 @@ impl Builder {
     }
 
     pub fn build(self) -> Result<HttpSocket, Error> {
-        if self.header_max == 0
-            || self.headers_max == 0
-            || self.buf_sizes[0] == 0
-            || self.uri_max == 0
+        if self.header_max == 0 || self.headers_max == 0 || self.buf_size == 0 || self.uri_max == 0
         {
             return Err(Error::UpperSizesCanNotBeNull);
         }
@@ -88,29 +87,16 @@ impl Builder {
             uri_max: self.uri_max,
             header_max: self.header_max,
             headers_max: self.headers_max,
+            body_max: self.body_max,
             forwarding: self.forwarding,
             strict: self.strict,
             secretive: self.secretive,
-            primary_buffer: Vec::with_capacity(self.buf_sizes[0]),
-            secondary_buffer: Vec::with_capacity(self.buf_sizes[1]),
-            tertiary_buffer: Vec::with_capacity(self.buf_sizes[2]),
+            buffer: Vec::with_capacity(self.buf_size),
         })
     }
 
-    pub fn buf_size1(mut self, size: usize) -> Self {
-        self.buf_sizes[0] = size;
-
-        self
-    }
-
-    pub fn buf_size2(mut self, size: usize) -> Self {
-        self.buf_sizes[1] = size;
-
-        self
-    }
-
-    pub fn buf_size3(mut self, size: usize) -> Self {
-        self.buf_sizes[2] = size;
+    pub fn buf_size(mut self, size: usize) -> Self {
+        self.buf_size = size;
 
         self
     }
@@ -147,6 +133,12 @@ impl Builder {
 
     pub fn headers_max(mut self, upper: usize) -> Self {
         self.headers_max = upper;
+
+        self
+    }
+
+    pub fn body_max(mut self, upper: usize) -> Self {
+        self.body_max = upper;
 
         self
     }

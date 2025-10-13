@@ -337,6 +337,48 @@ pub enum Status {
     ServerError(ServerError),
 }
 
+impl Status {
+    pub fn is_informational(&self) -> bool {
+        let Self::Informational(_) = self else {
+            return false;
+        };
+
+        true
+    }
+
+    pub fn is_successful(&self) -> bool {
+        let Self::Successful(_) = self else {
+            return false;
+        };
+
+        true
+    }
+
+    pub fn is_redirection(&self) -> bool {
+        let Self::Redirection(_) = self else {
+            return false;
+        };
+
+        true
+    }
+
+    pub fn is_client_error(&self) -> bool {
+        let Self::ClientError(_) = self else {
+            return false;
+        };
+
+        true
+    }
+
+    pub fn is_server_error(&self) -> bool {
+        let Self::ServerError(_) = self else {
+            return false;
+        };
+
+        true
+    }
+}
+
 impl Default for Status {
     fn default() -> Self {
         status!(Ok)

@@ -8,6 +8,7 @@ async fn main() {
     let fallback = Fallback::new(not_found, 404, None);
     let resource = Resource::builder("/index.html")
         .forward("/")
+        .forward_status(301)
         .get(servlet)
         .head(true)
         .build();
@@ -15,7 +16,7 @@ async fn main() {
         .unwrap()
         .resource(resource)
         .fallback(fallback)
-        .buf_size1(4096)
+        .buf_size(1024)
         .build()
         .unwrap();
     socket.init_message();

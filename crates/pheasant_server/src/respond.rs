@@ -15,7 +15,6 @@ pub mod builder;
 pub mod http11;
 
 pub use builder::Builder;
-pub use http11::ScrutinizeCors;
 
 pub struct Respond {
     proto: Protocol,
@@ -39,8 +38,11 @@ impl Respond {
         self.proto
     }
 
-    pub fn status(&self) -> Status {
-        self.status
+    // WARN FIXME code smell
+    // Respond cant implement methods that mutate itself
+    // those should be limited to Builder
+    pub fn status(&mut self, s: Status) {
+        self.status = s;
     }
 
     pub fn error(err: ErrorStatus, proto: Protocol) -> Self {

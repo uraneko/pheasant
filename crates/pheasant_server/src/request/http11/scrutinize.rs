@@ -1,4 +1,4 @@
-use crate::{Request, Resource, Scrutinizer, SocketRef};
+use crate::{Request, Resource, Scrutinizer, SocketRef, byte_enum_match};
 use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 use pheasant_headers::Headers;
 
@@ -79,15 +79,9 @@ pub struct ScrutinizeMethod<'a> {
     /// req method
     method: Method,
     /// does socket allow Options method
-    opts: bool,
-    /// does socket allow Head method
-    head: bool,
-    /// does socket allow Trace method
-    trace: bool,
-    /// request resource from socket
     resource: &'a Resource,
     /// socket supported methods
-    methods: u8,
+    methods: u16,
 }
 
 impl<'a> ScrutinizeMethod<'a> {
@@ -95,9 +89,6 @@ impl<'a> ScrutinizeMethod<'a> {
         Self {
             headers: &request.headers,
             method: request.method,
-            opts: socket.opts,
-            head: socket.head,
-            trace: socket.trace,
             resource: socket.resource,
             methods: socket.methods,
         }
@@ -105,6 +96,17 @@ impl<'a> ScrutinizeMethod<'a> {
 }
 
 impl<'a> ScrutinizeMethod<'a> {
+    byte_enum_match!(method<Method, u16> {
+        supports_get: Get,
+        supports_post: Post,
+        supports_put: Put,
+        supports_patch: Patch,
+        supports_delete: Delete,
+        supports_options: Options,
+        supports_head: Head,
+        supports_trace: Trace
+    });
+
     fn allows_method(&self) -> bool {
         use Method::*;
         let res = self.resource;
@@ -115,9 +117,9 @@ impl<'a> ScrutinizeMethod<'a> {
             Put => res.put.is_some(),
             Patch => res.patch.is_some(),
             Delete => res.delete.is_some(),
-            Options => !self.opts || res.method_is_cross_origin(self.method),
-            Head => !self.head || res.head,
-            Trace => !self.trace || res.trace,
+            Options => !self.supports_options() || res.method_is_cross_origin(self.method),
+            Head => !self.supports_head() || res.head,
+            Trace => !self.supports_trace() || res.trace,
             // Connect is for proxies only
             // this framework only supports origin servers for now
             Connect => false,
@@ -129,7 +131,7 @@ impl<'a> Scrutinizer for ScrutinizeMethod<'a> {
     fn scrutinize(&self) -> Result<(), ErrorStatus> {
         if !self.allows_method() {
             return err_stt!(?MethodNotAllowed);
-        } else if self.methods & self.method as u8 == 0 {
+        } else if self.methods & self.method as u16 == 0 {
             return err_stt!(?NotImplemented);
         }
 

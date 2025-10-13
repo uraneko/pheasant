@@ -128,6 +128,11 @@ impl Request {
         &self.route
     }
 
+    pub fn is_cross_origin(&self) -> bool {
+        // TODO maybe interested in also checking the after-pre-flight request
+        self.method == Method::Options
+    }
+
     // F: scrutinizer is a function that takes req and whatever else is necessary
     // generates the scrutinizing types
     // and then runs their Type::scrutunize()?

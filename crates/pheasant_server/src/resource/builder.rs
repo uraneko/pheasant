@@ -85,13 +85,20 @@ impl Builder {
         self
     }
 
-    pub fn forward_status(mut self, s: impl Into<Redirection>) -> Self {
-        self.forward_status = Some(s.into());
+    pub fn forward_status<T>(mut self, s: T) -> Self
+    where
+        T: TryInto<Redirection>,
+        <T as TryInto<Redirection>>::Error: core::fmt::Debug,
+    {
+        self.forward_status = Some(s.try_into().unwrap());
 
         self
     }
 
     pub fn build(self) -> Resource {
+        // TODO
+        // if forwards is set
+        // then forward_status being a None must be an error
         Resource {
             route: self.route,
             forwards: self.forwards,

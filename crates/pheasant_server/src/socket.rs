@@ -8,9 +8,11 @@
 //! - stream/io
 
 use crate::{Fallback, Request, Resource, Respond, Servlet, request::http11::lex};
+use bb8_postgres::PostgresConnectionManager as PostgresPool;
 use hashbrown::HashSet;
 use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
 use pheasant_uri::Scheme;
+use postgres::NoTls;
 use std::io::{BufReader, BufWriter, Read, Result as IoRes, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 
@@ -44,18 +46,18 @@ pub struct HttpSocket {
     fallbacks: HashSet<Fallback>,
     // enables redirects socket wide
     forwarding: bool,
+    /// postgres database management pool
+    // database: PostgresPool<NoTls>,
     /// a socket buffer for http io
-    primary_buffer: Vec<u8>,
+    buffer: Vec<u8>,
     /// a second socket buffer for http io
-    secondary_buffer: Vec<u8>,
-    /// a third socket buffer for http io
-    tertiary_buffer: Vec<u8>,
-    /// max allowed len for request uris
     uri_max: usize,
     /// the max allowed octets size of a header field
     header_max: usize,
     /// the max allowed octets size of all headers fields
     headers_max: usize,
+    /// the max allowed octets size of the request body
+    body_max: usize,
     /// defines the strictness mode of the socket
     ///
     /// strictness is the level of rfc and recency compliance this socket
@@ -208,7 +210,7 @@ macro_rules! byte_enum_match {
     ($field: ident < $ty: ident, $byte: ty> { $($f: ident: $var: ident),+ }) => {
         $(
             pub fn $f(&self) -> bool {
-                self.$field & ($ty :: $var as $byte) == ($ty :: $var as $byte)
+                (self.$field as $byte) & ($ty :: $var as $byte) == ($ty :: $var as $byte)
             }
         )*
     };
@@ -305,9 +307,18 @@ impl HttpSocket {
         self
     }
 
-    /// returns a shared reference to self.socket (&TcpListener)
-    pub fn socket_ref(&self) -> &TcpListener {
-        &self.socket
+    pub fn socket_ref<'a>(&self, resource: &'a Resource) -> SocketRef<'a> {
+        SocketRef {
+            uri_max: self.uri_max,
+            header_max: self.header_max,
+            headers_max: self.headers_max,
+            body_max: self.body_max,
+            methods: self.methods,
+            proto: self.proto,
+            protos: self.protos,
+            strict: self.strict,
+            resource,
+        }
     }
 
     /// returns a mutable reference to self.socket
@@ -369,14 +380,37 @@ pub struct SocketRef<'a> {
     pub(crate) header_max: usize,
     pub(crate) headers_max: usize,
     pub(crate) body_max: usize,
-    pub(crate) opts: bool,
-    pub(crate) head: bool,
-    pub(crate) trace: bool,
     pub(crate) resource: &'a Resource,
-    pub(crate) methods: u8,
+    pub(crate) methods: u16,
     pub(crate) proto: Protocol,
     pub(crate) protos: u8,
     pub(crate) strict: bool,
+}
+
+impl<'a> SocketRef<'a> {
+    fn new(
+        resource: &'a Resource,
+        uri_max: usize,
+        header_max: usize,
+        headers_max: usize,
+        body_max: usize,
+        methods: u16,
+        proto: Protocol,
+        protos: u8,
+        strict: bool,
+    ) -> Self {
+        Self {
+            resource,
+            uri_max,
+            headers_max,
+            header_max,
+            body_max,
+            methods,
+            proto,
+            protos,
+            strict,
+        }
+    }
 }
 
 pub struct ProcessReq<'a> {
@@ -387,9 +421,37 @@ pub struct ProcessReq<'a> {
 
 impl<'a> ProcessReq<'a> {
     pub async fn run(self) -> Respond {
-        let resp = self.res.process(self.req);
+        let resp = self.res.process(self.req, self.forward);
 
         resp.await
+    }
+
+    pub fn resource_ref(&self) -> &'a Resource {
+        self.res
+    }
+
+    pub fn scrutinize(
+        &self,
+        uri_max: usize,
+        header_max: usize,
+        headers_max: usize,
+        body_max: usize,
+        methods: u16,
+        proto: Protocol,
+        protos: u8,
+        strict: bool,
+    ) -> Result<(), ErrorStatus> {
+        self.req.scrutinize(SocketRef::new(
+            self.res,
+            uri_max,
+            header_max,
+            headers_max,
+            body_max,
+            methods,
+            proto,
+            protos,
+            strict,
+        ))
     }
 }
 
@@ -497,7 +559,7 @@ impl HttpSocket {
     /// receives the request stream and parse it into a request
     pub fn receive<'a, R: Read>(&'a mut self, stream: &'a mut R) -> Result<Request, ErrorStatus> {
         let stream = BufReader::new(stream);
-        let tokens = lex(stream, &mut self.primary_buffer);
+        let tokens = lex(stream, &mut self.buffer);
         if tokens.is_empty() {
             return err_stt!(?BadRequest);
         }
@@ -518,7 +580,7 @@ impl HttpSocket {
     /// starts up the socket server
     pub async fn fireup(&mut self) -> Result<(), std::io::Error> {
         while let Ok(mut stream) = self.stream() {
-            self.primary_buffer.clear();
+            self.buffer.clear();
             let request = {
                 let req = self.receive(&mut stream);
 
@@ -532,8 +594,7 @@ impl HttpSocket {
                 req.map_err(|_| std::io::Error::other("failed to read request data from stream"))?
             };
 
-            // TODO dont unwrap
-            // if err then write error response to client
+            let is_cross_origin = request.is_cross_origin();
 
             let process = {
                 let prcs = self.lookup(request);
@@ -548,8 +609,32 @@ impl HttpSocket {
                 prcs.map_err(|_| std::io::Error::other("couldnt find resource/method pair"))?
             };
 
-            // TODO dont unwrap write error to client
+            // scrutinize request and write error respond if error
+            // TODO make this call clearer / directly from request
+            if let Err(err) = process.scrutinize(
+                self.uri_max,
+                self.header_max,
+                self.headers_max,
+                self.body_max,
+                self.methods,
+                self.proto,
+                self.protos,
+                self.strict,
+            ) {
+                let respond = self.error(err, self.proto).await;
+                self.send(&mut stream, respond)?;
+
+                continue;
+            }
+
             let respond = process.run().await;
+
+            if let Err(err) = respond.scrutinize(is_cross_origin) {
+                let respond = self.error(err, self.proto).await;
+                self.send(&mut stream, respond)?;
+
+                continue;
+            }
 
             self.send(&mut stream, respond)?;
         }

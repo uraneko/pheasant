@@ -1,6 +1,6 @@
 use crate::{Request, Respond, Servlet};
 use hashbrown::HashSet;
-use pheasant_core::{Method, Redirection};
+use pheasant_core::{Method, Redirection, Status};
 use pheasant_uri::Route;
 
 pub mod builder;
@@ -144,9 +144,14 @@ impl Resource {
         re.iter().find(|r| *r == route).is_some() && self[method.as_str()].is_some()
     }
 
-    pub async fn process(&self, req: Request) -> Respond {
+    pub async fn process(&self, req: Request, forward: bool) -> Respond {
         // here also handle options and forwarding
-        self[req.method()].process(req).await
+        let mut resp = self[req.method()].process(req).await;
+        if forward {
+            resp.status(self.forward_status.map(|r| Status::Redirection(r)).unwrap());
+        }
+
+        resp
     }
 }
 

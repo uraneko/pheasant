@@ -13,7 +13,7 @@ members = [
 	# "macros/pheasant_macro_fail",
 	"crates/pheasant_headers",
 	"crates/pheasant_server",
-	"macros/byte_enum",
+	"macros/byte_enum", "crates/pheasant_data",
 ]
 resolver = "3"
 # _mre is for trying stuff out 
@@ -71,3 +71,4 @@ hashbrown = { workspace = true, features = ["serde"] }
 chrono.workspace = true
 embedded-io = "0.6.1"
 tokio = { workspace = true, features = ["full"] }
+bb8 = "0.9.0"
