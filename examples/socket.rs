@@ -1,12 +1,11 @@
 use pheasant_core::{Protocol, Status, status};
 use pheasant_headers::{CorsConfigs, Encoding};
-use pheasant_server::{
-    request::Request, resource::Resource, respond::Respond, servlet::Servlet, socket::HttpSocket,
-};
+use pheasant_server::{Fallback, HttpSocket, Request, Resource, Respond, Servlet};
 
 #[tokio::main]
 async fn main() {
     let servlet = Servlet::builder(index).query(true).build();
+    let fallback = Fallback::new(not_found, 404, None);
     let resource = Resource::builder("/index.html")
         .forward("/")
         .get(servlet)
@@ -15,6 +14,7 @@ async fn main() {
     let mut socket: HttpSocket = HttpSocket::builder([127, 0, 0, 1], 7070)
         .unwrap()
         .resource(resource)
+        .fallback(fallback)
         .buf_size1(4096)
         .build()
         .unwrap();
@@ -31,8 +31,14 @@ async fn index(req: Request) -> Respond {
         .content_type("text/html")
         .content_length()
         .content_encoding(Encoding::Deflate)
-        .encoding(Encoding::Gzip)
         .encode();
 
     resp.build().unwrap()
+}
+
+async fn not_found() -> Respond {
+    Respond::builder(404.try_into().unwrap(), Protocol::Http11, false)
+        .body("encountered http client error 404 - resource/method pair not found")
+        .build()
+        .unwrap()
 }

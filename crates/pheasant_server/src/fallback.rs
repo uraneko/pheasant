@@ -23,7 +23,7 @@ type BoxFut<'a> = Pin<Box<dyn Future<Output = Respond> + Send + 'a>>;
 type BoxFun = Box<dyn Fn() -> BoxFut<'static> + Send + Sync>;
 
 impl Fallback {
-    pub fn new<'a, F, O>(status: u16, mime: Option<Mime>, fun: F) -> Self
+    pub fn new<'a, F, O>(fun: F, status: u16, mime: Option<Mime>) -> Self
     where
         // probably give the Fn an input of ErrorStatus
         F: Fn() -> O + Send + Sync + 'static,
