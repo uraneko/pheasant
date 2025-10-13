@@ -485,18 +485,24 @@ impl HttpSocket {
         }
     }
 
+    pub async fn error(&self, err: ErrorStatus, proto: Protocol) -> Respond {
+        let fb = self.fallbacks.iter().find(|fb| fb.is(err));
+
+        match fb {
+            Some(fb) => fb.process().await,
+            None => Respond::error(err, proto),
+        }
+    }
+
     /// receives the request stream and parse it into a request
-    pub fn receive<'a, R: Read>(
-        &'a mut self,
-        stream: &'a mut R,
-    ) -> Result<Request, std::io::Error> {
+    pub fn receive<'a, R: Read>(&'a mut self, stream: &'a mut R) -> Result<Request, ErrorStatus> {
         let stream = BufReader::new(stream);
-        let tokens = lex(stream, &mut self.secondary_buffer);
+        let tokens = lex(stream, &mut self.primary_buffer);
         if tokens.is_empty() {
-            return err_stt!(?BadRequest).map_err(|_| std::io::Error::other("read failed"));
+            return err_stt!(?BadRequest);
         }
 
-        Request::parse(tokens).map_err(|_| std::io::Error::other("read failed"))
+        Request::parse(tokens)
     }
 
     /// sends the respond byte stream back to the client
@@ -512,11 +518,37 @@ impl HttpSocket {
     /// starts up the socket server
     pub async fn fireup(&mut self) -> Result<(), std::io::Error> {
         while let Ok(mut stream) = self.stream() {
-            let request = self.receive(&mut stream)?;
+            self.primary_buffer.clear();
+            let request = {
+                let req = self.receive(&mut stream);
 
-            let process = self
-                .lookup(request)
-                .map_err(|_| std::io::Error::other("requested resource/method not found"))?;
+                if let Err(err) = req {
+                    let respond = self.error(err, self.proto).await;
+                    self.send(&mut stream, respond)?;
+
+                    continue;
+                }
+
+                req.map_err(|_| std::io::Error::other("failed to read request data from stream"))?
+            };
+
+            // TODO dont unwrap
+            // if err then write error response to client
+
+            let process = {
+                let prcs = self.lookup(request);
+
+                if let Err(err) = prcs {
+                    let respond = self.error(err, self.proto).await;
+                    self.send(&mut stream, respond)?;
+
+                    continue;
+                }
+
+                prcs.map_err(|_| std::io::Error::other("couldnt find resource/method pair"))?
+            };
+
+            // TODO dont unwrap write error to client
             let respond = process.run().await;
 
             self.send(&mut stream, respond)?;

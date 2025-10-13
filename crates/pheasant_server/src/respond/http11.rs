@@ -3,7 +3,7 @@ use std::io::{BufWriter, Write};
 
 use super::Respond;
 use crate::Scrutinizer;
-use pheasant_core::{ErrorStatus, StatusLiteral, err_stt};
+use pheasant_core::{ErrorStatus, StatusLiterals, err_stt};
 use pheasant_headers::Headers;
 
 impl Respond {

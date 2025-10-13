@@ -29,10 +29,10 @@ async fn index(req: Request) -> Respond {
         .date()
         .server("pheasant0.1/dev mode")
         .content_type("text/html")
-        .content_length();
-    // .content_encoding(Encoding::Deflate)
-    // .encoding(Encoding::Gzip)
-    // .encode();
+        .content_length()
+        .content_encoding(Encoding::Deflate)
+        .encoding(Encoding::Gzip)
+        .encode();
 
     resp.build().unwrap()
 }

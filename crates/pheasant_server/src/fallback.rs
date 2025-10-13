@@ -5,12 +5,12 @@ use core::pin::Pin;
 
 use crate::Respond;
 use mime::Mime;
-use pheasant_core::Status;
+use pheasant_core::{ErrorStatus, StatusLiterals};
 
 pub struct Fallback {
     mime: Option<Mime>,
     status: u16,
-    fail: BoxFun,
+    fun: BoxFun,
 }
 
 unsafe impl Send for Fallback {}
@@ -32,7 +32,7 @@ impl Fallback {
         Self {
             status,
             mime,
-            fail: Box::new(move || Box::pin(fun())),
+            fun: Box::new(move || Box::pin(fun())),
         }
     }
 
@@ -44,12 +44,22 @@ impl Fallback {
         self.status
     }
 
-    pub fn status(&self) -> Status {
+    pub fn status(&self) -> ErrorStatus {
         self.status.try_into().unwrap()
     }
 
-    pub fn fail(&self) -> &BoxFun {
-        &self.fail
+    pub fn fun(&self) -> &BoxFun {
+        &self.fun
+    }
+
+    /// checks whether this fallback
+    /// is representative of the passed ErrorStatus
+    pub fn is(&self, e: ErrorStatus) -> bool {
+        self.status == e.code()
+    }
+
+    pub async fn process(&self) -> Respond {
+        (self.fun)().await
     }
 }
 

@@ -32,7 +32,7 @@ pub use mime::Mime;
 // pub use monopoly::MonoPoly;
 pub use protocol::Protocol;
 pub use status::{
-    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiteral,
+    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiterals,
     Successful,
 };
 pub use wildcardish::WildCardish;

@@ -8,7 +8,7 @@
 use crate::Request;
 use hashbrown::{HashMap, HashSet};
 use mime::Mime;
-use pheasant_core::{ErrorStatus, Protocol, Status, StatusLiteral, Successful};
+use pheasant_core::{ErrorStatus, Protocol, Status, StatusLiterals, Successful};
 use pheasant_headers::{Cookie, Headers, RespondCors};
 
 pub mod builder;
@@ -41,6 +41,15 @@ impl Respond {
 
     pub fn status(&self) -> Status {
         self.status
+    }
+
+    pub fn error(err: ErrorStatus, proto: Protocol) -> Self {
+        Self {
+            body: None,
+            headers: Headers::default(),
+            status: err.into(),
+            proto,
+        }
     }
 }
 

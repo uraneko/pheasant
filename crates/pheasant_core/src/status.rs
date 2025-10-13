@@ -199,7 +199,7 @@ impl From<PheasantError> for Status {
 }
 
 /// implements shared behavior amongst response status
-pub trait StatusLiteral {
+pub trait StatusLiterals {
     /// returns the status text value
     fn text(&self) -> &str;
 
@@ -207,7 +207,7 @@ pub trait StatusLiteral {
     fn code(&self) -> u16;
 }
 
-impl StatusLiteral for ServerError {
+impl StatusLiterals for ServerError {
     fn text(&self) -> &str {
         match self {
             Self::InternalServerError => "InternalServerError",
@@ -229,7 +229,7 @@ impl StatusLiteral for ServerError {
     }
 }
 
-impl StatusLiteral for ClientError {
+impl StatusLiterals for ClientError {
     fn text(&self) -> &str {
         match self {
             Self::BadRequest => "BadRequest",
@@ -269,7 +269,7 @@ impl StatusLiteral for ClientError {
     }
 }
 
-impl StatusLiteral for Redirection {
+impl StatusLiterals for Redirection {
     fn text(&self) -> &str {
         match self {
             Self::PermanentRedirect => "PermanentRedirect",
@@ -289,7 +289,7 @@ impl StatusLiteral for Redirection {
     }
 }
 
-impl StatusLiteral for Successful {
+impl StatusLiterals for Successful {
     fn text(&self) -> &str {
         match self {
             Self::IMUsed => "IMUsed",
@@ -312,7 +312,7 @@ impl StatusLiteral for Successful {
     }
 }
 
-impl StatusLiteral for Informational {
+impl StatusLiterals for Informational {
     fn text(&self) -> &str {
         match self {
             Self::EarlyHints => "EarlyHints",
@@ -449,7 +449,7 @@ impl TryFrom<u16> for Status {
     }
 }
 
-impl StatusLiteral for Status {
+impl StatusLiterals for Status {
     fn text(&self) -> &str {
         match self {
             Self::Redirection(r) => r.text(),
@@ -479,7 +479,7 @@ pub enum PassingStatus {
     Successful(Successful),
 }
 
-impl StatusLiteral for PassingStatus {
+impl StatusLiterals for PassingStatus {
     fn text(&self) -> &str {
         match self {
             Self::Informational(i) => i.text(),
@@ -523,7 +523,7 @@ impl ErrorStatus {
     }
 }
 
-impl StatusLiteral for ErrorStatus {
+impl StatusLiterals for ErrorStatus {
     fn text(&self) -> &str {
         match self {
             Self::Client(ce) => ce.text(),
