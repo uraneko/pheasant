@@ -1,5 +1,5 @@
 use crate::ErrorStatus;
-use crate::{ClientError, PheasantError, ServerError};
+use crate::{ByteIterator, ClientError, PheasantError, ServerError};
 use alloc::str::FromStr;
 use core::fmt::{self, Display, Formatter};
 /// Http protocol version
@@ -10,20 +10,22 @@ use core::fmt::{self, Display, Formatter};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Protocol {
     #[default]
-    HTTP11 = 1,
-    HTTP2 = 2,
+    Http11 = 1,
+    Http2 = 2,
+}
+
+impl From<Protocol> for u8 {
+    fn from(p: Protocol) -> u8 {
+        match p {
+            Protocol::Http11 => 1,
+            Protocol::Http2 => 2,
+        }
+    }
 }
 
 impl Display for Protocol {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::HTTP11 => "HTTP/1.1",
-                Self::HTTP2 => "HTTP/2",
-            }
-        )
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -32,22 +34,8 @@ impl TryFrom<&[u8]> for Protocol {
 
     fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
         match v {
-            b"HTTP/1.1" => Ok(Self::HTTP11),
+            b"HTTP/1.1" => Ok(Self::Http11),
             b"HTTP/2" | b"HTTP/3" => Err(Self::Error::ServerError(
-                ServerError::HTTPVersionNotSupported,
-            )),
-            _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
-        }
-    }
-}
-
-impl TryFrom<&str> for Protocol {
-    type Error = PheasantError;
-
-    fn try_from(v: &str) -> Result<Self, Self::Error> {
-        match v {
-            "HTTP/1.1" => Ok(Self::HTTP11),
-            "HTTP/2" | "HTTP/3" => Err(Self::Error::ServerError(
                 ServerError::HTTPVersionNotSupported,
             )),
             _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
@@ -60,7 +48,7 @@ impl FromStr for Protocol {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "HTTP/1.1" => Ok(Self::HTTP11),
+            "HTTP/1.1" => Ok(Self::Http11),
             "HTTP/2" | "HTTP/3" => {
                 Err(Self::Err::ServerError(ServerError::HTTPVersionNotSupported))
             }
@@ -69,13 +57,31 @@ impl FromStr for Protocol {
     }
 }
 
-impl<I> TryFrom<I> for Protocol
+impl Protocol {
+    pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {
+        ByteIterator::new(i).try_into()
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Http11 => "HTTP/1.1",
+            Self::Http2 => "HTTP/2",
+        }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.as_str().as_bytes()
+    }
+}
+
+impl<I> TryFrom<ByteIterator<I>> for Protocol
 where
     I: Iterator<Item = u8>,
 {
     type Error = ErrorStatus;
 
-    fn try_from(mut iter: I) -> Result<Self, Self::Error> {
+    fn try_from(iter: ByteIterator<I>) -> Result<Self, Self::Error> {
+        let mut iter = iter.iter;
         while let Some(num) = iter.next() {
             match num {
                 b'H' => {

@@ -35,8 +35,8 @@ pub enum Scheme {
     // Data,
     // Javascript,
     // Urn,
-    Http,
-    Https,
+    Http = 1,
+    Https = 2,
     // Ws,
     // Wss,
     // File,
@@ -44,6 +44,15 @@ pub enum Scheme {
     // Resource,
     // Ssh
     // Custom(String),
+}
+
+impl From<Scheme> for u8 {
+    fn from(scheme: Scheme) -> u8 {
+        match scheme {
+            Scheme::Http => 1,
+            Scheme::Https => 2,
+        }
+    }
 }
 
 impl Scheme {

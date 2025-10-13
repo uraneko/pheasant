@@ -1,6 +1,7 @@
 use crate::PheasantError;
-use crate::{ClientError, ErrorStatus, ServerError};
+use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt};
 use alloc::str::FromStr;
+use alloc::string::String;
 use core::fmt;
 use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
 use quote::{ToTokens, TokenStreamExt};
@@ -8,20 +9,18 @@ use syn::Ident;
 
 /// HTTP Method enum
 /// only Get method is somewhat supported at the moment
-#[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
-)]
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Method {
-    Head,
-    #[default]
-    Get,
-    Post,
-    Put,
-    Patch,
-    Delete,
-    Connect,
-    Options,
-    Trace,
+    Head = 1,
+    Get = 2,
+    Post = 4,
+    Put = 8,
+    Patch = 16,
+    Delete = 32,
+    Connect = 64,
+    Options = 128,
+    Trace = 256,
 }
 
 impl ToTokens for Method {
@@ -41,9 +40,10 @@ impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}{}",
-            self.as_str().chars().next().unwrap(),
-            &self.as_str()[1..].to_lowercase(),
+            "{}",
+            // self.as_str().chars().next().unwrap(),
+            // &self.as_str()[1..].to_lowercase(),
+            self.as_str()
         )
     }
 }
@@ -83,27 +83,8 @@ impl TryFrom<&[u8]> for Method {
     }
 }
 
-impl TryFrom<&str> for Method {
-    type Error = PheasantError;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s.to_uppercase().as_str() {
-            "HEAD" => Ok(Self::Head),
-            "GET" => Ok(Self::Get),
-            "POST" => Ok(Self::Post),
-            "PUT" => Ok(Self::Put),
-            "PATCH" => Ok(Self::Patch),
-            "DELETE" => Ok(Self::Delete),
-            "CONNECT" => Ok(Self::Connect),
-            "OPTIONS" => Ok(Self::Options),
-            "TRACE" => Ok(Self::Trace),
-            _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
-        }
-    }
-}
-
 impl FromStr for Method {
-    type Err = PheasantError;
+    type Err = ErrorStatus;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
@@ -116,18 +97,25 @@ impl FromStr for Method {
             "CONNECT" => Ok(Self::Connect),
             "OPTIONS" => Ok(Self::Options),
             "TRACE" => Ok(Self::Trace),
-            _ => Err(Self::Err::ClientError(ClientError::BadRequest)),
+            _ => err_stt!(?BadRequest),
         }
     }
 }
 
-impl<I> TryFrom<I> for Method
+impl Method {
+    pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {
+        ByteIterator::new(i).try_into()
+    }
+}
+
+impl<I> TryFrom<ByteIterator<I>> for Method
 where
     I: Iterator<Item = u8>,
 {
     type Error = ErrorStatus;
 
-    fn try_from(mut iter: I) -> Result<Self, Self::Error> {
+    fn try_from(iter: ByteIterator<I>) -> Result<Self, Self::Error> {
+        let mut iter = iter.iter;
         while let Some(num) = iter.next() {
             match num {
                 b'G' => try_method_get(&mut iter)?,
@@ -298,4 +286,12 @@ where
     }
 
     return Err(ErrorStatus::Server(ServerError::NotImplemented));
+}
+
+impl TryFrom<String> for Method {
+    type Error = ErrorStatus;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        s.parse()
+    }
 }

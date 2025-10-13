@@ -6,7 +6,7 @@ use proc_macro::TokenStream;
 // }
 //
 // #[byte_repr]
-// #[target(HttpSocket = proto)]
+// #[target(HttpSocket(proto))]
 // enum Protocol { H1, H2 }
 //
 // generates

@@ -4,11 +4,10 @@
 //!
 use crate::Parse;
 
+pub mod derivatives;
 mod lex;
 mod semantic_tree;
 mod syntax_tree;
-
-pub mod derivatives;
 
 // reflect result on itself
 pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
@@ -19,13 +18,13 @@ pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
 }
 
 use lex::{Error as LexError, Token, lex};
-use semantic_tree::{
-    Component, Error as SemanticError, Host, Path, Query, Scheme, User, semantic_tree,
-};
+use semantic_tree::{Component, Error as SemanticError, Host, Path, User, semantic_tree};
+pub use semantic_tree::{Query, Scheme};
 use syntax_tree::{Error as SyntaxError, TokenGroup, syntax_tree};
 
 #[derive(Debug)]
 pub enum Error {
+    Str(core::str::Utf8Error),
     Lex(LexError),
     Syntax(SyntaxError),
     Semantic(SemanticError),

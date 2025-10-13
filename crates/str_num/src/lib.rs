@@ -1,27 +1,25 @@
-pub fn num_arr(num: u64) -> [u8; 10] {
+pub fn num_arr<N>(num: N) -> String
+where N: Shl + Mul
+{
     let zeroes = num.leading_zeros() as u64;
     let sub = 64 - zeroes;
     let units: usize = BitsCycle::new(sub).units();
     let mut split = SplitNum::new(num, units);
 
-    split.split()
+    unsafe  {String::from_utf8_unchecked(split.split()) }
 }
 
-pub fn to_str(arr: &[u8]) -> &str {
-    unsafe { str::from_utf8_unchecked(arr.trim_ascii()) }
-}
-
-enum UnitCycle {
-    First1(u64),
-    First2(u64),
-    First3(u64),
-    First4(u64),
-    Second1(u64),
-    Second2(u64),
-    Second3(u64),
-    Third1(u64),
-    Third2(u64),
-    Third3(u64),
+enum UnitCycle<N> {
+    First1(N),
+    First2(N),
+    First3(N),
+    First4(N),
+    Second1(N),
+    Second2(N),
+    Second3(N),
+    Third1(N),
+    Third2(N),
+    Third3(N),
 }
 
 impl UnitCycle {
@@ -52,13 +50,13 @@ impl UnitCycle {
     }
 }
 
-struct BitsCycle {
+struct BitsCycle<N> {
     cycle: UnitCycle,
-    delim: u64,
+    delim: N,
 }
 
-impl BitsCycle {
-    const fn new(delim: u64) -> Self {
+impl BitsCycle<N> {
+    const fn new(delim: N) -> Self {
         Self {
             cycle: UnitCycle::First1(1),
             delim,
@@ -75,14 +73,14 @@ impl BitsCycle {
     }
 }
 
-struct SplitNum {
+struct SplitNum<N> {
     units: usize,
-    num: u64,
+    num: N,
 }
 
 const ASCII_IDX: [u8; 10] = [b'0', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
-impl SplitNum {
-    fn new(num: u64, units: usize) -> Self {
+impl SplitNum<N> {
+    fn new(num: N, units: usize) -> Self {
         Self { num, units }
     }
 

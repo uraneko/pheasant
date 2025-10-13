@@ -1,86 +1,39 @@
 #![no_std]
-#[allow(refining_impl_trait)]
+#![allow(refining_impl_trait)]
 extern crate alloc;
-use alloc::string::String;
-use hashbrown::{HashMap, HashSet};
 use pheasant_core::ErrorStatus;
 
 pub mod headers;
 pub use headers::*;
 
-pub trait MessageHeadersMap {
-    fn pull(&mut self, h: &str) -> Option<String>;
-
-    fn pull_iter<P>(
-        &mut self,
-        p: P,
-    ) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>
-    where
-        P: FnMut(&String, &mut String) -> bool;
-
-    fn push(&mut self, h: &str, th: impl ToHeader);
-
-    fn push_iter(&mut self, th: impl ToHeaders);
+// conversions from header types
+/// converts a header type into Self
+pub trait FromHeader<H> {
+    fn from_header(h: H) -> Self;
 }
 
-pub trait MessageHeadersSet {
-    fn push(&mut self, th: impl ToHeader);
-
-    fn push_iter(&mut self, th: impl ToHeaders);
+/// converts many headers into Self
+pub trait FromHeaders<H> {
+    fn from_headers(h: H) -> Self;
 }
 
-impl MessageHeadersSet for HashSet<String> {
-    fn push(&mut self, th: impl ToHeader) {
-        self.insert(th.to_header().into());
-    }
-
-    fn push_iter(&mut self, th: impl ToHeaders) {
-        self.extend(th.to_headers().map(|(a, b)| a.into()));
-    }
+/// converts an iterator of headers into self
+pub trait IterFromHeaders<H> {
+    fn iter_from_headers(h: H) -> impl IntoIterator<Item = Self>;
 }
 
-impl MessageHeadersMap for HashMap<String, String> {
-    fn pull(&mut self, h: &str) -> Option<String> {
-        self.remove(h)
-    }
-
-    fn pull_iter<P>(&mut self, p: P) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>
-    where
-        P: FnMut(&String, &mut String) -> bool,
-    {
-        self.extract_if(p)
-    }
-
-    fn push(&mut self, h: &str, th: impl ToHeader) {
-        self.insert(h.into(), th.to_header().into());
-    }
-
-    fn push_iter(&mut self, th: impl ToHeaders) {
-        self.extend(th.to_headers().map(|(k, v)| (k.into(), v.into())));
-    }
+// conversions to header types
+/// converts Self into a header type
+pub trait IntoHeader<H> {
+    fn into_header(self) -> Result<H, ErrorStatus>;
 }
 
-pub type HttpResult<T> = Result<T, ErrorStatus>;
-
-pub trait FromHeaders<'a>
-where
-    Self: Sized,
-{
-    type Headers;
-    fn from_headers(h: Self::Headers) -> HttpResult<Self>;
+/// converts Self into many headers
+pub trait IntoHeaders<H> {
+    fn into_headers(self) -> Result<H, ErrorStatus>;
 }
 
-pub trait FromHeader
-where
-    Self: Sized,
-{
-    fn from_header(header: String) -> HttpResult<Self>;
-}
-
-pub trait ToHeaders {
-    fn to_headers(&self) -> impl Iterator<Item = (impl Into<String>, impl Into<String>)>;
-}
-
-pub trait ToHeader {
-    fn to_header(&self) -> impl Into<String>;
+/// converts an iterator of self into a groups of header
+pub trait IterIntoHeaders<H> {
+    fn iter_into_headers(i: impl IntoIterator<Item = Self>) -> Result<H, ErrorStatus>;
 }

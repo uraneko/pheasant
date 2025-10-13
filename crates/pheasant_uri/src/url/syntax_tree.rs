@@ -514,8 +514,9 @@ fn user_or_host(tokens: &[Token], layout: &mut [Layout; 7]) -> Result<(), Layout
 
 // //auth | /path/to
 fn authority_or_path(tokens: &[Token], layout: &mut [Layout; 7]) {
-    if tokens[1] != Token::Slash {
-        println!("you triggered me");
+    // len == 1 means "/" common /index.html alt route
+    if tokens.len() == 1 || tokens[1] != Token::Slash {
+        // println!("you triggered me");
         // no authority
         clear_authority(layout);
     }
@@ -861,7 +862,7 @@ impl<I: Iterator<Item = Token>, L: Iterator<Item = Layout>> GroupTokens<I, L> {
 
 pub fn syntax_tree(tokens: Vec<Token>) -> Result<Vec<TokenGroup>, Error> {
     let layout = layout(&tokens)?;
-    println!("{:?}", layout);
+    // println!("{:?}", layout);
     let [with_port, with_query, with_fragment, with_scheme, with_user] = [
         layout[3].is_some(),
         layout[5].is_some(),

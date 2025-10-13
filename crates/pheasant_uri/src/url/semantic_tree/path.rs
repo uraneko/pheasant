@@ -1,9 +1,19 @@
 use super::Token;
 use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Path {
     segments: Vec<String>,
+}
+
+impl Path {
+    pub fn len(&self) -> usize {
+        self.segments.iter().map(|s| s.len()).sum()
+    }
+
+    pub fn segments(&self) -> &[String] {
+        &self.segments
+    }
 }
 
 impl SpellChecker for Path {

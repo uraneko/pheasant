@@ -1,11 +1,17 @@
+//! this crate defines some primitive types apis
+//!
+//! ### APIs
+//! - Method
+//! - Protocol
+//! - Status
+//! - Wildcardish
+
 #![no_std]
 #![forbid(clippy::unwrap_used, clippy::expect_used)]
-// #![allow(unused_imports)]
-// #![allow(dead_code)]
-// #![allow(unused_variables)]
 
 extern crate alloc;
 extern crate std;
+
 use alloc::string::{FromUtf8Error, String, ToString};
 use alloc::{vec, vec::Vec};
 use core::error::Error;
@@ -13,26 +19,21 @@ use core::fmt::{self, Debug, Display, Formatter};
 use core::str::FromStr;
 use core::str::Utf8Error;
 use hashbrown::HashSet;
-
 use pheasant_uri::Route;
-
-// NOTE indefinitely experimental
-// mod monopoly;
 
 pub mod method;
 pub mod mime;
-pub mod monopoly;
 pub mod protocol;
 pub mod status;
 pub mod wildcardish;
 
 pub use method::Method;
 pub use mime::Mime;
-pub use monopoly::MonoPoly;
+// pub use monopoly::MonoPoly;
 pub use protocol::Protocol;
 pub use status::{
-    ClientError, ErrorStatus, GoodStatus, Informational, Redirection, ResponseStatus, ServerError,
-    Status, Successful,
+    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiterals,
+    Successful,
 };
 pub use wildcardish::WildCardish;
 
@@ -51,6 +52,39 @@ pub use wildcardish::WildCardish;
 // Access-Control-Allow-Methods header
 // this appears to be caused by firefox only sending an Origin header with the Post request
 // there was no requesting from firefox's side for any methods or headers, only the client origin
+
+pub struct ByteIterator<I: Iterator<Item = u8>> {
+    iter: I,
+}
+
+impl<I> ByteIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
+    pub fn new(iter: I) -> Self {
+        Self { iter }
+    }
+}
+
+impl<I> core::ops::Deref for ByteIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
+    type Target = I;
+
+    fn deref(&self) -> &Self::Target {
+        &self.iter
+    }
+}
+
+impl<I> core::ops::DerefMut for ByteIterator<I>
+where
+    I: Iterator<Item = u8>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.iter
+    }
+}
 
 pub type PheasantResult<T> = Result<T, PheasantError>;
 
