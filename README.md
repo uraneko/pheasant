@@ -68,7 +68,9 @@ This table describes the implementation choices of this framework, it has two co
 - http request redirection 
 - http client/server error responses
 - services as async functions 
-- `get` attribute macro 
+
+<!-- > [!WARN] -->
+<!-- > The http methods macros are broken and deprecated, don't bother checking them out. I also don't intend to fix/update them anytime soon, if at all.  -->
 
 ###
 ### Usage
