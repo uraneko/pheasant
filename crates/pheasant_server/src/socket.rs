@@ -55,16 +55,15 @@ impl Socket {
     pub async fn event_loop(&mut self) {
         let mut buf = String::new();
         while let Ok((mut stream, _)) = self.socket.accept() {
-            println!("conn accepted");
             let mut reader = BufReader::new(&mut stream);
             buf.clear();
-            while !buf.trim_ascii().is_empty() {
+            loop {
                 _ = reader.read_line(&mut buf);
-                if buf.trim_ascii().is_empty() {
+                println!("<{}>", buf);
+                if buf.ends_with("\r\n\r\n") {
                     break;
                 }
             }
-            println!("<{}>", buf);
             _ = stream
                 .write(b"HTTP/1.1 200 Ok\nContent-Type:text/htmlContent-Length: 9\n\nhello web");
             _ = stream.flush();
