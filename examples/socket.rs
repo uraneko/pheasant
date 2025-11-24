@@ -1,5 +1,5 @@
 use pheasant_core::{Protocol, Status, status};
-use pheasant_headers::{CorsConfigs, Encoding};
+use pheasant_middleware::{CorsConfigs, Encoding};
 use pheasant_server::{Fallback, HttpSocket, Request, Resource, Respond, Servlet};
 
 #[tokio::main]

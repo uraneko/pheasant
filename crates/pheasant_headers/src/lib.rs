@@ -3,8 +3,41 @@
 extern crate alloc;
 use pheasant_core::ErrorStatus;
 
-pub mod headers;
-pub use headers::*;
+// pub mod authentication;
+// pub mod caching;
+// pub mod conditionals;
+// pub mod connection_management;
+// pub mod content_negotiation;
+// pub mod controls;
+pub mod cookies;
+pub mod cors;
+// pub mod deprecated;
+// pub mod downloads;
+// pub mod experimental;
+// pub mod fetch_metadata_request_headers;
+// pub mod integrity_digests;
+// pub mod integrity_policy;
+pub mod message_body_information;
+// pub mod non_standard;
+pub mod other;
+// pub mod preferences;
+// pub mod proxies;
+// pub mod range_requests;
+// pub mod redirects;
+pub mod request_context;
+// pub mod response_context;
+// pub mod security;
+// pub mod server_sent_events;
+// pub mod transfer_coding;
+// pub mod websockets;
+
+pub use cookies::*;
+pub use cors::*;
+pub use message_body_information::*;
+pub use other::*;
+pub use request_context::*;
+
+pub mod routing;
 
 // conversions from header types
 /// converts a header type into Self

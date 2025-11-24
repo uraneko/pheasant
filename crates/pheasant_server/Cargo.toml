@@ -10,7 +10,6 @@ chrono.workspace = true
 hashbrown.workspace = true
 mime.workspace = true
 pheasant_core = { version = "0.1.0", path = "../pheasant_core" }
-pheasant_headers = { version = "0.1.0", path = "../pheasant_headers" }
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
 postgres = "0.19.12"
 uuid = { version = "1.18.1", features = ["v4", "v6", "v8"] }

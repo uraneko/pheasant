@@ -1,140 +1,34 @@
-//! this crate defines the socket api
-//!
-//! ### APIs
-//! - builder
-//! - resources
-//! - servlets
-//! - fallbacks
-//! - stream/io
-
-use crate::{Fallback, Request, Resource, Respond, Servlet, request::http11::lex};
-use bb8_postgres::PostgresConnectionManager as PostgresPool;
-use hashbrown::HashSet;
-use pheasant_core::{ErrorStatus, Method, Protocol, err_stt};
-use pheasant_uri::Scheme;
-use postgres::NoTls;
-use std::io::{BufReader, BufWriter, Read, Result as IoRes, Write};
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use pheasant_core::Protocol;
+use std::io::{BufRead, BufReader, Result as IoRes, Write};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 
 pub mod builder;
 
-// TODO implement Keep-Alive header for http request pipelining
-
-// pub enum SocketError {
-//     ReadFailed,
-//     WriteFailed,
-// }
-
-pub struct HttpSocket {
-    /// byte repr of allowed socket protocols ( http1.1, 2, ws,...)
-    protos: u8,
-    /// the actively used socket protocol
-    proto: Protocol,
-    /// byte repr of allowed http methods,
-    methods: u16,
-    /// socket allowed schemes
-    scheme: Scheme,
-    // tls configuration for use in https requests, if any
-    // secure: Option<TlsConfig>,
-    /// the tcp listener socket
+// M is a resources middlewares enum
+// S is a server middlewares enum
+pub struct Socket {
     socket: TcpListener,
-    // the class of the socket, specifies its functionality
-    // kind: SocketKind,
-    /// set of registered socket services
-    resources: HashSet<Resource>,
-    // set of registered socket fallbacks (http error status processes)
-    fallbacks: HashSet<Fallback>,
-    // enables redirects socket wide
-    forwarding: bool,
-    /// postgres database management pool
-    // database: PostgresPool<NoTls>,
-    /// a socket buffer for http io
     buffer: Vec<u8>,
-    /// a second socket buffer for http io
-    uri_max: usize,
-    /// the max allowed octets size of a header field
-    header_max: usize,
-    /// the max allowed octets size of all headers fields
-    headers_max: usize,
-    /// the max allowed octets size of the request body
-    body_max: usize,
-    /// defines the strictness mode of the socket
-    ///
-    /// strictness is the level of rfc and recency compliance this socket
-    /// demands from clients/user agents
-    strict: bool,
-    /// when this is on, the socket returns an 403 Forbidden error whenever it can/should
-    /// instead of returning the real error describing what happened
-    /// essentially keeping the user in the dark about the server inner workings
-    secretive: bool,
 }
 
-// #[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy)]
-// pub enum SocketKind {
-//     #[default]
-//     Origin,
-//     // Gateway,
-//     // Proxy,
-//     // LoadBalancer,
-// }
-
-impl HttpSocket {
-    /// creates a bew HttpSocket
+impl Socket {
+    /// # Example
+    /// use like so
+    /// ```
+    /// let server =
+    ///    Socket::builder("127.0.0.1:7859")?
+    ///      .service(SomeService::new(...))
+    ///      .wrapper(SomeWrapper::new(...))
+    ///      .build();
+    /// ```
     ///
     /// # Error
-    /// - returns an std::io::Error when a valid port is not found after u16::MAX is reached  
-    /// - returns an Error if protos is an empty slice
-    ///
-    /// # Examples
-    /// ```
-    /// # use pheasant::HttpSocket;
-    ///
-    /// let (addr, port) = ([127.0.0.1], 8883);
-    /// let socket = HttpSocket::new(
-    ///     addr, port, None, SocketKind::Origin, Scheme::Http, &[Protocol::Http11]
-    /// );
-    /// ```
-    ///
-    // pub fn new(
-    //     addr: impl Into<Ipv4Addr>,
-    //     port: u16,
-    //     tls_config: Option<TlsConfig>,
-    //     scheme: Scheme,
-    //     protos: &[Protocol],
-    //     threads: usize,
-    // ) -> IoRes<Self> {
-    //     if protos.is_empty() {
-    //         return Err(std::io::Error::other(
-    //             "http socket needs to support at least 1 protocol",
-    //         ));
-    //     }
-    //
-    //     Ok(Self {
-    //         // secure: tls_config,
-    //         socket: bind_socket(addr, port, scheme)?,
-    //         protos: proto_slice_to_u8(protos),
-    //         scheme,
-    //         fallbacks: HashSet::new(),
-    //     })
-    // }
-
-    pub fn builder(addr: impl Into<Ipv4Addr>, port: u16) -> IoRes<builder::Builder> {
+    /// returns an Err if the Tcp Listener generation fails
+    pub fn builder(addr: impl Into<Ipv4Addr>, port: u16) -> Result<builder::Builder, Error> {
         let socket = bind_socket(addr, port)?;
 
         Ok(builder::Builder::new(socket))
     }
-
-    /// returns a result of the origin this socket is bound to
-    ///
-    /// ### Error
-    /// - errors if std::net::SocketAddr.local_addr() returns an error
-    ///
-    // pub fn origin(&self) -> IoRes<Origin> {
-    //     let addr = self.addr()?;
-    //     let (ip, port) = (addr.ip(), addr.port());
-    //
-    //     Ok(Origin::with_port(self.scheme, ip, port))
-    // }
 
     // returns a result of the socket's ip addr
     fn addr(&self) -> IoRes<SocketAddr> {
@@ -144,188 +38,11 @@ impl HttpSocket {
     pub fn port(&self) -> u16 {
         match self.socket.local_addr() {
             Ok(addr) => addr.port(),
-            Err(_) => self.scheme.default_port(),
+            Err(_) => 80,
         }
     }
 
-    /// whether the socket supports secure connections(tls) or not
-    ///
-    /// > [!WARN]
-    /// > tls/https is currently unsupported
-    // pub fn is_secure(&self) -> bool {
-    //     self.secure.is_some()
-    // }
-
-    /// returns this socket's kind
-    // pub fn kind(&self) -> SocketKind {
-    //     self.kind
-    // }
-
-    /// returns a slice of the protocols this socket supports
-    ///
-    /// > [!WARN]
-    /// > currently only recognizes the http1.1 and http2 protocols
-    pub fn supported_protocols(&self) -> &[Protocol] {
-        match self.protos {
-            0 => unreachable!("an empty protocol slice is an error at the Builder level"),
-            1 => &[Protocol::Http11],
-            2 => &[Protocol::Http2],
-            3 => &[Protocol::Http11, Protocol::Http2],
-            _ => unreachable!("unrecognized u8 protocols repr"),
-        }
-    }
-
-    // checks whether this socket supports the http1.1 protocol
-    // pub fn supports_http11(&self) -> bool {
-    //     self.protos & 1 == Protocol::Http11 as u8
-    // }
-
-    // chechs whether this socket supports the http2 protocol
-    //
-    // > [!WARN]
-    // > http2 is yet unsupported
-    //
-    // pub fn supports_http2(&self) -> bool {
-    //     self.protos & 2 == Protocol::Http2 as u8
-    // }
-}
-
-#[macro_export]
-macro_rules! byte_enum_delegate {
-    ($field: ident < $ty: ident, $byte: ty> {  $($f: ident: $var: ident),+ }) => {
-        $(
-            pub fn $f(&mut self, switch: bool) {
-                self.$field = if switch {
-                    self.$field | ($ty:: $var as $byte)
-                } else {
-                    self.$field & !($ty:: $var as $byte)
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
-macro_rules! byte_enum_match {
-    ($field: ident < $ty: ident, $byte: ty> { $($f: ident: $var: ident),+ }) => {
-        $(
-            pub fn $f(&self) -> bool {
-                (self.$field as $byte) & ($ty :: $var as $byte) == ($ty :: $var as $byte)
-            }
-        )*
-    };
-}
-
-impl HttpSocket {
-    byte_enum_match!(protos<Protocol, u8> { supports_http11: Http11, supports_http2: Http2 });
-
-    byte_enum_match!(methods<Method, u16> {
-         supports_get: Get,
-         supports_post: Post,
-         supports_put: Put,
-         supports_patch: Patch,
-         supports_delete: Delete,
-         supports_options: Options,
-         supports_head: Head,
-         supports_trace: Trace
-    });
-}
-
-impl HttpSocket {
-    /// registers a new service(s) to this socket
-    // pub fn servlet<S, B>(&mut self, s: S) -> &mut Self
-    // where
-    //     S: Fn() -> B,
-    //     B: ServletBundle,
-    // {
-    //     let bundle = s();
-    //     match bundle.size() {
-    //         0 => return self,
-    //         1 => {
-    //             let Some(service) = bundle.iter().next() else {
-    //                 unreachable!("size is 1 so we can't fail here");
-    //             };
-    //
-    //             self.servlets.insert(service);
-    //         }
-    //         _ => self.servlets.extend(bundle.iter()),
-    //     }
-    //
-    //     self
-    // }
-
-    // WARN may be faulty
-    // never tried in dev or tested
-    /// self.service but takes batches of services
-    // pub fn servlets<S, B, I>(&mut self, iter: I) -> &mut Self
-    // where
-    //     S: Fn() -> B,
-    //     B: ServletBundle,
-    //     I: IntoIterator<Item = S>,
-    // {
-    //     iter.into_iter().for_each(|s| {
-    //         self.service(s);
-    //     });
-    //
-    //     self
-    // }
-
-    /// registers a new http failure to this socket
-    pub fn fallback<F>(&mut self, f: F) -> &mut Self
-    where
-        F: Fn() -> Fallback,
-    {
-        self.fallbacks.insert(f());
-
-        self
-    }
-
-    // WARN may be faulty
-    // never tried in dev or tested
-    // / self.failure but takes batches of failures
-    // pub fn fallbacks<F, I>(&mut self, iter: I) -> &mut Self
-    // where
-    //     F: Fn() -> Fallback,
-    //     I: IntoIterator<Item = F>,
-    // {
-    //     iter.into_iter().for_each(|f| {
-    //         self.failure(f);
-    //     });
-    //
-    //     self
-    // }
-}
-
-impl HttpSocket {
-    /// returns a shared reference of self
-    pub fn as_ref(&self) -> &Self {
-        self
-    }
-
-    /// returns a mutable borrow of self
-    pub fn as_mut(&mut self) -> &mut Self {
-        self
-    }
-
-    pub fn socket_ref<'a>(&self, resource: &'a Resource) -> SocketRef<'a> {
-        SocketRef {
-            uri_max: self.uri_max,
-            header_max: self.header_max,
-            headers_max: self.headers_max,
-            body_max: self.body_max,
-            methods: self.methods,
-            proto: self.proto,
-            protos: self.protos,
-            strict: self.strict,
-            resource,
-        }
-    }
-
-    /// returns a mutable reference to self.socket
-    pub fn socket_mut(&mut self) -> &mut TcpListener {
-        &mut self.socket
-    }
-
+    /// prints out the socket url on the stdout
     pub fn init_message(&self) {
         println!(
             "\x1b[1;38;2;111;163;204mSocket listening on http://localhost:{}\x1b[0m",
@@ -334,33 +51,47 @@ impl HttpSocket {
     }
 }
 
-// tries to bind the socket to the passed addr and port
-// keeps incrementing port number until it finds a free port
-//
-// ### Error
-// - returns an std::io::Error when port reaches u16::MAX and no free port is found
-fn bind_socket(addr: impl Into<Ipv4Addr>, mut port: u16) -> IoRes<TcpListener> {
+impl Socket {
+    pub async fn event_loop(&mut self) {
+        let mut buf = String::new();
+        while let Ok((mut stream, _)) = self.socket.accept() {
+            println!("conn accepted");
+            let mut reader = BufReader::new(&mut stream);
+            buf.clear();
+            while !buf.trim_ascii().is_empty() {
+                _ = reader.read_line(&mut buf);
+                if buf.trim_ascii().is_empty() {
+                    break;
+                }
+            }
+            println!("<{}>", buf);
+            _ = stream
+                .write(b"HTTP/1.1 200 Ok\nContent-Type:text/htmlContent-Length: 9\n\nhello web");
+            _ = stream.flush();
+        }
+    }
+}
+
+/// tries to bind the socket to the passed addr and port
+/// keeps incrementing port number until it finds a free port
+///
+/// ### Error
+/// - returns an std::io::Error when port reaches u16::MAX and no free port is found
+pub fn bind_socket(addr: impl Into<Ipv4Addr>, mut port: u16) -> Result<TcpListener, Error> {
     let addr = addr.into();
     let socket = loop {
         match TcpListener::bind((addr, port)) {
             Ok(listener) => break listener,
-            err if port == u16::MAX => return err,
+            err if port == u16::MAX => return err.map_err(|_| Error::None),
             _err => port += 1,
         }
     };
-
-    // std::println!(
-    //     "\x1b[1;38;2;237;203;244mSocket listening on origin {:?}://{}:{}\x1b[0m",
-    //     scheme,
-    //     addr,
-    //     port
-    // );
 
     Ok(socket)
 }
 
 // converts a slice of Protocols to a u8
-fn proto_slice_to_u8(protos: &[Protocol]) -> u8 {
+pub fn proto_slice_to_u8(protos: &[Protocol]) -> u8 {
     use Protocol::*;
 
     let mut byte = 0;
@@ -374,271 +105,7 @@ fn proto_slice_to_u8(protos: &[Protocol]) -> u8 {
     byte
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct SocketRef<'a> {
-    pub(crate) uri_max: usize,
-    pub(crate) header_max: usize,
-    pub(crate) headers_max: usize,
-    pub(crate) body_max: usize,
-    pub(crate) resource: &'a Resource,
-    pub(crate) methods: u16,
-    pub(crate) proto: Protocol,
-    pub(crate) protos: u8,
-    pub(crate) strict: bool,
-}
-
-impl<'a> SocketRef<'a> {
-    fn new(
-        resource: &'a Resource,
-        uri_max: usize,
-        header_max: usize,
-        headers_max: usize,
-        body_max: usize,
-        methods: u16,
-        proto: Protocol,
-        protos: u8,
-        strict: bool,
-    ) -> Self {
-        Self {
-            resource,
-            uri_max,
-            headers_max,
-            header_max,
-            body_max,
-            methods,
-            proto,
-            protos,
-            strict,
-        }
-    }
-}
-
-pub struct ProcessReq<'a> {
-    req: Request,
-    res: &'a Resource,
-    forward: bool,
-}
-
-impl<'a> ProcessReq<'a> {
-    pub async fn run(self) -> Respond {
-        let resp = self.res.process(self.req, self.forward);
-
-        resp.await
-    }
-
-    pub fn resource_ref(&self) -> &'a Resource {
-        self.res
-    }
-
-    pub fn scrutinize(
-        &self,
-        uri_max: usize,
-        header_max: usize,
-        headers_max: usize,
-        body_max: usize,
-        methods: u16,
-        proto: Protocol,
-        protos: u8,
-        strict: bool,
-    ) -> Result<(), ErrorStatus> {
-        self.req.scrutinize(SocketRef::new(
-            self.res,
-            uri_max,
-            header_max,
-            headers_max,
-            body_max,
-            methods,
-            proto,
-            protos,
-            strict,
-        ))
-    }
-}
-
-pub struct Lookup<'a> {
-    res: &'a HashSet<Resource>,
-    req: Request,
-}
-
-impl<'a> Lookup<'a> {
-    pub fn find(self) -> Result<ProcessReq<'a>, ErrorStatus> {
-        if let Some(res) = self.route() {
-            return Ok(ProcessReq {
-                res,
-                req: self.req,
-                forward: false,
-            });
-        }
-
-        self.forward()
-            .map(|res| ProcessReq {
-                res,
-                req: self.req,
-                forward: true,
-            })
-            .ok_or_else(|| err_stt!(NotFound))
-    }
-
-    pub fn route(&self) -> Option<&'a Resource> {
-        self.res
-            .into_iter()
-            .find(|res| res.resource_for(self.req.route(), self.req.method()))
-    }
-
-    pub fn forward(&self) -> Option<&'a Resource> {
-        self.res
-            .into_iter()
-            .find(|res| res.forwards_to(self.req.route(), self.req.method()))
-    }
-}
-
-type IoErr = std::io::Error;
-
-impl HttpSocket {
-    pub fn lookup(&self, req: Request) -> Result<ProcessReq<'_>, ErrorStatus> {
-        Lookup {
-            res: &self.resources,
-            req,
-        }
-        .find()
-    }
-
-    /// cant use embedded_io until no_std ip/tcp is implemented
-    /// until then will be using std's Read and TcpStream
-
-    /// the request is processed once it's raw data is received through a client connection
-    ///
-    /// the prerequisite to respond needs 2 inputs: request + resource
-    /// the condition is
-    /// req.method == res.method && req.route == res.route -> Respond
-    ///
-    /// the prerequisite for a forward is that the response condition fails at route matching
-    /// the condition is
-    /// there exists a resource such that res.allows_method(req.method) &&
-    /// res.redirects.contains(req.route)
-    ///
-    /// the prerequisite for a preflight is that req.method == Options
-    /// the condition is
-    /// referring to req.requested_method as m; there exists a resource such that res.m is registered
-    /// and allows cors requests
-    ///
-    /// the prerequisite to negotiate is that the request includes the Expect or the Upgrade&Connection headers
-    /// the condition is
-    /// 101 -
-    /// req.headers.contains(Upgrade + Connection) && the server decides to follow through with the
-    /// upgrade -> we respond with a 101 switching protos
-    /// 100 -
-    /// req.headers.contains(Expect = 100-Continue) -> server returns that status code iif it
-    /// decides to keep the first part of the request and process it
-    /// 102 -
-    /// 102 status is deprecated
-    /// 103 -
-    /// rarely supported on proto < http2
-    /// server sends 103 with a Link header to tell the client to preload a resource before the server
-    /// sends its actual response
-    ///
-    /// the prerequisite for an error is that any of the preceeding message variants (req/res/frd/prf)
-    /// errors out at any point before responding to the client
-    /// the condition is nothing
-    pub fn stream<'a>(&mut self) -> Result<impl Read + Write + use<'a>, std::io::Error> {
-        match self.socket.accept() {
-            Ok((stream, _)) => Ok(stream),
-            Err(e) => Err(e),
-        }
-    }
-
-    pub async fn error(&self, err: ErrorStatus, proto: Protocol) -> Respond {
-        let fb = self.fallbacks.iter().find(|fb| fb.is(err));
-
-        match fb {
-            Some(fb) => fb.process().await,
-            None => Respond::error(err, proto),
-        }
-    }
-
-    /// receives the request stream and parse it into a request
-    pub fn receive<'a, R: Read>(&'a mut self, stream: &'a mut R) -> Result<Request, ErrorStatus> {
-        let stream = BufReader::new(stream);
-        let tokens = lex(stream, &mut self.buffer);
-        if tokens.is_empty() {
-            return err_stt!(?BadRequest);
-        }
-
-        Request::parse(tokens)
-    }
-
-    /// sends the respond byte stream back to the client
-    pub fn send<W: Write>(&mut self, stream: &mut W, res: Respond) -> Result<(), std::io::Error> {
-        let stream = BufWriter::new(stream);
-        let _n = res
-            .parse(stream)
-            .map_err(|_| std::io::Error::other("respond parse failed"))?;
-
-        Ok(())
-    }
-
-    /// starts up the socket server
-    pub async fn fireup(&mut self) -> Result<(), std::io::Error> {
-        while let Ok(mut stream) = self.stream() {
-            self.buffer.clear();
-            let request = {
-                let req = self.receive(&mut stream);
-
-                if let Err(err) = req {
-                    let respond = self.error(err, self.proto).await;
-                    self.send(&mut stream, respond)?;
-
-                    continue;
-                }
-
-                req.map_err(|_| std::io::Error::other("failed to read request data from stream"))?
-            };
-
-            let is_cross_origin = request.is_cross_origin();
-
-            let process = {
-                let prcs = self.lookup(request);
-
-                if let Err(err) = prcs {
-                    let respond = self.error(err, self.proto).await;
-                    self.send(&mut stream, respond)?;
-
-                    continue;
-                }
-
-                prcs.map_err(|_| std::io::Error::other("couldnt find resource/method pair"))?
-            };
-
-            // scrutinize request and write error respond if error
-            // TODO make this call clearer / directly from request
-            if let Err(err) = process.scrutinize(
-                self.uri_max,
-                self.header_max,
-                self.headers_max,
-                self.body_max,
-                self.methods,
-                self.proto,
-                self.protos,
-                self.strict,
-            ) {
-                let respond = self.error(err, self.proto).await;
-                self.send(&mut stream, respond)?;
-
-                continue;
-            }
-
-            let respond = process.run().await;
-
-            if let Err(err) = respond.scrutinize(is_cross_origin) {
-                let respond = self.error(err, self.proto).await;
-                self.send(&mut stream, respond)?;
-
-                continue;
-            }
-
-            self.send(&mut stream, respond)?;
-        }
-
-        Ok(())
-    }
+#[derive(Debug)]
+pub enum Error {
+    None,
 }

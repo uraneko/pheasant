@@ -190,10 +190,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
-name = "byte_enum"
-version = "0.1.0"
-
-[[package]]
 name = "bytemuck"
 version = "1.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -948,7 +944,6 @@ dependencies = [
  "embedded-io",
  "hashbrown",
  "pheasant_core",
- "pheasant_headers",
  "pheasant_server",
  "pheasant_uri",
  "rayon",
@@ -981,26 +976,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pheasant_data"
-version = "0.1.0"
-dependencies = [
- "bb8",
- "postgres",
-]
-
-[[package]]
-name = "pheasant_headers"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "deflate",
- "hashbrown",
- "mime",
- "pheasant_core",
- "pheasant_uri",
-]
-
-[[package]]
 name = "pheasant_server"
 version = "0.1.0"
 dependencies = [
@@ -1010,7 +985,6 @@ dependencies = [
  "hashbrown",
  "mime",
  "pheasant_core",
- "pheasant_headers",
  "pheasant_uri",
  "postgres",
  "uuid",

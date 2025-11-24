@@ -6,10 +6,10 @@ use core::str::FromStr;
 #[macro_export]
 macro_rules! status {
     ($var: ident) => {
-        stringify!($var).parse::<Status>().unwrap()
+        stringify!($var).parse::<$crate::Status>().unwrap()
     };
     ($code: expr) => {
-        Status::try_from($code).unwrap()
+        $crate::Status::try_from($code).unwrap()
     };
 }
 

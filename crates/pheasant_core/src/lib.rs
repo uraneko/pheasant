@@ -21,21 +21,25 @@ use core::str::Utf8Error;
 use hashbrown::HashSet;
 use pheasant_uri::Route;
 
+pub mod error;
+pub mod headers;
+pub mod maybe_glob;
 pub mod method;
 pub mod mime;
 pub mod protocol;
 pub mod status;
-pub mod wildcardish;
 
+pub use error::MessageError;
+pub use headers::{Header, Headers};
 pub use method::Method;
 pub use mime::Mime;
 // pub use monopoly::MonoPoly;
+pub use maybe_glob::MaybeGlob;
 pub use protocol::Protocol;
 pub use status::{
     ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiterals,
     Successful,
 };
-pub use wildcardish::WildCardish;
 
 // TODO service macro attr status
 // this lets the user pick their status code of choice for their service's response
