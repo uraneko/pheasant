@@ -5,18 +5,13 @@ edition = "2024"
 
 [workspace]
 members = [
-	"crates/pheasant_core",
+	"crates/pheasant_http",
 	"crates/pheasant_uri",
-	"crates/pheasant_server",
+	"crates/pheasant_services",
 ]
 resolver = "3"
 # _mre is for trying stuff out 
 exclude = ["_mre"]
-
-
-[[example]]
-name = "socket"
-path = "examples/socket.rs"
 
 [workspace.dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }
@@ -40,14 +35,14 @@ rcgen = "0.14.3"
 url = "2.5.4"
 hashbrown = "0.16.0"
 
-pheasant_core = { version = "0.1.0", path = "crates/pheasant_core" }
+pheasant_http = { version = "0.1.0", path = "crates/pheasant_http" }
 pheasant_uri = { version = "0.1.0", path = "crates/pheasant_uri" }
-pheasant_server = { version = "0.1.0", path = "crates/pheasant_server" }
+pheasant_services = { version = "0.1.0", path = "crates/pheasant_services" }
 
 [dependencies]
-pheasant_core = { workspace = true }
+pheasant_http = { workspace = true }
 pheasant_uri = { workspace = true }
-pheasant_server = { workspace = true }
+pheasant_services = { workspace = true }
 crossbeam-utils = "0.8.21"
 uuid = "1.18.1"
 rayon = "1.11.0"

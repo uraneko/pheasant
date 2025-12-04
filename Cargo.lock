@@ -943,8 +943,8 @@ dependencies = [
  "crossbeam-utils",
  "embedded-io",
  "hashbrown",
- "pheasant_core",
- "pheasant_server",
+ "pheasant_http",
+ "pheasant_services",
  "pheasant_uri",
  "rayon",
  "tokio",
@@ -952,7 +952,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pheasant_core"
+name = "pheasant_http"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -976,7 +976,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pheasant_server"
+name = "pheasant_services"
 version = "0.1.0"
 dependencies = [
  "bb8",
@@ -984,7 +984,7 @@ dependencies = [
  "chrono",
  "hashbrown",
  "mime",
- "pheasant_core",
+ "pheasant_http",
  "pheasant_uri",
  "postgres",
  "uuid",

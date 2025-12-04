@@ -1,32 +1,23 @@
-use super::Socket;
+use super::{Error, Socket};
 use std::net::TcpListener;
 
 // #[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
 pub struct Builder {
-    socket: TcpListener,
+    socket: Result<TcpListener, Error>,
     buf_size: usize,
-    // service: Option<S>,
-    // services: Vec<M>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Error {
-    ServersGottaServe,
 }
 
 impl Builder {
-    pub fn new(socket: TcpListener) -> Self {
+    pub fn new(socket: Result<TcpListener, Error>) -> Self {
         Self {
             socket,
             buf_size: 4096,
-            // service: None,
-            // services: Vec::new(),
         }
     }
 
     pub fn build(self) -> Result<Socket, Error> {
         Ok(Socket {
-            socket: self.socket,
+            socket: self.socket?,
             buffer: Vec::with_capacity(self.buf_size),
         })
     }
