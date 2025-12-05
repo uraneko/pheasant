@@ -3,9 +3,9 @@ name = "pheasant_http"
 version = "0.1.0"
 edition = "2024"
 
-[[example]]
-name = "tls"
-path = "examples/tls.rs"
+[[test]]
+name = "request"
+path = "tests/request.rs"
 
 [dependencies]
 chrono = { workspace = true }
@@ -19,9 +19,6 @@ tokio = { workspace = true }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }
 syn = { workspace = true }
-rustls = { workspace = true }
-rustls-pki-types = { workspace = true }
-rcgen = { workspace = true }
 hashbrown = { workspace = true, features = ["serde"] }
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
 crossbeam-utils = "0.8.21"

@@ -27,6 +27,7 @@ pub mod maybe_glob;
 pub mod method;
 pub mod mime;
 pub mod protocol;
+pub mod request;
 pub mod status;
 
 pub use error::MessageError;

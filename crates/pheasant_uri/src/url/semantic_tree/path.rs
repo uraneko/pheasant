@@ -14,6 +14,10 @@ impl Path {
     pub fn segments(&self) -> &[String] {
         &self.segments
     }
+
+    pub fn serialized(&self) -> String {
+        self.segments.join("/")
+    }
 }
 
 impl SpellChecker for Path {

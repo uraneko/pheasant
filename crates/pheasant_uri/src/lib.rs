@@ -3,7 +3,7 @@ pub mod urn;
 
 pub use url::derivatives::{Origin, Resource, Route};
 pub use url::{AbsoluteUrl, PathRelativeUrl, SchemeRelativeUrl, Url};
-pub use url::{Query, Scheme};
+pub use url::{Path, Query, Scheme};
 pub use urn::Urn;
 
 // pub use components::{Host, Nid, Nss, Path, Query, Scheme, User};

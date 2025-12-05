@@ -23,28 +23,9 @@ pub enum Method {
     Trace = 256,
 }
 
-impl ToTokens for Method {
-    fn to_tokens(&self, tokens: &mut TS2) {
-        tokens.append(<Method as Into<TokenTree>>::into(*self))
-    }
-}
-
-impl From<Method> for TokenTree {
-    fn from(m: Method) -> Self {
-        let var = Ident::new(m.as_str(), Span::call_site());
-        Group::new(Delimiter::None, quote::quote! {Method::#var}).into()
-    }
-}
-
 impl fmt::Display for Method {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            // self.as_str().chars().next().unwrap(),
-            // &self.as_str()[1..].to_lowercase(),
-            self.as_str()
-        )
+        write!(f, "{}", self.as_str())
     }
 }
 

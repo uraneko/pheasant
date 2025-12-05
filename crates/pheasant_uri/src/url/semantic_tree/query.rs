@@ -174,7 +174,7 @@ impl Query {
     }
 
     // returns the str repr of this query
-    pub fn sequence(&self) -> String {
+    pub fn serialized(&self) -> String {
         let mut seq = self
             .params
             .iter()

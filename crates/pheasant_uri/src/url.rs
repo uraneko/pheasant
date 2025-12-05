@@ -18,8 +18,8 @@ pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
 }
 
 use lex::{Error as LexError, Token, lex};
-use semantic_tree::{Component, Error as SemanticError, Host, Path, User, semantic_tree};
-pub use semantic_tree::{Query, Scheme};
+use semantic_tree::{Component, Error as SemanticError, Host, User, semantic_tree};
+pub use semantic_tree::{Path, Query, Scheme};
 use syntax_tree::{Error as SyntaxError, TokenGroup, syntax_tree};
 
 #[derive(Debug)]
