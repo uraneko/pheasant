@@ -153,6 +153,10 @@ impl Resource {
     pub fn query(&self) -> Option<&Query> {
         self.query.as_ref()
     }
+
+    pub fn disassemble(self) -> (Path, Option<Query>) {
+        (self.path, self.query)
+    }
 }
 
 impl From<Resource> for (Route, Option<Query>) {

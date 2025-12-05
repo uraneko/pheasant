@@ -2,7 +2,7 @@ use pheasant_http::{
     Method, Protocol,
     request::{
         Token,
-        http11::{Error, Lex},
+        http11::{Error, Lex, build_headers, content_length},
     },
 };
 
@@ -89,7 +89,7 @@ fn value() {
 }
 
 #[test]
-fn last_field() {
+fn end_of_headers() {
     let mut buf = REQ0.bytes().collect::<Vec<u8>>();
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
@@ -159,36 +159,59 @@ fn body() {
     let Ok(tokens) = lexer.headers() else {
         panic!("headers are not parsing")
     };
-    let len_idx = tokens
-        .iter()
-        .position(|t| {
-            let Token::Field(len) = t else { return false };
-            len == b"Content-Length"
-        })
-        .map(|idx| idx + 1);
-    let Some(idx) = len_idx else {
-        panic!("Content-Length header not found");
-    };
 
-    let Ok(len) = ({
-        let Token::Value(ref len) = tokens[idx] else {
-            panic!("expected content length header value token");
-        };
-
-        let Ok(s) = str::from_utf8(len) else {
-            panic!("failed to parse content length value into an str");
-        };
-
-        s.parse::<usize>()
-    }) else {
-        panic!("couldn t parse content length header value token");
+    let Ok(len) = content_length(&tokens) else {
+        panic!("couldnt find the content length header");
     };
 
     assert_eq!(
-        Ok(Token::Body(
+        Ok(Some(Token::Body(
             b"name=Brian%20Smith&email=brian.smith%40example.com".to_vec()
-        )),
+        ))),
         lexer.body(len)
+    );
+}
+
+fn request() {
+    let mut buf = REQ1.bytes().collect::<Vec<u8>>();
+    let mut lexer = Lex::new(&mut buf);
+
+    let Ok(req) = lexer.request() else {
+        panic!("request couldnt be lexed properly");
+    };
+
+    assert_eq!(req.method(), Method::Post);
+    assert_eq!(req.path(), "/subscribe".to_owned());
+
+    let Some(query) = req.query() else {
+        panic!("expected query to be some value");
+    };
+
+    assert_eq!(
+        query.params(),
+        &hashbrown::HashMap::from([("this".into(), "one".into()), ("that".into(), "two".into())])
+    );
+    assert_eq!(query.attrs(), &hashbrown::HashSet::from(["like_so".into()]));
+    assert_eq!(req.proto(), Protocol::Http11);
+
+    let Ok(headers) = build_headers(vec![
+        Token::Field(b"Host".to_vec()),
+        Token::Value(b"example.com".to_vec()),
+        Token::LFCR,
+        Token::Field(b"Content-Type".to_vec()),
+        Token::Value(b"application/x-www-form-urlencoded".to_vec()),
+        Token::CRLF,
+        Token::Field(b"Content-Length".to_vec()),
+        Token::Value(b"50".to_vec()),
+        Token::LF,
+        Token::LF,
+    ]) else {
+        panic!("headers couldnt be built");
+    };
+    assert_eq!(req.headers(), &headers);
+    assert_eq!(
+        req.body(),
+        Some(b"name=Brian%20Smith&email=brian.smith%40example.com".as_slice())
     );
 }
 
