@@ -6,6 +6,7 @@ use pheasant_uri::{Path, Query, Resource};
 
 pub mod http11;
 
+#[derive(Debug)]
 pub struct Request {
     method: Method,
     path: Path,

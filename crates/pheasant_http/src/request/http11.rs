@@ -144,11 +144,12 @@ impl<'a> Lex<'a> {
     }
 
     pub fn maybe_eol(&mut self) -> Option<Token> {
+        let len = self.len();
         let idx = &mut self.cursor;
         let buf = &self.buf;
         match buf[*idx] {
             10 => {
-                if buf[*idx + 1] == 13 {
+                if *idx + 1 < len && buf[*idx + 1] == 13 {
                     *idx += 2;
                     return Some(Token::LFCR);
                 } else {
@@ -157,7 +158,7 @@ impl<'a> Lex<'a> {
                 }
             }
             13 => {
-                if buf[*idx + 1] == 10 {
+                if *idx + 1 < len && buf[*idx + 1] == 10 {
                     *idx += 2;
                     return Some(Token::CRLF);
                 } else {
@@ -183,6 +184,7 @@ impl<'a> Lex<'a> {
         let body = match self.body(len)? {
             Some(Token::Body(body)) => Some(body),
             Some(_) => return Err(Error::UndesirableToken),
+
             None => None,
         };
         let headers = build_headers(headers)?;
@@ -204,7 +206,9 @@ pub fn build_headers(tokens: Vec<Token>) -> Result<Vec<Header>, Error> {
     let mut iter = tokens.into_iter().rev();
     let mut headers = Vec::new();
 
-    while let Some(token) = iter.next() {
+    while let Some(token) = iter.next()
+        && !token.is_eol()
+    {
         let (Token::Field(field), Some(Token::Value(value))) = (token, iter.next()) else {
             return Err(Error::UndesirableToken);
         };
@@ -220,6 +224,7 @@ pub fn build_headers(tokens: Vec<Token>) -> Result<Vec<Header>, Error> {
         headers.push(Header::new(field, value));
     }
 
+    // this is never reached since headers always end in a double eol
     Ok(headers)
 }
 

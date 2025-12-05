@@ -172,6 +172,48 @@ fn body() {
     );
 }
 
+const REQ2: &str = "POST /subscribe?this=one&that=two&like_so HTTP/1.1\nHost: example.com\nContent-Type: application/x-www-form-urlencoded\n\n";
+
+#[test]
+fn no_body() {
+    let mut buf = REQ2.bytes().collect::<Vec<u8>>();
+    let mut lexer = Lex::new(&mut buf);
+
+    let Ok(req) = lexer.request() else {
+        panic!("request couldnt be lexed properly");
+    };
+
+    assert_eq!(req.method(), Method::Post);
+    assert_eq!(req.path(), "/subscribe".to_owned());
+
+    let Some(query) = req.query() else {
+        panic!("expected query to be some value");
+    };
+
+    assert_eq!(
+        query.params(),
+        &hashbrown::HashMap::from([("this".into(), "one".into()), ("that".into(), "two".into())])
+    );
+    assert_eq!(query.attrs(), &hashbrown::HashSet::from(["like_so".into()]));
+    assert_eq!(req.proto(), Protocol::Http11);
+
+    let Ok(headers) = build_headers(vec![
+        Token::Field(b"Host".to_vec()),
+        Token::Value(b"example.com".to_vec()),
+        Token::LFCR,
+        Token::Field(b"Content-Type".to_vec()),
+        Token::Value(b"application/x-www-form-urlencoded".to_vec()),
+        Token::CRLF,
+        Token::Field(b"Content-Length".to_vec()),
+        Token::Value(b"50".to_vec()),
+        Token::LF,
+        Token::LF,
+    ]) else {
+        panic!("headers couldnt be built");
+    };
+    assert_eq!(req.headers(), &headers);
+}
+
 fn request() {
     let mut buf = REQ1.bytes().collect::<Vec<u8>>();
     let mut lexer = Lex::new(&mut buf);
