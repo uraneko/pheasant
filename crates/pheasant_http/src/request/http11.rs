@@ -7,7 +7,7 @@ pub fn lex() {}
 
 pub struct Lex<'a> {
     cursor: usize,
-    buf: &'a Vec<u8>,
+    buf: &'a [u8],
     // eof: bool,
 }
 
@@ -42,7 +42,7 @@ impl<'a> Lex<'a> {
 }
 
 impl<'a> Lex<'a> {
-    pub fn new(buf: &'a mut Vec<u8>) -> Self {
+    pub fn new(buf: &'a [u8]) -> Self {
         Self { cursor: 0, buf }
     }
 
@@ -70,7 +70,7 @@ impl<'a> Lex<'a> {
             return Err(Error::CouldntFindTheEol);
         };
         let start = self.cursor;
-        self.cursor = sep + 1;
+        self.cursor = sep + if Token::LF == eol { 1 } else { 2 };
 
         Protocol::try_from(&self.buf[start..sep])
             .map_err(|_| Error::FailedToParseToken)
@@ -143,32 +143,6 @@ impl<'a> Lex<'a> {
         Ok(Some(Token::Body(self.buf[self.cursor..data_end].to_vec())))
     }
 
-    pub fn maybe_eol(&mut self) -> Option<Token> {
-        let len = self.len();
-        let idx = &mut self.cursor;
-        let buf = &self.buf;
-        match buf[*idx] {
-            10 => {
-                if *idx + 1 < len && buf[*idx + 1] == 13 {
-                    *idx += 2;
-                    return Some(Token::LFCR);
-                } else {
-                    *idx += 1;
-                    return Some(Token::LF);
-                }
-            }
-            13 => {
-                if *idx + 1 < len && buf[*idx + 1] == 10 {
-                    *idx += 2;
-                    return Some(Token::CRLF);
-                } else {
-                    return None;
-                }
-            }
-            _ => None,
-        }
-    }
-
     pub fn request(&mut self) -> Result<Request, Error> {
         let method = self.method()?;
         let (path, query) = self.url()?.disassemble();
@@ -198,12 +172,38 @@ impl<'a> Lex<'a> {
             body,
         })
     }
+
+    pub fn maybe_eol(&mut self) -> Option<Token> {
+        let len = self.len();
+        let idx = &mut self.cursor;
+        let buf = &self.buf;
+        match buf[*idx] {
+            10 => {
+                if *idx + 1 < len && buf[*idx + 1] == 13 {
+                    *idx += 2;
+                    return Some(Token::LFCR);
+                } else {
+                    *idx += 1;
+                    return Some(Token::LF);
+                }
+            }
+            13 => {
+                if *idx + 1 < len && buf[*idx + 1] == 10 {
+                    *idx += 2;
+                    return Some(Token::CRLF);
+                } else {
+                    return None;
+                }
+            }
+            _ => None,
+        }
+    }
 }
 
 use std::eprintln;
 
 pub fn build_headers(tokens: Vec<Token>) -> Result<Vec<Header>, Error> {
-    let mut iter = tokens.into_iter().rev();
+    let mut iter = tokens.into_iter();
     let mut headers = Vec::new();
 
     while let Some(token) = iter.next()

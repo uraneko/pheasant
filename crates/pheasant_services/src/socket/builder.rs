@@ -5,6 +5,7 @@ use std::net::TcpListener;
 pub struct Builder {
     socket: Result<TcpListener, Error>,
     buf_size: usize,
+    path: &'static str,
 }
 
 impl Builder {
@@ -12,6 +13,7 @@ impl Builder {
         Self {
             socket,
             buf_size: 4096,
+            path: ":memory:",
         }
     }
 
@@ -19,7 +21,14 @@ impl Builder {
         Ok(Socket {
             socket: self.socket?,
             buffer: Vec::with_capacity(self.buf_size),
+            conn: sqlite::open(self.path).unwrap(),
         })
+    }
+
+    pub fn sqlite_path(mut self, path: &'static str) -> Self {
+        self.path = path;
+
+        self
     }
 
     pub fn buf_size(mut self, size: usize) -> Self {

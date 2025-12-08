@@ -16,7 +16,12 @@ impl Path {
     }
 
     pub fn serialized(&self) -> String {
-        self.segments.join("/")
+        // TODO clean this up
+        if &self.segments == &[""] {
+            "/".to_owned()
+        } else {
+            self.segments.join("/")
+        }
     }
 }
 

@@ -16,4 +16,5 @@ mime.workspace = true
 pheasant_http = { version = "0.1.0", path = "../pheasant_http" }
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
 postgres = "0.19.12"
+sqlite = "0.37.0"
 uuid = { version = "1.18.1", features = ["v4", "v6", "v8"] }

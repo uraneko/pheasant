@@ -1,14 +1,17 @@
 pub mod http {
     pub use pheasant_http::{
         ClientError, ErrorStatus, Informational, Method, Mime, Protocol, Redirection, ServerError,
-        Status, Successful, err_stt, status,
+        Status, Successful, err_stt, request, status,
     };
 }
 
 pub mod uri {
-    pub use pheasant_uri::{Origin, Resource, Route, Url};
+    pub use pheasant_uri::{Origin, Query, Resource, Route, Url};
 }
 
 pub mod services {
-    pub use pheasant_services::{Service, Socket, cors, lookup, parse, read_stream, write_stream};
+    pub use pheasant_services::{
+        Resource, Server, Service, Socket, bad_request, cors, not_found, parse, read_stream,
+        req_buf, write_stream,
+    };
 }
