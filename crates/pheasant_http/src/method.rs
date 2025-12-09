@@ -50,15 +50,15 @@ impl TryFrom<&[u8]> for Method {
 
     fn try_from(s: &[u8]) -> Result<Self, Self::Error> {
         match s {
-            b"HEAD" => Ok(Self::Head),
-            b"GET" => Ok(Self::Get),
-            b"POST" => Ok(Self::Post),
-            b"PUT" => Ok(Self::Put),
-            b"PATCH" => Ok(Self::Patch),
-            b"DELETE" => Ok(Self::Delete),
-            b"CONNECT" => Ok(Self::Connect),
-            b"OPTIONS" => Ok(Self::Options),
-            b"TRACE" => Ok(Self::Trace),
+            b"HEAD" | b"head" => Ok(Self::Head),
+            b"GET" | b"get" => Ok(Self::Get),
+            b"POST" | b"post" => Ok(Self::Post),
+            b"PUT" | b"put" => Ok(Self::Put),
+            b"PATCH" | b"patch" => Ok(Self::Patch),
+            b"DELETE" | b"delete" => Ok(Self::Delete),
+            b"CONNECT" | b"connect" => Ok(Self::Connect),
+            b"OPTIONS" | b"options" => Ok(Self::Options),
+            b"TRACE" | b"trace" => Ok(Self::Trace),
             _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
         }
     }
@@ -68,16 +68,16 @@ impl FromStr for Method {
     type Err = ErrorStatus;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_uppercase().as_str() {
-            "HEAD" => Ok(Self::Head),
-            "GET" => Ok(Self::Get),
-            "POST" => Ok(Self::Post),
-            "PUT" => Ok(Self::Put),
-            "PATCH" => Ok(Self::Patch),
-            "DELETE" => Ok(Self::Delete),
-            "CONNECT" => Ok(Self::Connect),
-            "OPTIONS" => Ok(Self::Options),
-            "TRACE" => Ok(Self::Trace),
+        match s {
+            "HEAD" | "head" => Ok(Self::Head),
+            "GET" | "get" => Ok(Self::Get),
+            "POST" | "post" => Ok(Self::Post),
+            "PUT" | "put" => Ok(Self::Put),
+            "PATCH" | "patch" => Ok(Self::Patch),
+            "DELETE" | "delete" => Ok(Self::Delete),
+            "CONNECT" | "connect" => Ok(Self::Connect),
+            "OPTIONS" | "options" => Ok(Self::Options),
+            "TRACE" | "trace" => Ok(Self::Trace),
             _ => err_stt!(?BadRequest),
         }
     }

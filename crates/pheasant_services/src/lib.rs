@@ -7,7 +7,7 @@ pub mod parse;
 pub mod socket;
 pub mod stream;
 
-pub use cors::cors;
+pub use cors::{Cors, cors};
 pub use errors::{bad_request, not_found};
 // pub use lookup::lookup;
 pub use parse::parse;

@@ -128,6 +128,40 @@ impl<'a> Lex<'a> {
         Ok(tokens)
     }
 
+    /// takes only the headers specified by the filters variable
+    /// # Example
+    /// ```
+    /// let filters = &[
+    ///     b"access-control-request-method",
+    ///     b"access-control-request-header",
+    ///     b"origin"
+    /// ];
+    /// let cors_headers = lex.headers_filtered(filters)?;
+    /// ```
+    ///
+    /// # Errors
+    /// - this method could fail when
+    /// * the self.field method returns an error
+    /// or
+    /// * the self.value method returns an error
+    ///
+    pub fn headers_filtered(&mut self, filters: &[&[u8]]) -> Result<Vec<Token>, Error> {
+        let mut tokens = Vec::new();
+        while self.cursor < self.buf.len() {
+            match self.field()? {
+                Token::Field(field) => {
+                    if filters.contains(&field.as_slice()) {
+                        let [value, eol] = self.value()?;
+                        tokens.extend([Token::Field(field), value, eol]);
+                    }
+                }
+                _ => return Err(Error::UndesirableToken),
+            }
+        }
+
+        Ok(tokens)
+    }
+
     pub fn body(&mut self, len: usize) -> Result<Option<Token>, Error> {
         if len == 0 {
             return Ok(None);
@@ -198,7 +232,15 @@ impl<'a> Lex<'a> {
             _ => None,
         }
     }
+
+    /// this method resets the lexer's cursor to its initial state
+    /// i.e., you can then use the method function to get the request method and so on
+    pub fn reset(&mut self) {
+        self.cursor = 0;
+    }
 }
+
+// TODO add a feature to arbitrarily walk around (back and forth) the lexer's buffer and get whatever components you want
 
 use std::eprintln;
 
