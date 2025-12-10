@@ -6,7 +6,7 @@
 // error out if the components are ill formed or contain malicious contents using
 // SpellChecker and Sanitizer
 
-use super::{lex::Token, syntax_tree::TokenGroup};
+use super::{PercentEncodable, lex::Token, syntax_tree::TokenGroup};
 use crate::{SpellChecker, SpellingError, error_inheritance};
 
 mod host;
@@ -179,8 +179,9 @@ impl TryFrom<Vec<Token>> for Path {
 impl TryFrom<Vec<Token>> for Query {
     type Error = Error;
 
-    fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+    fn try_from(mut tokens: Vec<Token>) -> SemanticResult<Self> {
         Query::spell_check(&tokens)?;
+        Query::decode_component(&mut tokens);
 
         Ok(Query::from_iter(tokens))
     }

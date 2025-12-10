@@ -1,4 +1,4 @@
-use super::Token;
+use super::{PercentEncodable, Token};
 use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 use hashbrown::{HashMap, HashSet};
 
@@ -9,7 +9,7 @@ pub struct Query {
 }
 
 impl SpellChecker for Query {
-    const ALLOWED: &'static [char] = &[':', '@', '/', '?'];
+    const ALLOWED: &'static [char] = &[':', '@', '/', '?', '%'];
     type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
@@ -37,6 +37,12 @@ impl SpellChecker for Query {
 
         Ok(())
     }
+}
+
+impl PercentEncodable for Query {
+    const TABLE: &'static [(&'static str, &'static str)] =
+        &[("%23", "#"), ("%3D", "="), ("%26", "&")];
+    type Err = ();
 }
 
 impl Query {

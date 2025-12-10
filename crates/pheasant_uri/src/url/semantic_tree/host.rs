@@ -37,6 +37,11 @@ impl SpellChecker for Host {
     }
 }
 
+// impl PercentEncodable for Host {
+//     const TABLE: &'static [(&'static str, &'static str)] = &[("%23", "#")];
+//     type Err = ();
+// }
+
 impl Host {
     // single label max length
     const LABEL_MAX: usize = 63;

@@ -12,65 +12,37 @@ elColor=3a3a3a&color=ECD53F" height="25">](https://github.com/uraneko/pheasant/b
 
 ## ToC
 - [Design](#Design)
-- [Goals](#Goals)
 - [Features](#Features)
 - [MSRV](#MSRV)
 - [License](#License)
 
 ###
-### Design 
-
-This table describes the implementation choices of this framework, it has two columns: 
-- Framework: the logic this framework chooses to implement 
-- User: the logic this framework chooses to have the user implement 
-
-| Feature | Framework | User |
-| :------------------------- | :-: | :-: |
-| Data Types                 |  x  |     |
-| Request Analysis           |  x  |     |
-| Request Parsing            |  x  |     |
-| Response Status Resolution |  x  |  x  |
-| Response Building          |     |  x  |
-| Headers Operations         |  x  |     |
-| Uri Forwarding             |  x  |     |
-| Preflight Requests         |  x  |     |
-| Head, Trace Requests       |  x  |     |
-
-###
-### Goals
-
-| Goal | \*Basic | Full | Extra | 
-| :------------- | :--: | :--: | :--: | 
-| no_std compatible     |   | | |
-| Origin Server         | x | | |
-| Http/1.1              | x | | |
-| Http/2                |   | | |
-| TLS/1.3 (Https)       |   | | |
-| DataBases Integration |   | | |
-| Cors                  | x | | |
-| Cookies               | x | | |
-| Headers (Content-*)   | x | | |
-| Headers (Date, Host)  | x | | |
-| Http/1.1 Pipelining   |   | | |
-
-###
-
-
-* `Basic` the feature is supported in a barebones manner, the api is still being worked out and may contain bugs.
-
-* `Full` means the feature should be very close to feature completion and offers a robust/well tested api 
-
-* `Extra` means that most bugs/issues have been ironed out and the current interest is user convenience and performance
+### Design
+An HTTP server is too broad a program; anything the host system can do (calling another program, doing some calculations, db ops, fs ops, etc.,) the server should be able to do. 
+That's why the main goal of this framework is to give the user smaller individual components that are kept as inter-indepent as possible and let the user write their own server implementations.
+check out the main lib's public apis for a list of supported features.
 
 ### 
 ### Features
-- http 1.1 request parsing + response auto generation
-- http request redirection 
-- http client/server error responses
-- services as async functions 
 
-<!-- > [!WARN] -->
-<!-- > The http methods macros are broken and deprecated, don't bother checking them out. I also don't intend to fix/update them anytime soon, if at all.  -->
+| Feature | PLANNED | TODO | ENHANCING | FIXING |
+| :------------- | :--: | :--: | :--: | :--: |
+| no_std compatibility         | x | | | |
+| Origin server support        | | x | | |
+| Http/1.1 support             | | x | | |
+| Http/2 support               | x | | | |
+| TLS/1.3 (Https) support      | x | | | |
+| Services integration  | | x | | |
+| Builtin services      | | x | | |
+| Http/1.1 Pipelining   | x | | | | 
+| websocket protocol    | x | | | |
+
+###
+
+* TODO: will start working on soon / mid-work on the basic features. There exists a proper statement of how and what would be implemented for this module to transition from TODO to ENHANCING 
+* PLANNED: intend to work on at some time on the future. Only the statement of this intention exists.
+* ENHANCING: basic features are done, at a stage of incorporating additional features when required 
+* FIXING: basic features of the module are written, but there exist some bugs. The bugs severity depends on the module tags
 
 ###
 ### Usage
