@@ -326,7 +326,6 @@ impl PathRelativeUrl {
         use Component::*;
 
         let mut iter = i.into_iter().peekable();
-
         let (path, query, fragment) = match iter.next() {
             None => (semantic_tree::Path::default(), None, None),
             Some(Query(query)) => (
@@ -341,7 +340,6 @@ impl PathRelativeUrl {
                 Some(Fragment(frag)) => (path, None, Some(frag)),
                 _ => return Err(Error::UnexpectedComponentAtPosition),
             },
-
             _ => return Err(Error::UnexpectedComponentAtPosition),
         };
 
