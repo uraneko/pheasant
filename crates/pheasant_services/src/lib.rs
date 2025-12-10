@@ -1,4 +1,4 @@
-use pheasant_http::request::Request;
+use pheasant_http::{Method, request::Request};
 
 pub mod cors;
 pub mod errors;
@@ -7,7 +7,7 @@ pub mod parse;
 pub mod socket;
 pub mod stream;
 
-pub use cors::{Cors, cors};
+pub use cors::Cors;
 pub use errors::{bad_request, not_found};
 // pub use lookup::lookup;
 pub use parse::parse;
@@ -44,12 +44,37 @@ pub trait Server {
 }
 
 pub trait Resource {
-    fn get() {}
-    fn post() {}
-    fn put() {}
-    fn patch() {}
-    fn head() {}
-    fn connect() {}
-    fn delete() {}
-    fn options() {}
+    fn get(&self, req: Request, buf: &mut String) {}
+
+    fn post(&self, req: Request, buf: &mut String) {}
+
+    fn put(&self, req: Request, buf: &mut String) {}
+
+    fn patch(&self, req: Request, buf: &mut String) {}
+
+    fn head(&self, req: Request, buf: &mut String) {}
+
+    fn trace(&self, req: Request, buf: &mut String) {}
+
+    fn delete(&self, req: Request, buf: &mut String) {}
+
+    fn options(&self, req: Request, buf: &mut String) {}
+
+    fn connect(&self, req: Request, buf: &mut String) {}
+
+    fn run(&self, req: Request, buf: &mut String) {
+        use Method::*;
+
+        match req.method() {
+            Get => self.get(req, buf),
+            Post => self.post(req, buf),
+            Head => self.head(req, buf),
+            Patch => self.patch(req, buf),
+            Put => self.put(req, buf),
+            Connect => self.connect(req, buf),
+            Options => self.options(req, buf),
+            Delete => self.delete(req, buf),
+            Trace => self.trace(req, buf),
+        }
+    }
 }

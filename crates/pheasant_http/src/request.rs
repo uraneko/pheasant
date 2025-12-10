@@ -6,7 +6,7 @@ use pheasant_uri::{Path, Query, Resource};
 
 pub mod http11;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request {
     method: Method,
     path: Path,
@@ -42,7 +42,7 @@ impl Request {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Header {
     field: Vec<u8>,
     value: Vec<u8>,
