@@ -4,7 +4,7 @@ use pheasant_http::{
     request::{Header, contains_header, header_value},
 };
 
-// pub fn cors(resp: &mut String, status: &str) {
+// pub fn cors(resp: &mut Vec<u8>, status: &str) {
 //     let headers = "access-control-allow-headers: *\n";
 //     let origin = "access-control-allow-origin: 127.10.10.1:1024\n";
 //     let methods = "access-control-allow-methods: HEAD, GET, OPTIONS\n";
@@ -235,9 +235,9 @@ impl Cors {
 
 // methods for writing cors headers to the buffer
 impl Cors {
-    pub fn allow_origin(&self, value: &[u8], buffer: &mut String) -> Result<(), Error> {
+    pub fn allow_origin(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
         let MaybeGlob::Value(ref origins) = self.origins else {
-            buffer.push_str("access-control-allow-origin: *\n");
+            buffer.extend(b"access-control-allow-origin: *\n");
 
             return Ok(());
         };
@@ -247,16 +247,16 @@ impl Cors {
             return Err(Error::ForbiddenOrigin);
         }
 
-        buffer.push_str("access-control-allow-origin: ");
-        buffer.push_str(origin);
-        buffer.push('\n');
+        buffer.extend(b"access-control-allow-origin: ");
+        buffer.extend(origin.as_bytes());
+        buffer.push(10);
 
         Ok(())
     }
 
-    pub fn allow_method(&self, value: &[u8], buffer: &mut String) -> Result<(), Error> {
+    pub fn allow_method(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
         let MaybeGlob::Value(ref methods) = self.methods else {
-            buffer.push_str("access-control-allow-methods: *\n");
+            buffer.extend(b"access-control-allow-methods: *\n");
 
             return Ok(());
         };
@@ -277,25 +277,25 @@ impl Cors {
         //         .map_err(|_| Error::BadHeaderValue)
         // })??) {}
 
-        buffer.push_str("access-control-allow-methods: ");
+        buffer.extend(b"access-control-allow-methods: ");
         methods.iter().fold(&mut *buffer, |acc, m| {
-            acc.push_str(m.as_str());
-            acc.push(',');
+            acc.extend(m.as_str().as_bytes());
+            acc.push(b',');
 
             acc
         });
 
         buffer.pop();
-        buffer.push('\n');
+        buffer.push(10);
 
         Ok(())
     }
 
     /// compares these params with the requested cors params
     /// writes the response cors headers
-    pub fn allow_headers(&self, value: &[u8], buffer: &mut String) -> Result<(), Error> {
+    pub fn allow_headers(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
         let MaybeGlob::Value(ref headers) = self.headers else {
-            buffer.push_str("access-control-allow-headers: *\n");
+            buffer.extend(b"access-control-allow-headers: *\n");
 
             return Ok(());
         };
@@ -318,27 +318,27 @@ impl Cors {
                 // to the buffer
                 0 => state = 1,
                 1 => {
-                    buffer.push_str("access-control-allow-headers: ");
-                    buffer.push_str(header);
+                    buffer.extend(b"access-control-allow-headers: ");
+                    buffer.extend(header.as_bytes());
 
                     state = 2;
                 }
                 2 => {
-                    buffer.push_str(header);
-                    buffer.push(',');
+                    buffer.extend(header.as_bytes());
+                    buffer.push(b',');
                 }
                 _ => (),
             }
         }
         buffer.pop();
-        buffer.push('\n');
+        buffer.push(10);
 
         Ok(())
     }
 
-    pub fn expose_headers(&self, buffer: &mut String) -> Result<(), Error> {
+    pub fn expose_headers(&self, buffer: &mut Vec<u8>) -> Result<(), Error> {
         let MaybeGlob::Value(ref expose) = self.expose else {
-            buffer.push_str("access-control-expose-headers: *\n");
+            buffer.extend(b"access-control-expose-headers: *\n");
 
             return Ok(());
         };
@@ -349,12 +349,12 @@ impl Cors {
 
         expose.iter().fold(
             {
-                buffer.push_str("access-control-expose-headers: ");
+                buffer.extend(b"access-control-expose-headers: ");
                 buffer
             },
             |acc, e| {
-                acc.push_str(e);
-                acc.push(',');
+                acc.extend(e.as_bytes());
+                acc.push(b',');
                 acc
             },
         );
@@ -362,23 +362,23 @@ impl Cors {
         Ok(())
     }
 
-    pub fn allow_credentials(&self, buffer: &mut String) {
+    pub fn allow_credentials(&self, buffer: &mut Vec<u8>) {
         if self.credentials {
-            buffer.push_str("access-control-allow-credentials: true\n");
+            buffer.extend(b"access-control-allow-credentials: true\n");
         }
     }
 
-    pub fn allow_max_age(&self, buffer: &mut String) {
+    pub fn allow_max_age(&self, buffer: &mut Vec<u8>) {
         let Some(max_age) = self.max_age else {
             return;
         };
 
-        buffer.push_str("access-control-max-age: ");
-        buffer.push_str(&max_age.to_string());
-        buffer.push('\n');
+        buffer.extend(b"access-control-max-age: ");
+        buffer.extend(max_age.to_string().as_bytes());
+        buffer.push(10);
     }
 
-    pub fn cors(&self, headers: &[Header], buffer: &mut String) -> Result<(), Error> {
+    pub fn cors(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
         let Some(value) = header_value(headers, b"origin") else {
             return Err(Error::MissingRequestOrigin);
         };

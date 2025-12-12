@@ -25,7 +25,11 @@ impl Request {
         self.proto
     }
 
-    pub fn path(&self) -> String {
+    pub fn path(&self) -> &[String] {
+        &self.path.segments()
+    }
+
+    pub fn path_str(&self) -> String {
         self.path.serialized()
     }
 

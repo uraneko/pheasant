@@ -184,7 +184,7 @@ fn no_body() {
     };
 
     assert_eq!(req.method(), Method::Post);
-    assert_eq!(req.path(), "/subscribe".to_owned());
+    assert_eq!(req.path_str(), "/subscribe".to_owned());
 
     let Some(query) = req.query() else {
         panic!("expected query to be some value");
@@ -223,7 +223,7 @@ fn request() {
     };
 
     assert_eq!(req.method(), Method::Post);
-    assert_eq!(req.path(), "/subscribe".to_owned());
+    assert_eq!(req.path_str(), "/subscribe".to_owned());
 
     let Some(query) = req.query() else {
         panic!("expected query to be some value");

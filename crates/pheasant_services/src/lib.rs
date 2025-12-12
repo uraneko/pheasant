@@ -1,32 +1,47 @@
-use pheasant_http::{Method, request::Request};
+use pheasant_http::{ErrorStatus, Method, request::Request};
 
 pub mod cors;
 pub mod errors;
 pub mod lookup;
 pub mod parse;
+pub mod range;
 pub mod socket;
 pub mod stream;
 
 pub use cors::Cors;
 pub use errors::{bad_request, not_found};
-// pub use lookup::lookup;
 pub use parse::parse;
-pub use socket::Socket;
+pub use range::Range;
+pub use socket::{Socket, bind_socket};
 pub use stream::{read_stream, req_buf, write_stream};
 
 pub trait Service<S: Server> {
-    fn run(&self, socket: &mut S, req: Request, buf: &mut String);
+    async fn run(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>)
+    -> Result<(), ErrorStatus>;
 }
 
 pub trait Server {
-    async fn event_loop(&mut self, fun: impl AsyncFn(&mut Self));
+    async fn event_loop(
+        &mut self,
+        fun: impl AsyncFn(&mut Self) -> Result<(), ErrorStatus>,
+    ) -> Result<(), ErrorStatus> {
+        fun(self).await
+    }
 
     // core services are run through the socket
     // this would ofc mean that the socket stores the server state
     // or whatever state is needed by the services to run correctly
-    async fn service(&mut self, req: Request, buf: &mut String, service: impl Service<Self>)
+    async fn service(
+        &mut self,
+        req: Request,
+        buf: &mut Vec<u8>,
+        service: impl Service<Self>,
+    ) -> Result<(), ErrorStatus>
     where
-        Self: Sized;
+        Self: Sized,
+    {
+        service.run(self, req, buf).await
+    }
 
     /// prints out the socket url on the stdout
     fn init_message(&self) {
@@ -43,38 +58,56 @@ pub trait Server {
     fn port(&self) -> u16;
 }
 
-pub trait Resource {
-    fn get(&self, req: Request, buf: &mut String) {}
+pub trait Resource<S: Server> {
+    fn get(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn post(&self, req: Request, buf: &mut String) {}
+    fn post(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn put(&self, req: Request, buf: &mut String) {}
+    fn put(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn patch(&self, req: Request, buf: &mut String) {}
+    fn patch(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn head(&self, req: Request, buf: &mut String) {}
+    fn head(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn trace(&self, req: Request, buf: &mut String) {}
+    fn trace(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn delete(&self, req: Request, buf: &mut String) {}
+    fn delete(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn options(&self, req: Request, buf: &mut String) {}
+    fn options(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn connect(&self, req: Request, buf: &mut String) {}
+    fn connect(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+        Ok(())
+    }
 
-    fn run(&self, req: Request, buf: &mut String) {
+    fn run(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
         use Method::*;
 
         match req.method() {
-            Get => self.get(req, buf),
-            Post => self.post(req, buf),
-            Head => self.head(req, buf),
-            Patch => self.patch(req, buf),
-            Put => self.put(req, buf),
-            Connect => self.connect(req, buf),
-            Options => self.options(req, buf),
-            Delete => self.delete(req, buf),
-            Trace => self.trace(req, buf),
+            Get => self.get(socket, req, buf),
+            Post => self.post(socket, req, buf),
+            Head => self.head(socket, req, buf),
+            Patch => self.patch(socket, req, buf),
+            Put => self.put(socket, req, buf),
+            Connect => self.connect(socket, req, buf),
+            Options => self.options(socket, req, buf),
+            Delete => self.delete(socket, req, buf),
+            Trace => self.trace(socket, req, buf),
         }
     }
 }

@@ -9,7 +9,7 @@ pub fn req_buf<'a>(reader: &'a mut BufReader<&mut TcpStream>) -> Result<&'a [u8]
     reader.fill_buf()
 }
 
-pub fn write_stream(buf: &str, stream: &mut TcpStream) {
-    _ = stream.write(buf.as_bytes());
+pub fn write_stream(buf: &[u8], stream: &mut TcpStream) {
+    _ = stream.write(buf);
     _ = stream.flush();
 }

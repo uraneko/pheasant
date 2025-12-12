@@ -40,17 +40,6 @@ impl Socket {
 }
 
 impl crate::Server for Socket {
-    async fn event_loop(&mut self, fun: impl AsyncFn(&mut Self)) {
-        fun(self).await;
-    }
-
-    // core services are run through the socket
-    // this would ofc mean that the socket stores the server state
-    // or whatever state is needed by the services to run correctly
-    async fn service(&mut self, req: Request, buf: &mut String, service: impl Service<Self>) {
-        service.run(self, req, buf)
-    }
-
     // returns a result of the socket's ip addr
     fn addr(&self) -> IoRes<SocketAddr> {
         self.socket.local_addr()
