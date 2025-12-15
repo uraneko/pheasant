@@ -10,7 +10,7 @@ pub mod stream;
 
 pub use content_meta::MessageBodyInfo;
 pub use cors::Cors;
-pub use errors::{bad_request, not_found};
+pub use errors::{bad_request, internal_server_error, not_found};
 pub use parse::parse;
 pub use range::Range;
 pub use socket::{Socket, bind_socket};
