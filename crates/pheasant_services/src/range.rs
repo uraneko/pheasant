@@ -100,7 +100,6 @@ pub fn read_range(
 
 // parses the range whatever its syntax
 pub fn parse_range(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
-    println!("<{}>", str::from_utf8(range).unwrap());
     match range {
         r if r.starts_with(b"-") => parse_end(range),
         r if r.ends_with(b"-") => parse_start(range),
