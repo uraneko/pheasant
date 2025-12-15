@@ -1,8 +1,5 @@
 use core::str::Utf8Error;
-use pheasant_http::{
-    MaybeGlob, Method,
-    request::{Header, contains_header, header_value},
-};
+use pheasant_http::{Header, MaybeGlob, Method, header_value};
 
 // pub fn cors(resp: &mut Vec<u8>, status: &str) {
 //     let headers = "access-control-allow-headers: *\n";

@@ -21,25 +21,24 @@ use core::str::Utf8Error;
 use hashbrown::HashSet;
 use pheasant_uri::Route;
 
-pub mod error;
 pub mod headers;
 pub mod maybe_glob;
 pub mod method;
 pub mod mime;
 pub mod protocol;
 pub mod request;
+pub mod respond;
 pub mod status;
 
-pub use error::MessageError;
-pub use headers::{Header, Headers};
+pub use headers::{Header, contains_header, header_value};
 pub use method::Method;
 pub use mime::Mime;
+pub use respond::Respond;
 // pub use monopoly::MonoPoly;
 pub use maybe_glob::MaybeGlob;
 pub use protocol::Protocol;
 pub use status::{
-    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, StatusLiterals,
-    Successful,
+    ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, Successful,
 };
 
 // TODO service macro attr status
@@ -137,4 +136,12 @@ impl From<url::ParseError> for PheasantError {
     fn from(_err: url::ParseError) -> Self {
         Self::ClientError(ClientError::BadRequest)
     }
+}
+
+pub fn sidestep_whitespace(buf: &[u8], mut idx: usize) -> usize {
+    while buf[idx] == 32 {
+        idx += 1;
+    }
+
+    idx
 }

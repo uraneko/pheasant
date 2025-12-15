@@ -1,23 +1,28 @@
-use pheasant_http::{ErrorStatus, Method, request::Request};
+use pheasant_http::{ErrorStatus, Method, Respond, request::Request};
 
+pub mod content_meta;
 pub mod cors;
 pub mod errors;
-pub mod lookup;
 pub mod parse;
 pub mod range;
 pub mod socket;
 pub mod stream;
 
+pub use content_meta::MessageBodyInfo;
 pub use cors::Cors;
 pub use errors::{bad_request, not_found};
 pub use parse::parse;
 pub use range::Range;
 pub use socket::{Socket, bind_socket};
-pub use stream::{read_stream, req_buf, write_stream};
+pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
 
 pub trait Service<S: Server> {
-    async fn run(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>)
-    -> Result<(), ErrorStatus>;
+    async fn run(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus>;
 }
 
 pub trait Server {
@@ -34,7 +39,7 @@ pub trait Server {
     async fn service(
         &mut self,
         req: Request,
-        buf: &mut Vec<u8>,
+        buf: &mut Respond,
         service: impl Service<Self>,
     ) -> Result<(), ErrorStatus>
     where
@@ -45,12 +50,19 @@ pub trait Server {
 
     /// prints out the socket url on the stdout
     fn init_message(&self) {
-        println!(
-            "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m",
-            self.addr()
-                .map(|addr| addr.to_string())
-                .unwrap_or(format!("localhost:{}", self.port())),
+        use std::io::Write;
+
+        let mut stdout = std::io::stdout();
+        _ = stdout.write(
+            format!(
+                "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m",
+                self.addr()
+                    .map(|addr| addr.to_string())
+                    .unwrap_or(format!("localhost:{}", self.port())),
+            )
+            .as_bytes(),
         );
+        _ = stdout.flush();
     }
 
     fn addr(&self) -> Result<std::net::SocketAddr, std::io::Error>;
@@ -59,55 +71,120 @@ pub trait Server {
 }
 
 pub trait Resource<S: Server> {
-    fn get(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn get(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn post(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn post(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn put(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn put(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn patch(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn patch(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn head(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn head(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn trace(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn trace(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn delete(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn delete(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn options(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn options(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn connect(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn connect(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         Ok(())
     }
 
-    fn run(&self, socket: &mut S, req: Request, buf: &mut Vec<u8>) -> Result<(), ErrorStatus> {
+    async fn run(
+        &self,
+        socket: &mut S,
+        req: Request,
+        resp: &mut Respond,
+    ) -> Result<(), ErrorStatus> {
         use Method::*;
 
         match req.method() {
-            Get => self.get(socket, req, buf),
-            Post => self.post(socket, req, buf),
-            Head => self.head(socket, req, buf),
-            Patch => self.patch(socket, req, buf),
-            Put => self.put(socket, req, buf),
-            Connect => self.connect(socket, req, buf),
-            Options => self.options(socket, req, buf),
-            Delete => self.delete(socket, req, buf),
-            Trace => self.trace(socket, req, buf),
+            Get => self.get(socket, req, resp).await,
+            Post => self.post(socket, req, resp).await,
+            Head => self.head(socket, req, resp).await,
+            Patch => self.patch(socket, req, resp).await,
+            Put => self.put(socket, req, resp).await,
+            Connect => self.connect(socket, req, resp).await,
+            Options => self.options(socket, req, resp).await,
+            Delete => self.delete(socket, req, resp).await,
+            Trace => self.trace(socket, req, resp).await,
         }
     }
 }
+
+// pub trait Requester {
+//     type Method;
+//     type Protocol;
+//     type Header;
+//     type Body;
+//
+//     pub fn method(&self) -> &Self::Method;
+//
+//     pub fn protocol(&self) -> &Self::Protocol;
+//
+//     pub fn header(&self)
+// }
+//
+// pub trait Respondent {}

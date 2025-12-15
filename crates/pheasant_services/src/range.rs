@@ -16,70 +16,75 @@ impl Range {
         let capa = value.iter().filter(|b| **b == b',').count() + 1;
         let mut ranges = Vec::with_capacity(if capa == 0 { 1 } else { capa });
 
-        let mut zero = 5;
-        while let Some(idx) = value[zero + 1..].iter().position(|b| *b == b',') {
-            ranges.push(parse_range(&value[zero + 1..])?);
-            zero += idx;
+        let mut zero = 6;
+        while let Some(idx) = value[zero..].iter().position(|b| *b == b',') {
+            ranges.push(parse_range(&value[zero..zero + idx])?);
+            zero += idx + 1;
         }
 
-        if zero == 5 {
-            ranges.push(parse_range(&value[6..])?);
-        }
+        ranges.push(parse_range(&value[zero..])?);
 
         Ok(Self { ranges })
     }
 
-    pub fn write(
+    pub fn read(
         &self,
         seeker: &mut (impl Seek + Read),
         buf: &mut Vec<u8>,
-    ) -> Result<(), ErrorStatus> {
+    ) -> Result<usize, ErrorStatus> {
+        let mut n = 0;
         for range in self.ranges.iter() {
-            write_range(range, seeker, buf)?
+            n += read_range(range, seeker, buf)?;
         }
 
-        Ok(())
+        Ok(n)
     }
 }
 
-pub fn write_range(
+// TODO redo this feeble implementation
+pub fn read_range(
     range: &[Option<usize>; 2],
     seeker: &mut (impl Seek + Read),
     buf: &mut Vec<u8>,
-) -> Result<(), ErrorStatus> {
-    match range {
+) -> Result<usize, ErrorStatus> {
+    let n = match range {
         [Some(start), Some(end)] => {
-            buf.resize(end - start, 0);
+            let len = end - start + 1;
+            buf.extend((0..len).into_iter().map(|_| 0));
+            let blen = buf.len();
             seeker
                 .seek(SeekFrom::Start(*start as u64))
                 .map_err(|_| err_stt!(416))?;
-            seeker.read(buf).map_err(|_| err_stt!(422))?;
+            seeker
+                .read_exact(&mut buf[blen - len..])
+                .map_err(|_| err_stt!(422))?;
+
+            len
         }
         [Some(start), None] => {
             seeker
                 .seek(SeekFrom::Start(*start as u64))
                 .map_err(|_| err_stt!(416))?;
-            buf.clear();
-            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?;
+            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?
         }
         [None, Some(end)] => {
             seeker
                 .seek(SeekFrom::End(-(*end as i64)))
                 .map_err(|_| err_stt!(416))?;
-            buf.clear();
-            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?;
+            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?
         }
         [None, None] => return err_stt!(?416),
-    }
+    };
 
-    Ok(())
+    Ok(n)
 }
 
 // parses the range whatever its syntax
 pub fn parse_range(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+    println!("<{}>", str::from_utf8(range).unwrap());
     match range {
         r if r.starts_with(b"-") => parse_start(range),
-        r if r.contains(&b'-') => parse_full(range),
+        r if r.contains(&b'-') => parse_start_end(range),
         _ => parse_end(range),
     }
 }
@@ -98,7 +103,7 @@ pub fn parse_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
 
 // the ramge is fully provided
 // bytes=123-234
-pub fn parse_full(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+pub fn parse_start_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
     let Some(pos) = range.iter().position(|b| *b == b'-') else {
         return err_stt!(?400);
     };

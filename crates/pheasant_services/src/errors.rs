@@ -1,13 +1,15 @@
-pub fn not_found(buf: &mut Vec<u8>) {
-    buf.clear();
-    buf.extend(
-        b"HTTP/1.1 404 Not Found\nContent-Type: text/plain\nContent-Length: 14\n\nnot found haha",
-    );
+use pheasant_http::{Respond, status};
+
+pub fn not_found(resp: &mut Respond) {
+    resp.status(status!(404));
+    resp.headers_mut()
+        .extend(b"content-type: text/plain\ncontent-length: 14\n");
+    resp.body_mut().extend(b"not found haha");
 }
 
-pub fn bad_request(buf: &mut Vec<u8>) {
-    buf.clear();
-    buf.extend(
-        b"HTTP/1.1 400 Bad Request\nContent-Type: text/plain\nContent-Length: 14\n\nbad request haha"
-    );
+pub fn bad_request(resp: &mut Respond) {
+    resp.status(status!(400));
+    resp.headers_mut()
+        .extend(b"Content-Type: text/plain\nContent-Length: 14\n");
+    resp.body_mut().extend(b"bad request haha");
 }
