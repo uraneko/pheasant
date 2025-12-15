@@ -1,4 +1,4 @@
-use pheasant_http::{ErrorStatus, Respond, err_stt};
+use pheasant_http::{ErrorStatus, Method, Respond, err_stt};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 
@@ -10,8 +10,13 @@ pub fn req_buf<'a>(reader: &'a mut BufReader<&mut TcpStream>) -> Result<&'a [u8]
     reader.fill_buf()
 }
 
-pub fn resp_write_stream(resp: &Respond, stream: &mut TcpStream) -> Result<(), ErrorStatus> {
-    resp.direct_write(stream).map_err(|_| err_stt!(500))?;
+pub fn resp_write_stream(
+    resp: &Respond,
+    stream: &mut TcpStream,
+    method: Method,
+) -> Result<(), ErrorStatus> {
+    resp.direct_write(stream, method)
+        .map_err(|_| err_stt!(500))?;
 
     Ok(())
 }

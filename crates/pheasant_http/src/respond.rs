@@ -1,4 +1,4 @@
-use crate::{Protocol, Status, status};
+use crate::{Method, Protocol, Status, status};
 use alloc::vec::Vec;
 use std::io::Write;
 
@@ -48,29 +48,38 @@ impl Respond {
         &self.body
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        [
+    pub fn to_bytes(&self, method: Method) -> Vec<u8> {
+        let mut payload = [
             self.proto.as_bytes(),
             &[32],
             self.status.as_bytes(),
             &[10],
             &self.headers,
             &[10],
-            &self.body,
         ]
-        .concat()
+        .concat();
+
+        if ![Method::Connect, Method::Head].contains(&method) && !self.body.is_empty() {
+            payload.extend(&self.body);
+        }
+
+        payload
     }
 
     // this doesnt clear
     // user can do so on their own
     /// writes self as bytes to the passed buffer
-    pub fn dump_bytes(&self, buf: &mut Vec<u8>) {
-        buf.extend(&self.to_bytes());
+    pub fn dump_bytes(&self, buf: &mut Vec<u8>, method: Method) {
+        buf.extend(&self.to_bytes(method));
     }
 
     /// writes the response bytes directly to a tcp stream
-    pub fn direct_write(&self, writer: &mut impl Write) -> Result<(), std::io::Error> {
-        writer.write_all(&self.to_bytes())?;
+    pub fn direct_write(
+        &self,
+        writer: &mut impl Write,
+        method: Method,
+    ) -> Result<(), std::io::Error> {
+        writer.write_all(&self.to_bytes(method))?;
         writer.flush()?;
 
         Ok(())
