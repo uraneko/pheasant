@@ -41,51 +41,71 @@ impl Range {
     }
 }
 
+fn read_start_end(
+    start: usize,
+    end: usize,
+    seeker: &mut (impl Read + Seek),
+    buf: &mut Vec<u8>,
+) -> Result<usize, ErrorStatus> {
+    let len = end - start + 1;
+    buf.extend((0..len).into_iter().map(|_| 0));
+    let blen = buf.len();
+    seeker
+        .seek(SeekFrom::Start(start as u64))
+        .map_err(|_| err_stt!(416))?;
+    seeker
+        .read_exact(&mut buf[blen - len..])
+        .map_err(|_| err_stt!(422))?;
+
+    Ok(len)
+}
+
+fn read_start(
+    start: usize,
+    seeker: &mut (impl Read + Seek),
+    buf: &mut Vec<u8>,
+) -> Result<usize, ErrorStatus> {
+    seeker
+        .seek(SeekFrom::Start(start as u64))
+        .map_err(|_| err_stt!(416))?;
+
+    seeker.read_to_end(buf).map_err(|_| err_stt!(422))
+}
+
+fn read_end(
+    end: usize,
+    seeker: &mut (impl Read + Seek),
+    buf: &mut Vec<u8>,
+) -> Result<usize, ErrorStatus> {
+    seeker
+        .seek(SeekFrom::End(-(end as i64)))
+        .map_err(|_| err_stt!(416))?;
+
+    seeker.read_to_end(buf).map_err(|_| err_stt!(422))
+}
+
 // TODO redo this feeble implementation
 pub fn read_range(
     range: &[Option<usize>; 2],
     seeker: &mut (impl Seek + Read),
     buf: &mut Vec<u8>,
 ) -> Result<usize, ErrorStatus> {
-    let n = match range {
-        [Some(start), Some(end)] => {
-            let len = end - start + 1;
-            buf.extend((0..len).into_iter().map(|_| 0));
-            let blen = buf.len();
-            seeker
-                .seek(SeekFrom::Start(*start as u64))
-                .map_err(|_| err_stt!(416))?;
-            seeker
-                .read_exact(&mut buf[blen - len..])
-                .map_err(|_| err_stt!(422))?;
-
-            len
-        }
-        [Some(start), None] => {
-            seeker
-                .seek(SeekFrom::Start(*start as u64))
-                .map_err(|_| err_stt!(416))?;
-            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?
-        }
-        [None, Some(end)] => {
-            seeker
-                .seek(SeekFrom::End(-(*end as i64)))
-                .map_err(|_| err_stt!(416))?;
-            seeker.read_to_end(buf).map_err(|_| err_stt!(422))?
-        }
+    Ok(match range {
+        [Some(start), Some(end)] => read_start_end(*start, *end, seeker, buf)?,
+        [Some(start), None] => read_start(*start, seeker, buf)?,
+        [None, Some(end)] => read_end(*end, seeker, buf)?,
         [None, None] => return err_stt!(?416),
-    };
-
-    Ok(n)
+    })
 }
 
 // parses the range whatever its syntax
 pub fn parse_range(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
     println!("<{}>", str::from_utf8(range).unwrap());
     match range {
-        r if r.starts_with(b"-") => parse_start(range),
+        r if r.starts_with(b"-") => parse_end(range),
+        r if r.ends_with(b"-") => parse_start(range),
         r if r.contains(&b'-') => parse_start_end(range),
-        _ => parse_end(range),
+        _ => return err_stt!(?400),
     }
 }
 
