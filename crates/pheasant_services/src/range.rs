@@ -1,14 +1,18 @@
-use pheasant_http::{ErrorStatus, err_stt};
-use std::io::{Read, Seek, SeekFrom};
+use pheasant_http::{ErrorStatus, Respond, err_stt, status};
+use std::io::{Read, Seek, SeekFrom, Write};
 
-type ByteRange = [Option<usize>; 2];
-
-pub struct Range {
-    ranges: Vec<ByteRange>,
+pub struct Ranges {
+    ranges: Vec<[Option<usize>; 2]>,
+    writable: bool,
 }
 
-impl Range {
-    pub fn new(value: &[u8]) -> Result<Self, ErrorStatus> {
+/// asserts that this server resource supports the range header
+pub fn support_ranges(headers: &mut Vec<u8>) {
+    headers.extend(b"accept-ranges: bytes\n");
+}
+
+impl Ranges {
+    pub fn new(value: &[u8], writable: bool) -> Result<Self, ErrorStatus> {
         if !value.starts_with(b"bytes=") {
             return err_stt!(?400);
         }
@@ -24,7 +28,20 @@ impl Range {
 
         ranges.push(parse_range(&value[zero..])?);
 
-        Ok(Self { ranges })
+        Ok(Self { ranges, writable })
+    }
+
+    pub fn meta(&self, resp: &mut Respond, len: usize, range_header: &[u8]) {
+        resp.status(status!(206));
+        // TODO fix this unwrap
+        resp.headers_mut().extend(
+            format!(
+                "content-range: {}/{}\n",
+                str::from_utf8(range_header).unwrap(),
+                len
+            )
+            .as_bytes(),
+        );
     }
 
     pub fn read(
@@ -35,6 +52,23 @@ impl Range {
         let mut n = 0;
         for range in self.ranges.iter() {
             n += read_range(range, seeker, buf)?;
+        }
+
+        Ok(n)
+    }
+
+    pub fn write(
+        &self,
+        seeker: &mut (impl Seek + Write),
+        buf: &[u8],
+    ) -> Result<usize, ErrorStatus> {
+        if !self.writable {
+            return err_stt!(?422);
+        }
+
+        let mut n = 0;
+        for range in self.ranges.iter() {
+            n += write_range(range, seeker, buf)?;
         }
 
         Ok(n)
@@ -98,8 +132,68 @@ pub fn read_range(
     })
 }
 
+fn write_start_end(
+    start: usize,
+    end: usize,
+    seeker: &mut (impl Write + Seek),
+    buf: &[u8],
+) -> Result<usize, ErrorStatus> {
+    let len = end - start + 1;
+    if buf.len() != len {
+        return err_stt!(?416);
+    }
+
+    seeker
+        .seek(SeekFrom::Start(start as u64))
+        .map_err(|_| err_stt!(416))?;
+    seeker.write_all(&buf).map_err(|_| err_stt!(422))?;
+
+    Ok(len)
+}
+
+fn write_start(
+    start: usize,
+    seeker: &mut (impl Write + Seek),
+    buf: &[u8],
+) -> Result<usize, ErrorStatus> {
+    seeker
+        .seek(SeekFrom::Start(start as u64))
+        .map_err(|_| err_stt!(416))?;
+
+    seeker.write_all(buf).map_err(|_| err_stt!(422))?;
+
+    Ok(buf.len())
+}
+
+fn write_end(
+    end: usize,
+    seeker: &mut (impl Write + Seek),
+    buf: &[u8],
+) -> Result<usize, ErrorStatus> {
+    seeker
+        .seek(SeekFrom::End(-(end as i64)))
+        .map_err(|_| err_stt!(416))?;
+
+    seeker.write_all(buf).map_err(|_| err_stt!(422))?;
+
+    Ok(buf.len())
+}
+
+pub fn write_range(
+    range: &[Option<usize>; 2],
+    seeker: &mut (impl Write + Seek),
+    buf: &[u8],
+) -> Result<usize, ErrorStatus> {
+    Ok(match range {
+        [Some(start), Some(end)] => write_start_end(*start, *end, seeker, buf)?,
+        [Some(start), None] => write_start(*start, seeker, buf)?,
+        [None, Some(end)] => write_end(*end, seeker, buf)?,
+        [None, None] => return err_stt!(?416),
+    })
+}
+
 // parses the range whatever its syntax
-pub fn parse_range(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+pub fn parse_range(range: &[u8]) -> Result<[Option<usize>; 2], ErrorStatus> {
     match range {
         r if r.starts_with(b"-") => parse_end(range),
         r if r.ends_with(b"-") => parse_start(range),
@@ -110,7 +204,7 @@ pub fn parse_range(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
 
 // the range is only and end half
 // bytes=-432
-pub fn parse_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+pub fn parse_end(range: &[u8]) -> Result<[Option<usize>; 2], ErrorStatus> {
     if range[0] != b'-' {
         return err_stt!(?400);
     }
@@ -122,7 +216,7 @@ pub fn parse_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
 
 // the ramge is fully provided
 // bytes=123-234
-pub fn parse_start_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+pub fn parse_start_end(range: &[u8]) -> Result<[Option<usize>; 2], ErrorStatus> {
     let Some(pos) = range.iter().position(|b| *b == b'-') else {
         return err_stt!(?400);
     };
@@ -135,7 +229,7 @@ pub fn parse_start_end(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
 
 // the range is only a start half
 // bytes=234-
-pub fn parse_start(range: &[u8]) -> Result<ByteRange, ErrorStatus> {
+pub fn parse_start(range: &[u8]) -> Result<[Option<usize>; 2], ErrorStatus> {
     let len = range.len();
     if range[len - 1] != b'-' {
         return err_stt!(?400);

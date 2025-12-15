@@ -12,7 +12,7 @@ pub use content_meta::MessageBodyInfo;
 pub use cors::Cors;
 pub use errors::{bad_request, internal_server_error, not_found};
 pub use parse::parse;
-pub use range::Range;
+pub use range::{Ranges, support_ranges};
 pub use socket::{Socket, bind_socket};
 pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
 
