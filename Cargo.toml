@@ -3,6 +3,10 @@ name = "pheasant"
 version = "0.1.0"
 edition = "2024"
 
+[[example]]
+path = "examples/simple"
+name = "simple"
+
 [workspace]
 members = [
 	"crates/pheasant_http",
@@ -10,6 +14,8 @@ members = [
 	"crates/pheasant_services",
 ]
 resolver = "3"
+exclude = ["examples/simple"]
+
 
 [workspace.dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }

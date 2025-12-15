@@ -198,16 +198,7 @@ impl From<PheasantError> for Status {
     }
 }
 
-/// implements shared behavior amongst response status
-pub trait StatusLiterals {
-    /// returns the status text value
-    fn text(&self) -> &str;
-
-    /// returns the status code number
-    fn code(&self) -> u16;
-}
-
-impl StatusLiterals for ServerError {
+impl ServerError {
     fn text(&self) -> &str {
         match self {
             Self::InternalServerError => "InternalServerError",
@@ -229,7 +220,7 @@ impl StatusLiterals for ServerError {
     }
 }
 
-impl StatusLiterals for ClientError {
+impl ClientError {
     fn text(&self) -> &str {
         match self {
             Self::BadRequest => "BadRequest",
@@ -269,7 +260,7 @@ impl StatusLiterals for ClientError {
     }
 }
 
-impl StatusLiterals for Redirection {
+impl Redirection {
     fn text(&self) -> &str {
         match self {
             Self::PermanentRedirect => "PermanentRedirect",
@@ -289,7 +280,7 @@ impl StatusLiterals for Redirection {
     }
 }
 
-impl StatusLiterals for Successful {
+impl Successful {
     fn text(&self) -> &str {
         match self {
             Self::IMUsed => "IMUsed",
@@ -312,7 +303,7 @@ impl StatusLiterals for Successful {
     }
 }
 
-impl StatusLiterals for Informational {
+impl Informational {
     fn text(&self) -> &str {
         match self {
             Self::EarlyHints => "EarlyHints",
@@ -338,44 +329,24 @@ pub enum Status {
 }
 
 impl Status {
-    pub fn is_informational(&self) -> bool {
-        let Self::Informational(_) = self else {
-            return false;
-        };
-
-        true
+    pub fn text(&self) -> &str {
+        match self {
+            Self::Redirection(r) => r.text(),
+            Self::Successful(s) => s.text(),
+            Self::Informational(i) => i.text(),
+            Self::ClientError(ce) => ce.text(),
+            Self::ServerError(se) => se.text(),
+        }
     }
 
-    pub fn is_successful(&self) -> bool {
-        let Self::Successful(_) = self else {
-            return false;
-        };
-
-        true
-    }
-
-    pub fn is_redirection(&self) -> bool {
-        let Self::Redirection(_) = self else {
-            return false;
-        };
-
-        true
-    }
-
-    pub fn is_client_error(&self) -> bool {
-        let Self::ClientError(_) = self else {
-            return false;
-        };
-
-        true
-    }
-
-    pub fn is_server_error(&self) -> bool {
-        let Self::ServerError(_) = self else {
-            return false;
-        };
-
-        true
+    pub fn code(&self) -> u16 {
+        match self {
+            Self::Redirection(r) => r.code(),
+            Self::Successful(s) => s.code(),
+            Self::Informational(i) => i.code(),
+            Self::ClientError(ce) => ce.code(),
+            Self::ServerError(se) => se.code(),
+        }
     }
 }
 
@@ -473,6 +444,96 @@ impl FromStr for Status {
     }
 }
 
+impl Status {
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Informational(Informational::EarlyHints) => b"103 EarlyHints",
+            Self::Informational(Informational::ProcessingDeprecated) => b"102 ProcessingDeprecated",
+            Self::Informational(Informational::SwitchingProtocols) => b"101 SwitchingProtocols",
+            Self::Informational(Informational::Continue) => b"100 Continue",
+
+            Self::Successful(Successful::IMUsed) => b"226 IMUsed",
+            Self::Successful(Successful::AlreadyReported) => b"208 AlreadyReported",
+            Self::Successful(Successful::MultiStatus) => b"207 MultiStatus",
+            Self::Successful(Successful::PartialContent) => b"206 PartialContent",
+            Self::Successful(Successful::ResetContent) => b"205 ResetContent",
+            Self::Successful(Successful::NoContent) => b"204 NoContent",
+            Self::Successful(Successful::NonAuthoritativeInformation) => {
+                b"203 NonAuthoritativeInformation"
+            }
+
+            Self::Successful(Successful::Accepted) => b"202 Accepted",
+            Self::Successful(Successful::Created) => b"201 Created",
+            Self::Successful(Successful::OK) => b"200 OK",
+
+            Self::Redirection(Redirection::PermanentRedirect) => b"308 PermanentRedirect",
+            Self::Redirection(Redirection::TemporaryRedirect) => b"307 TemporaryRedirect",
+            Self::Redirection(Redirection::Unused) => b"103 Unused",
+            Self::Redirection(Redirection::UseProxyDeprecated) => b"103 UseProxyDeprecated",
+            Self::Redirection(Redirection::NotModified) => b"304 NotModified",
+            Self::Redirection(Redirection::SeeOther) => b"303 SeeOther",
+            Self::Redirection(Redirection::Found) => b"302 Found",
+            Self::Redirection(Redirection::MovedPermanently) => b"301 MovedPermanently",
+            Self::Redirection(Redirection::MultipleChoices) => b"300 MultipleChoices",
+
+            Self::ClientError(ClientError::BadRequest) => b"400 BadRequest",
+            Self::ClientError(ClientError::Unauthorized) => b"401 Unauthorized",
+            Self::ClientError(ClientError::PaymentRequired) => b"402 PaymentRequired",
+            Self::ClientError(ClientError::Forbidden) => b"403 Forbidden",
+            Self::ClientError(ClientError::NotFound) => b"404 NotFound",
+            Self::ClientError(ClientError::MethodNotAllowed) => b"405 MethodNotAllowed",
+            Self::ClientError(ClientError::NotAcceptable) => b"406 NotAcceptable",
+            Self::ClientError(ClientError::ProxyAuthenticationRequired) => {
+                b"407 ProxyAuthenticationRequired"
+            }
+
+            Self::ClientError(ClientError::RequestTimeout) => b"408 RequestTimeout",
+            Self::ClientError(ClientError::Conflict) => b"409 Conflict",
+            Self::ClientError(ClientError::Gone) => b"410 Gone",
+            Self::ClientError(ClientError::LengthRequired) => b"411 LengthRequired",
+            Self::ClientError(ClientError::PreconditionFailed) => b"412 PreconditionFailed",
+            Self::ClientError(ClientError::ContentTooLarge) => b"413 ContentTooLarge",
+            Self::ClientError(ClientError::URITooLong) => b"414 URITooLong",
+            Self::ClientError(ClientError::UnsupportedMediaType) => b"415 UnsupportedMediaType",
+            Self::ClientError(ClientError::RangeNotSatisfiable) => b"416 RangeNotSatisfiable",
+            Self::ClientError(ClientError::ExpectationFailed) => b"417 ExpectationFailed",
+            Self::ClientError(ClientError::Imateapot) => b"418 Imateapot",
+            Self::ClientError(ClientError::MisdirectedRequest) => b"421 MisdirectedRequest",
+            Self::ClientError(ClientError::UnprocessableContent) => b"422 UnprocessableContent",
+            Self::ClientError(ClientError::Locked) => b"423 Locked",
+            Self::ClientError(ClientError::FailedDependency) => b"424 FailedDependency",
+            Self::ClientError(ClientError::TooEarly) => b"425 TooEarly",
+            Self::ClientError(ClientError::UpgradeRequired) => b"426 UpgradeRequired",
+            Self::ClientError(ClientError::PreconditionRequired) => b"428 PreconditionRequired",
+            Self::ClientError(ClientError::TooManyRequests) => b"429 TooManyRequests",
+            Self::ClientError(ClientError::RequestHeaderFieldsTooLarge) => {
+                b"431 RequestHeaderFieldsTooLarge"
+            }
+
+            Self::ClientError(ClientError::UnavailableForLegalReasons) => {
+                b"451 UnavailableForLegalReasons"
+            }
+
+            Self::ServerError(ServerError::InternalServerError) => b"500 InternalServerError",
+            Self::ServerError(ServerError::NotImplemented) => b"501 NotImplemented",
+            Self::ServerError(ServerError::BadGateway) => b"502 BadGateway",
+            Self::ServerError(ServerError::ProcessUnavailable) => b"503 ProcessUnavailable",
+            Self::ServerError(ServerError::GatewayTimeout) => b"504 GatewayTimeout",
+            Self::ServerError(ServerError::HTTPVersionNotSupported) => {
+                b"505 HTTPVersionNotSupported"
+            }
+
+            Self::ServerError(ServerError::VariantAlsoNegotiates) => b"506 VariantAlsoNegotiates",
+            Self::ServerError(ServerError::InsufficientStorage) => b"507 InsufficientStorage",
+            Self::ServerError(ServerError::LoopDetected) => b"508 LoopDetected",
+            Self::ServerError(ServerError::NotExtended) => b"510 NotExtended",
+            Self::ServerError(ServerError::NetworkAuthenticationRequired) => {
+                b"511 NetworkAuthenticationRequired"
+            }
+        }
+    }
+}
+
 impl TryFrom<u16> for Status {
     type Error = ();
 
@@ -491,54 +552,6 @@ impl TryFrom<u16> for Status {
     }
 }
 
-impl StatusLiterals for Status {
-    fn text(&self) -> &str {
-        match self {
-            Self::Redirection(r) => r.text(),
-            Self::Successful(s) => s.text(),
-            Self::Informational(i) => i.text(),
-            Self::ClientError(ce) => ce.text(),
-            Self::ServerError(se) => se.text(),
-        }
-    }
-
-    fn code(&self) -> u16 {
-        match self {
-            Self::Redirection(r) => r.code(),
-            Self::Successful(s) => s.code(),
-            Self::Informational(i) => i.code(),
-            Self::ClientError(ce) => ce.code(),
-            Self::ServerError(se) => se.code(),
-        }
-    }
-}
-
-/// request accpetance response status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum PassingStatus {
-    Redirection(Redirection),
-    Informational(Informational),
-    Successful(Successful),
-}
-
-impl StatusLiterals for PassingStatus {
-    fn text(&self) -> &str {
-        match self {
-            Self::Informational(i) => i.text(),
-            Self::Successful(s) => s.text(),
-            Self::Redirection(re) => re.text(),
-        }
-    }
-
-    fn code(&self) -> u16 {
-        match self {
-            Self::Informational(i) => i.code(),
-            Self::Successful(s) => s.code(),
-            Self::Redirection(re) => re.code(),
-        }
-    }
-}
-
 // enum Status {
 //     Reject(ErrorStatus),
 //     Accept(AcceptStatus),
@@ -552,28 +565,14 @@ pub enum ErrorStatus {
 }
 
 impl ErrorStatus {
-    fn is_server_err(&self) -> bool {
-        let Self::Server(_) = self else { return false };
-
-        true
-    }
-
-    fn is_client_err(&self) -> bool {
-        let Self::Client(_) = self else { return false };
-
-        true
-    }
-}
-
-impl StatusLiterals for ErrorStatus {
-    fn text(&self) -> &str {
+    pub fn text(&self) -> &str {
         match self {
             Self::Client(ce) => ce.text(),
             Self::Server(se) => se.text(),
         }
     }
 
-    fn code(&self) -> u16 {
+    pub fn code(&self) -> u16 {
         match self {
             Self::Client(ce) => ce.code(),
             Self::Server(se) => se.code(),
@@ -662,9 +661,9 @@ impl From<ErrorStatus> for u16 {
     }
 }
 
-use proc_macro2::{Delimiter, Group, Punct, Spacing, Span, TokenStream as TS2, TokenTree};
+use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
 use quote::{ToTokens, TokenStreamExt};
-use syn::{Ident, Token};
+use syn::Ident;
 
 impl ErrorStatus {
     fn str_lit(&self) -> &str {
