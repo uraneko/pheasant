@@ -6,7 +6,7 @@
 // error out if the components are ill formed or contain malicious contents using
 // SpellChecker and Sanitizer
 
-use super::{lex::Token, syntax_tree::TokenGroup};
+use super::{PercentEncodable, lex::Token, syntax_tree::TokenGroup};
 use crate::{SpellChecker, SpellingError, error_inheritance};
 
 mod host;
@@ -63,27 +63,34 @@ impl Component {
     comp_is!(is_path, Path);
 }
 
-// BUG query parses to nothing
-// BUG path parsing ignores the str values of non-seq tokens
-// e.g., `index.html` parses to [`index`, `html`] <- as if it was `index/html`
 pub fn semantic_tree(groups: Vec<TokenGroup>) -> SemanticResult<Vec<Component>> {
-    Ok(groups
+    groups
         .into_iter()
         .map(|g| {
-            Ok::<Component, Error>(match g {
-                TokenGroup::Scheme(tokens) => Component::Scheme(Scheme::try_from(tokens)?),
-                TokenGroup::User(tokens) => Component::User(User::try_from(tokens)?),
-                TokenGroup::Host(tokens) => Component::Host(Host::try_from(tokens)?),
-                TokenGroup::Port(token) => Component::Port(u16::try_from(token)?),
-                TokenGroup::Path(tokens) => Component::Path(Path::try_from(tokens)?),
-                TokenGroup::Query(tokens) => Component::Query(Query::try_from(tokens)?),
-                TokenGroup::Fragment(tokens) => {
-                    Component::Fragment(String::try_from(Tokens(tokens))?)
+            Ok(match g {
+                TokenGroup::Scheme(tokens) => {
+                    Scheme::try_from(tokens).map(|scheme| Component::Scheme(scheme))?
                 }
+                TokenGroup::User(tokens) => {
+                    User::try_from(tokens).map(|user| Component::User(user))?
+                }
+                TokenGroup::Host(tokens) => {
+                    Host::try_from(tokens).map(|host| Component::Host(host))?
+                }
+                TokenGroup::Port(token) => {
+                    u16::try_from(token).map(|port| Component::Port(port))?
+                }
+                TokenGroup::Path(tokens) => {
+                    Path::try_from(tokens).map(|path| Component::Path(path))?
+                }
+                TokenGroup::Query(tokens) => {
+                    Query::try_from(tokens).map(|query| Component::Query(query))?
+                }
+                TokenGroup::Fragment(tokens) => String::try_from(Fragment(tokens))
+                    .map(|fragment| Component::Fragment(fragment))?,
             })
         })
-        .flatten()
-        .collect())
+        .collect()
 }
 
 // TODO everything below should be deprecated
@@ -172,20 +179,21 @@ impl TryFrom<Vec<Token>> for Path {
 impl TryFrom<Vec<Token>> for Query {
     type Error = Error;
 
-    fn try_from(tokens: Vec<Token>) -> SemanticResult<Self> {
+    fn try_from(mut tokens: Vec<Token>) -> SemanticResult<Self> {
         Query::spell_check(&tokens)?;
+        Query::decode_component(&mut tokens);
 
         Ok(Query::from_iter(tokens))
     }
 }
 
 #[derive(Debug, Default)]
-struct Tokens(Vec<Token>);
+struct Fragment(Vec<Token>);
 
-impl TryFrom<Tokens> for String {
+impl TryFrom<Fragment> for String {
     type Error = Error;
 
-    fn try_from(tokens: Tokens) -> SemanticResult<Self> {
+    fn try_from(tokens: Fragment) -> SemanticResult<Self> {
         let tokens = tokens.0;
         String::spell_check(&tokens)?;
 

@@ -18,9 +18,66 @@ pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
 }
 
 use lex::{Error as LexError, Token, lex};
-use semantic_tree::{Component, Error as SemanticError, Host, Path, User, semantic_tree};
-pub use semantic_tree::{Query, Scheme};
+use semantic_tree::{Component, Error as SemanticError, Host, User, semantic_tree};
+pub use semantic_tree::{Path, Query, Scheme};
 use syntax_tree::{Error as SyntaxError, TokenGroup, syntax_tree};
+
+pub trait PercentEncodable {
+    const TABLE: &'static [(&'static str, &'static str)];
+    type Err;
+
+    /// checks if s contains any component forbidden chars that should be percent encoded
+    fn should_encode(s: &str) -> bool {
+        Self::TABLE.iter().any(|(_, ch)| s.contains(ch))
+    }
+
+    /// checks if s contains any percent encoded values
+    fn is_encoded(s: &str) -> bool {
+        Self::TABLE.iter().any(|(sub, _)| s.contains(sub))
+    }
+
+    /// replaces all sightings of a component forbidden char in s with its percent encodng
+    /// or vice-versa
+    fn replace_all(s: &mut String, sub: &str, ch: &str) {
+        while s.contains(sub) {
+            *s = s.replace(sub, ch);
+        }
+    }
+
+    /// percent decodes a url component
+    fn decode(s: &mut String) {
+        if !Self::is_encoded(&s) {
+            return;
+        }
+
+        Self::TABLE.iter().for_each(|(sub, ch)| {
+            if s.contains(sub) {
+                Self::replace_all(s, sub, ch)
+            }
+        });
+    }
+
+    /// percent encodes a url component
+    fn encode(s: &mut String) {
+        if !Self::should_encode(&s) {
+            return;
+        }
+
+        Self::TABLE.iter().for_each(|(sub, ch)| {
+            if s.contains(ch) {
+                Self::replace_all(s, ch, sub)
+            }
+        });
+    }
+
+    /// applies decode to all sequence tokens of a url component
+    fn decode_component(tokens: &mut Vec<Token>) {
+        let mut iter = tokens.iter_mut().filter(|t| t.is_seq());
+        while let Some(Token::Seq(s)) = iter.next() {
+            Self::decode(s);
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -313,6 +370,7 @@ impl Parse for PathRelativeUrl {
     }
 
     fn semantic_tree(groups: Vec<TokenGroup>) -> Result<Vec<Component>, SemanticError> {
+        // TODO here we decode the sequences
         semantic_tree(groups)
     }
 
@@ -326,7 +384,6 @@ impl PathRelativeUrl {
         use Component::*;
 
         let mut iter = i.into_iter().peekable();
-
         let (path, query, fragment) = match iter.next() {
             None => (semantic_tree::Path::default(), None, None),
             Some(Query(query)) => (
@@ -341,7 +398,6 @@ impl PathRelativeUrl {
                 Some(Fragment(frag)) => (path, None, Some(frag)),
                 _ => return Err(Error::UnexpectedComponentAtPosition),
             },
-
             _ => return Err(Error::UnexpectedComponentAtPosition),
         };
 

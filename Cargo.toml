@@ -3,26 +3,19 @@ name = "pheasant"
 version = "0.1.0"
 edition = "2024"
 
+[[example]]
+path = "examples/simple"
+name = "simple"
+
 [workspace]
 members = [
-	"crates/pheasant_core",
+	"crates/pheasant_http",
 	"crates/pheasant_uri",
-	# "crates/pheasant_macro_utils",
-	# "macros/pheasant_macro_get",
-	# "macros/pheasant_macro_post",
-	# "macros/pheasant_macro_fail",
-	"crates/pheasant_headers",
-	"crates/pheasant_server",
-	"macros/byte_enum",
+	"crates/pheasant_services",
 ]
 resolver = "3"
-# _mre is for trying stuff out 
-exclude = ["_mre"]
+exclude = ["examples/simple"]
 
-
-[[example]]
-name = "socket"
-path = "examples/socket.rs"
 
 [workspace.dependencies]
 chrono = { version = "0.4.41", features = ["serde"] }
@@ -40,30 +33,17 @@ crossbeam-channel = "0.5.15"
 tokio = { version = "1.46.1", features = ["full"] }
 deflate = { version = "1.0.0", features = ["gzip"] }
 mime = "0.3.17"
-rustls = { version = "0.23.31", features = ["ring"] }
-rustls-pki-types = "1.12.0"
-rcgen = "0.14.3"
 url = "2.5.4"
 hashbrown = "0.16.0"
 
-pheasant_core = { version = "0.1.0", path = "crates/pheasant_core" }
+pheasant_http = { version = "0.1.0", path = "crates/pheasant_http" }
 pheasant_uri = { version = "0.1.0", path = "crates/pheasant_uri" }
-pheasant_headers = { version = "0.1.0", path = "crates/pheasant_headers" }
-pheasant_server = { version = "0.1.0", path = "crates/pheasant_server" }
-# pheasant_macro_utils = { version = "0.1.0", path = "crates/pheasant_macro_utils" }
-# pheasant_macro_get = { version = "0.1.0", path = "macros/pheasant_macro_get" }
-# pheasant_macro_post = { version = "0.1.0", path = "macros/pheasant_macro_post" }
-# pheasant_macro_fail = { version = "0.1.0", path = "macros/pheasant_macro_fail" }
+pheasant_services = { version = "0.1.0", path = "crates/pheasant_services" }
 
 [dependencies]
-pheasant_core = { workspace = true }
+pheasant_http = { workspace = true }
 pheasant_uri = { workspace = true }
-pheasant_server = { workspace = true }
-pheasant_headers = { workspace = true }
-# pheasant_macro_utils = { workspace = true }
-# pheasant_macro_get = { workspace = true }
-# pheasant_macro_post = { workspace = true }
-# pheasant_macro_fail = { workspace = true }
+pheasant_services = { workspace = true }
 crossbeam-utils = "0.8.21"
 uuid = "1.18.1"
 rayon = "1.11.0"
@@ -71,3 +51,4 @@ hashbrown = { workspace = true, features = ["serde"] }
 chrono.workspace = true
 embedded-io = "0.6.1"
 tokio = { workspace = true, features = ["full"] }
+bb8 = "0.9.0"

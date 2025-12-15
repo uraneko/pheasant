@@ -3,7 +3,7 @@ pub mod urn;
 
 pub use url::derivatives::{Origin, Resource, Route};
 pub use url::{AbsoluteUrl, PathRelativeUrl, SchemeRelativeUrl, Url};
-pub use url::{Query, Scheme};
+pub use url::{Path, Query, Scheme};
 pub use urn::Urn;
 
 // pub use components::{Host, Nid, Nss, Path, Query, Scheme, User};
@@ -21,18 +21,8 @@ pub trait Sanitizer {
     fn sanitize(&self) -> Result<(), Self::Err>;
 }
 
-pub struct PercentEncodedChar(char);
-
 // this is for individual components
-// e.g., url's Scheme, Path or urn's NSS...
-pub trait PercentEncoded {
-    const TABLE: &'static [(PercentEncodedChar, char)];
-    type Err;
-
-    fn encode(s: &str) -> Result<String, Self::Err>;
-
-    fn decode(s: &str) -> Result<String, Self::Err>;
-}
+// e.g., url's Scheme, Path
 
 pub const SUB_DELIMS: [char; 11] = ['!', '$', '&', '\'', '(', ')', '*', '+', ',', ';', '='];
 pub const GEN_DELIMS: [char; 7] = [':', '/', '?', '#', '[', ']', '@'];

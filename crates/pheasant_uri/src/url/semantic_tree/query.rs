@@ -1,4 +1,4 @@
-use super::Token;
+use super::{PercentEncodable, Token};
 use crate::{SUB_DELIMS, SpellChecker, SpellingError as Error, UNRESERVED};
 use hashbrown::{HashMap, HashSet};
 
@@ -9,7 +9,7 @@ pub struct Query {
 }
 
 impl SpellChecker for Query {
-    const ALLOWED: &'static [char] = &[':', '@', '/', '?'];
+    const ALLOWED: &'static [char] = &[':', '@', '/', '?', '%'];
     type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
@@ -37,6 +37,12 @@ impl SpellChecker for Query {
 
         Ok(())
     }
+}
+
+impl PercentEncodable for Query {
+    const TABLE: &'static [(&'static str, &'static str)] =
+        &[("%23", "#"), ("%3D", "="), ("%26", "&")];
+    type Err = ();
 }
 
 impl Query {
@@ -148,12 +154,22 @@ impl Query {
     }
 
     /// removes a param from self.params
-    pub fn take_param(&mut self, key: &str) -> Option<String> {
+    pub fn remove_param(&mut self, key: &str) -> Option<String> {
         self.params.remove(key)
     }
 
     pub fn contains_param(&self, key: &str) -> bool {
         self.params.contains_key(key)
+    }
+
+    /// verifies that the query contains a parameter by the name
+    /// `key` and having the value `val`
+    pub fn param_eq(&self, key: &str, val: &str) -> bool {
+        let Some(value) = self.params.get(key) else {
+            return false;
+        };
+
+        value == val
     }
 
     pub fn contains_attr(&self, attr: &str) -> bool {
@@ -174,7 +190,7 @@ impl Query {
     }
 
     // returns the str repr of this query
-    pub fn sequence(&self) -> String {
+    pub fn serialized(&self) -> String {
         let mut seq = self
             .params
             .iter()
