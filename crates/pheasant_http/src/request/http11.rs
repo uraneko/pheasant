@@ -92,7 +92,7 @@ impl<'a> Lex<'a> {
         let start = self.cursor;
         self.cursor = sep + 1;
 
-        Ok(Token::Field(self.buf[start..sep].to_vec()))
+        Ok(Token::Field(self.buf[start..sep].to_ascii_lowercase()))
     }
 
     pub fn value(&mut self) -> Result<[Token; 2], Error> {

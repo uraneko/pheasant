@@ -26,10 +26,18 @@ impl Respond {
         self
     }
 
+    pub fn proto_cpy(&self) -> Protocol {
+        self.proto
+    }
+
     pub fn status(&mut self, status: Status) -> &mut Self {
         self.status = status;
 
         self
+    }
+
+    pub fn status_cpy(&self) -> Status {
+        self.status
     }
 
     pub fn headers_mut(&mut self) -> &mut Vec<u8> {
