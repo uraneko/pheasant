@@ -56,8 +56,7 @@ macro_rules! err_stt {
 macro_rules! status_enum {
      ($name: ident, $($var: ident $code: literal),*) => {
         #[repr(u16)]
-        #[derive(Debug, Clone, Copy, PartialEq,
-            Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
          pub enum $name {$(
              $var = $code,
          )*}
@@ -319,7 +318,7 @@ impl Informational {
 }
 
 /// enum wrapping all response status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Status {
     Informational(Informational),
     Successful(Successful),
@@ -558,7 +557,7 @@ impl TryFrom<u16> for Status {
 // }
 
 /// error response status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorStatus {
     Client(ClientError),
     Server(ServerError),
@@ -661,10 +660,6 @@ impl From<ErrorStatus> for u16 {
     }
 }
 
-use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
-use quote::{ToTokens, TokenStreamExt};
-use syn::Ident;
-
 impl ErrorStatus {
     fn str_lit(&self) -> &str {
         match self {
@@ -692,34 +687,34 @@ impl From<ErrorStatus> for Status {
     }
 }
 
-impl ToTokens for ErrorStatus {
-    fn to_tokens(&self, tokens: &mut TS2) {
-        tokens.append(<ErrorStatus as Into<TokenTree>>::into(*self))
-    }
-}
-
-impl From<ErrorStatus> for TokenTree {
-    fn from(err: ErrorStatus) -> Self {
-        let [var, subtype, subvar] = {
-            let s = err.to_string();
-            let mut iter = s
-                .split("::")
-                .map(|s| Ident::new(s.trim(), Span::call_site()));
-
-            [
-                iter.next().unwrap(),
-                iter.next().unwrap(),
-                iter.next().unwrap(),
-            ]
-        };
-
-        Group::new(
-            Delimiter::None,
-            quote::quote! { ErrorStatus::#var(pheasant:: #subtype::#subvar) },
-        )
-        .into()
-    }
-}
+// impl ToTokens for ErrorStatus {
+//     fn to_tokens(&self, tokens: &mut TS2) {
+//         tokens.append(<ErrorStatus as Into<TokenTree>>::into(*self))
+//     }
+// }
+//
+// impl From<ErrorStatus> for TokenTree {
+//     fn from(err: ErrorStatus) -> Self {
+//         let [var, subtype, subvar] = {
+//             let s = err.to_string();
+//             let mut iter = s
+//                 .split("::")
+//                 .map(|s| Ident::new(s.trim(), Span::call_site()));
+//
+//             [
+//                 iter.next().unwrap(),
+//                 iter.next().unwrap(),
+//                 iter.next().unwrap(),
+//             ]
+//         };
+//
+//         Group::new(
+//             Delimiter::None,
+//             quote::quote! { ErrorStatus::#var(pheasant:: #subtype::#subvar) },
+//         )
+//         .into()
+//     }
+// }
 
 impl fmt::Display for ErrorStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

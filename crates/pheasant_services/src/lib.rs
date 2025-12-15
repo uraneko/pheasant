@@ -16,6 +16,10 @@ pub use range::Range;
 pub use socket::{Socket, bind_socket};
 pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
 
+pub fn date() -> chrono::DateTime<chrono::Utc> {
+    chrono::Utc::now()
+}
+
 pub trait Service<S: Server> {
     async fn run(
         &self,

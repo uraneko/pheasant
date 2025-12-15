@@ -24,9 +24,4 @@ name = "lexer"
 path = "benches/lexer.rs"
 
 [dependencies]
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-hashbrown.workspace = true
+hashbrown = "0.16.0"

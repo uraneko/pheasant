@@ -70,29 +70,25 @@ impl std::fmt::Display for MimeError {
     }
 }
 
-use proc_macro2::{Delimiter, Group, Literal, Span, TokenStream as TS2, TokenTree};
-use quote::{ToTokens, TokenStreamExt};
-use syn::Ident;
-
-impl ToTokens for Mime {
-    fn to_tokens(&self, tokens: &mut TS2) {
-        tokens.append(<&Mime as Into<TokenTree>>::into(self))
-    }
-}
-
-impl From<&Mime> for TokenTree {
-    fn from(m: &Mime) -> Self {
-        let mut ts = TS2::new();
-        let ident = Ident::new("Mime", Span::call_site());
-        ts.append(ident);
-
-        let lit = Group::new(
-            Delimiter::Parenthesis,
-            TokenTree::Literal(Literal::string(m.essence_str())).into(),
-        );
-        ts.append(lit);
-
-        let group = Group::new(Delimiter::None, ts);
-        TokenTree::from(group)
-    }
-}
+// impl ToTokens for Mime {
+//     fn to_tokens(&self, tokens: &mut TS2) {
+//         tokens.append(<&Mime as Into<TokenTree>>::into(self))
+//     }
+// }
+//
+// impl From<&Mime> for TokenTree {
+//     fn from(m: &Mime) -> Self {
+//         let mut ts = TS2::new();
+//         let ident = Ident::new("Mime", Span::call_site());
+//         ts.append(ident);
+//
+//         let lit = Group::new(
+//             Delimiter::Parenthesis,
+//             TokenTree::Literal(Literal::string(m.essence_str())).into(),
+//         );
+//         ts.append(lit);
+//
+//         let group = Group::new(Delimiter::None, ts);
+//         TokenTree::from(group)
+//     }
+// }

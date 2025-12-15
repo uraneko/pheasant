@@ -3,14 +3,11 @@ use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt};
 use alloc::str::FromStr;
 use alloc::string::String;
 use core::fmt;
-use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
-use quote::{ToTokens, TokenStreamExt};
-use syn::Ident;
 
 /// HTTP Method enum
 /// only Get method is somewhat supported at the moment
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Method {
     Head = 1,
     Get = 2,

@@ -132,12 +132,6 @@ impl From<FromUtf8Error> for PheasantError {
     }
 }
 
-impl From<url::ParseError> for PheasantError {
-    fn from(_err: url::ParseError) -> Self {
-        Self::ClientError(ClientError::BadRequest)
-    }
-}
-
 pub fn sidestep_whitespace(buf: &[u8], mut idx: usize) -> usize {
     while buf[idx] == 32 {
         idx += 1;

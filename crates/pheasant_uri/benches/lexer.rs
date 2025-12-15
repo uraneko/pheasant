@@ -51,7 +51,7 @@ fn find_all(mut s: &str, ch: char) -> Vec<(usize, char)> {
     v
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
     Seq(String),
     Slash,
