@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [[example]]
-path = "examples/simple"
-name = "simple"
+path = "examples/basic"
+name = "basic"
 
 [workspace]
 members = [

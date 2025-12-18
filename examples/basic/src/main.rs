@@ -1,5 +1,7 @@
-use pheasant::http::{ErrorStatus, err_stt};
-use pheasant::services::{Server, Socket, bad_request, parse, read_stream, req_buf, write_stream};
+use pheasant::http::{ErrorStatus, Method, Protocol, Respond, err_stt, status};
+use pheasant::services::{
+    Server, Socket, bad_request, parse, read_stream, req_buf, resp_write_stream,
+};
 use std::io::BufReader;
 
 mod services;
@@ -19,33 +21,34 @@ pub async fn main() -> Result<(), ErrorStatus> {
     socket
         .event_loop(async |this: &mut Socket| {
             {
-                let mut buf = Vec::new();
+                let mut resp = Respond::new(Protocol::Http11, status!(200));
                 while let Ok((mut stream, _)) = read_stream(&this.socket) {
-                    buf.clear();
+                    resp.clear();
                     let mut reader = BufReader::new(&mut stream);
                     let Ok(req_buf) = req_buf(&mut reader) else {
-                        bad_request(&mut buf);
-                        write_stream(&buf, &mut stream);
+                        bad_request(&mut resp);
+                        resp_write_stream(&resp, &mut stream, Method::Get)?;
                         continue;
                     };
                     let req = parse(req_buf);
                     let Ok(req) = req else {
-                        bad_request(&mut buf);
-                        write_stream(&buf, &mut stream);
+                        bad_request(&mut resp);
+                        resp_write_stream(&resp, &mut stream, Method::Get)?;
                         continue;
                     };
+                    let method = req.method();
 
                     // lookup should fetch whole service chains
-                    let service = match lookup(&req, &mut buf) {
+                    let service = match lookup(&req, &mut resp) {
                         Ok(s) => s,
                         Err(_err) => {
-                            bad_request(&mut buf);
-                            write_stream(&buf, &mut stream);
+                            bad_request(&mut resp);
+                            resp_write_stream(&resp, &mut stream, req.method())?;
                             continue;
                         }
                     };
-                    this.service(req, &mut buf, service).await?;
-                    write_stream(&buf, &mut stream);
+                    this.service(req, &mut resp, service).await?;
+                    resp_write_stream(&resp, &mut stream, method)?;
                 }
 
                 Ok(())
