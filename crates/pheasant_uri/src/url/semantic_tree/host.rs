@@ -57,17 +57,17 @@ impl Host {
     pub fn from_iter<I: IntoIterator<Item = Token>>(i: I) -> Self {
         let mut iter = i.into_iter().peekable();
         let mut label = String::new();
-        let mut path = Host::default();
+        let mut host = Host::default();
 
         while iter.peek().is_some() {
-            path.collect_label(&mut iter, &mut label);
+            host.collect_label(&mut iter, &mut label);
         }
 
         if !label.is_empty() {
-            path.labels.push(label);
+            host.labels.push(label);
         }
 
-        path
+        host
     }
 
     fn collect_label(&mut self, iter: &mut impl Iterator<Item = Token>, s: &mut String) {
@@ -78,6 +78,23 @@ impl Host {
 
             s.push_str(token.as_str());
         }
+    }
+}
+
+impl TryFrom<&[u8]> for Host {
+    type Error = Error;
+
+    fn try_from(slice: &[u8]) -> Result<Self, Error> {
+        let vec: Result<Vec<Token>, Error> = slice
+            .split(|b| *b == b'.')
+            .map(|l| {
+                str::from_utf8(l)
+                    .map_err(|_| Error::InvalidCharsForComponent)
+                    .map(|s| Token::Seq(s.to_owned()))
+            })
+            .collect();
+
+        vec.map(|v| Self::from_iter(v))
     }
 }
 

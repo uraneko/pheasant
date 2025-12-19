@@ -1,6 +1,7 @@
-use pheasant_http::{ErrorStatus, Method, Respond, request::Request};
+use pheasant_http::{ErrorStatus, Method, Respond, err_stt, request::Request};
 
 pub mod content_meta;
+pub mod cookies;
 pub mod cors;
 pub mod errors;
 pub mod parse;
@@ -9,8 +10,9 @@ pub mod socket;
 pub mod stream;
 
 pub use content_meta::MessageBodyInfo;
+pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
-pub use errors::{bad_request, internal_server_error, not_found};
+pub use errors::{bad_request, error_status, internal_server_error, not_found};
 pub use parse::parse;
 pub use range::{Ranges, support_ranges};
 pub use socket::{Socket, bind_socket};
@@ -21,7 +23,7 @@ pub fn date() -> chrono::DateTime<chrono::Utc> {
 }
 
 pub trait Service<S: Server> {
-    async fn run(
+    async fn serve(
         &self,
         socket: &mut S,
         req: Request,
@@ -49,7 +51,7 @@ pub trait Server {
     where
         Self: Sized,
     {
-        service.run(self, req, buf).await
+        service.serve(self, req, buf).await
     }
 
     /// prints out the socket url on the stdout
@@ -81,7 +83,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn post(
@@ -90,7 +92,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn put(
@@ -99,7 +101,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn patch(
@@ -108,7 +110,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn head(
@@ -117,7 +119,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn trace(
@@ -126,7 +128,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn delete(
@@ -135,7 +137,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn options(
@@ -144,7 +146,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn connect(
@@ -153,7 +155,7 @@ pub trait Resource<S: Server> {
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn run(
