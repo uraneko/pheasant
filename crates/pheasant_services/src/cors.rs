@@ -276,6 +276,7 @@ impl Cors {
         // NOTE this if block is needless
         // as the server we simply send the allowed methods and let the client
         // figure out its own permissions
+        //
         // if methods.contains(&str::from_utf8(value).map(|s| {
         //     s.trim()
         //         .to_lowercase()
@@ -286,11 +287,12 @@ impl Cors {
         buffer.extend(b"access-control-allow-methods: ");
         methods.iter().fold(&mut *buffer, |acc, m| {
             acc.extend(m.as_str().as_bytes());
-            acc.push(b',');
+            acc.extend(b", ");
 
             acc
         });
 
+        buffer.pop();
         buffer.pop();
         buffer.push(10);
 
@@ -377,8 +379,11 @@ impl Cors {
     }
 
     pub fn cors(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+        // if there is no origin then we assume the request is not a cors one
+        // and we early return
         let Some(value) = header_value(headers, b"origin") else {
-            return Err(Error::MissingRequestOrigin);
+            // return Err(Error::MissingRequestOrigin);
+            return Ok(());
         };
         self.allow_origin(value, buffer)?;
 
