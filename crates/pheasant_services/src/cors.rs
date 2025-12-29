@@ -400,4 +400,20 @@ impl Cors {
 
         Ok(())
     }
+
+    pub fn cors_with_cookies(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+        // if there is no origin then we assume the request is not a cors one
+        // and we early return
+        let Some(value) = header_value(headers, b"origin") else {
+            // return Err(Error::MissingRequestOrigin);
+            return Ok(());
+        };
+        self.allow_origin(value, buffer)?;
+        self.allow_methods(value, buffer)?;
+        self.allow_headers(value, buffer)?;
+        self.allow_credentials(buffer);
+        self.allow_max_age(buffer);
+
+        Ok(())
+    }
 }

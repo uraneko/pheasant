@@ -11,7 +11,7 @@ use services::*;
 pub async fn main() -> Result<(), ErrorStatus> {
     let Ok(mut socket) = Socket::builder([127, 10, 10, 1], 80)
         .buf_size(4096)
-        .sqlite_path("data/ciphr.db3")
+        .database("data/ciphr.db3")
         .build()
     else {
         return err_stt!(?500);

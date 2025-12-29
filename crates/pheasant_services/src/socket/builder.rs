@@ -25,7 +25,7 @@ impl Builder {
         })
     }
 
-    pub fn sqlite_path(mut self, path: &'static str) -> Self {
+    pub fn database(mut self, path: &'static str) -> Self {
         self.path = path;
 
         self

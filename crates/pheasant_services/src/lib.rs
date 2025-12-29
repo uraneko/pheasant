@@ -6,7 +6,7 @@ pub mod cors;
 pub mod errors;
 pub mod parse;
 pub mod range;
-pub mod socket;
+pub mod server_socket;
 pub mod stream;
 
 pub use content_meta::MessageBodyInfo;
@@ -15,7 +15,7 @@ pub use cors::Cors;
 pub use errors::{bad_request, error_status, internal_server_error, not_found};
 pub use parse::parse;
 pub use range::{Ranges, support_ranges};
-pub use socket::{Socket, bind_socket};
+pub use server_socket::{Socket, bind_socket};
 pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
 
 pub fn date() -> chrono::DateTime<chrono::Utc> {
@@ -61,7 +61,7 @@ pub trait Server {
         let mut stdout = std::io::stdout();
         _ = stdout.write(
             format!(
-                "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m",
+                "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m\r\n",
                 self.addr()
                     .map(|addr| addr.to_string())
                     .unwrap_or(format!("localhost:{}", self.port())),

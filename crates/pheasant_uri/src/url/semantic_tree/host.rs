@@ -6,6 +6,12 @@ pub struct Host {
     labels: Vec<String>,
 }
 
+impl Host {
+    pub fn serialized(&self) -> String {
+        self.labels.join("/")
+    }
+}
+
 impl SpellChecker for Host {
     const ALLOWED: &'static [char] = &[];
     type Input<'a> = &'a [Token];

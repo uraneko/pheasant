@@ -33,6 +33,16 @@ impl ReadCookies {
 
         slice_contains(value, val)
     }
+
+    /// checks if this reader contains a cookie with the given name
+    pub fn contains(&self, key: &[u8]) -> bool {
+        self.cookies.contains_key(key)
+    }
+
+    /// gets a reference to the value of the cookie with passed name
+    pub fn get(&self, key: &[u8]) -> Option<&[u8]> {
+        self.cookies.get(key).map(|vec| vec.as_slice())
+    }
 }
 
 /// checks if a slice contains a subslice or not
@@ -84,6 +94,13 @@ pub struct WriteCookies {
 }
 
 impl WriteCookies {
+    /// generates a new empty WriteCookies
+    pub fn new() -> Self {
+        Self {
+            cookies: Default::default(),
+        }
+    }
+
     /// creates a new cookie with field and value
     /// then returns a mutable borrow to the new cookie's params
     pub fn cookie(&mut self, field: &[u8], value: &[u8]) -> &mut CookieParams {
@@ -112,20 +129,62 @@ impl WriteCookies {
         *v = value.to_vec();
     }
 
+    /// returns an Option of a mutable borrow to the cookie's value
     pub fn value_mut(&mut self, field: &[u8]) -> Option<&mut Vec<u8>> {
         self.cookies.get_mut(field).map(|(v, _)| v)
     }
-    // returns a mutable reference to a cookie's params
+    /// returns an Option of a mutable borrow to the cookie's params
     pub fn params_mut(&mut self, field: &[u8]) -> Option<&mut CookieParams> {
         self.cookies.get_mut(field).map(|(_, p)| p)
     }
 
+    /// returns the number of cookies in this writer
     pub fn len(&self) -> usize {
         self.cookies.len()
     }
 }
 
+impl WriteCookies {
+    /// writes the cookie with the given cookie name
+    /// to the respond headers buffer
+    /// be careful: this removes the cookie from this cookies writer
+    /// returns bool indicating if the write was successful or not
+    /// a return value of false usually means the cookie was not found in the writer
+    pub fn write(&mut self, field: &[u8], buf: &mut Vec<u8>) -> bool {
+        let Some((value, params)) = self.cookies.remove(field) else {
+            return false;
+        };
+        write_cookie(field.to_vec(), value, params, buf);
+
+        true
+    }
+
+    pub fn write_all(self, buf: &mut Vec<u8>) {
+        self.cookies
+            .into_iter()
+            .for_each(|(field, (value, params))| {
+                write_cookie(field, value, params, buf);
+            });
+    }
+}
+
+pub fn write_cookie(field: Vec<u8>, value: Vec<u8>, params: CookieParams, buf: &mut Vec<u8>) {
+    buf.extend(b"set-cookie: ");
+    buf.extend(field);
+    buf.push(b'=');
+    buf.extend(value);
+    write_params(params, buf);
+    buf.push(10);
+}
+
+impl AsRef<CookieParams> for CookieParams {
+    fn as_ref(&self) -> &Self {
+        &self
+    }
+}
+
 pub struct CookieParams {
+    // NOTE prefix is ignored (not handled in code) for now
     prefix: Option<Prefix>,
     domain: Option<Host>,
     expires: Option<DateTime<Utc>>,
@@ -135,8 +194,48 @@ pub struct CookieParams {
     // requires the secure attrbute to be set
     partitioned: bool,
     path: Option<Path>,
-    samesite: SameSite,
+    samesite: Option<SameSite>,
     secure: bool,
+}
+
+pub fn write_params(params: CookieParams, buf: &mut Vec<u8>) {
+    if let Some(domain) = params.domain {
+        buf.extend(b"; Domain=");
+        buf.extend(domain.serialized().as_bytes());
+    }
+    if let Some(date) = params.expires {
+        buf.extend(b"; Expires=");
+        buf.extend(date.to_string().as_bytes());
+    }
+
+    if params.http_only {
+        buf.extend(b"; HttpOnly");
+    }
+
+    if params.max_age > 0 {
+        buf.extend(b"; Max-Age=");
+        buf.extend(format!("{}", params.max_age).as_bytes());
+    }
+
+    if params.partitioned {
+        buf.extend(b"; Partitioned");
+    }
+
+    if let Some(path) = params.path {
+        buf.extend(b"; Path=");
+        buf.extend(path.serialized().as_bytes());
+    }
+
+    match params.samesite {
+        Some(SameSite::Strict) => buf.extend(b"; SameSite=Strict"),
+        Some(SameSite::Lax) => buf.extend(b"; SameSite=Lax"),
+        Some(SameSite::None) => buf.extend(b"; SameSite=None"),
+        None => (),
+    }
+
+    if params.secure {
+        buf.extend(b"; Secure");
+    }
 }
 
 // builder methods
@@ -150,7 +249,7 @@ impl CookieParams {
             max_age: 0,
             partitioned: false,
             path: None,
-            samesite: SameSite::None,
+            samesite: None,
             secure: false,
         }
     }
@@ -185,8 +284,9 @@ impl CookieParams {
 
     // e.g., max-age property
     // Max-Age=2592000
-    pub fn max_age(&mut self, max_age: TimeDelta) -> &mut Self {
-        self.max_age = max_age.num_seconds();
+    pub fn max_age(&mut self, max_age: i64) -> &mut Self {
+        // self.max_age = max_age.num_seconds();
+        self.max_age = max_age;
 
         self
     }
@@ -209,7 +309,7 @@ impl CookieParams {
     // e.g., samesite property
     // SameSite=None
     pub fn samesite(&mut self, ss: impl Into<SameSite>) -> &mut Self {
-        self.samesite = ss.into();
+        self.samesite = Some(ss.into());
 
         self
     }
@@ -232,6 +332,16 @@ pub enum SameSite {
     Strict,
     Lax,
     None,
+}
+
+impl From<u8> for SameSite {
+    fn from(int: u8) -> Self {
+        match int {
+            1 => Self::Strict,
+            2 => Self::Lax,
+            0 | _ => Self::None,
+        }
+    }
 }
 
 pub fn parse_header(slice: &[u8], map: &mut HashMap<Vec<u8>, Vec<u8>>) -> Result<(), Error> {
