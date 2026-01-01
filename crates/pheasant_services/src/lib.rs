@@ -1,5 +1,6 @@
 use pheasant_http::{ErrorStatus, Method, Respond, err_stt, request::Request};
 
+pub mod client_socket;
 pub mod content_meta;
 pub mod cookies;
 pub mod cors;

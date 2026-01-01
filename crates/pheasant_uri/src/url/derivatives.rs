@@ -2,6 +2,7 @@ use super::{
     AbsoluteUrl, Host, Path, PathRelativeUrl, Query, Scheme, SchemeRelativeUrl, Url, User,
 };
 use crate::Parse;
+use crate::repeat_tfs;
 use core::fmt::{Display, Formatter, Result as FmtRes};
 use core::str::FromStr;
 
@@ -81,30 +82,18 @@ impl Origin {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Route {
-    path: Path,
-}
-
-impl Route {
-    pub fn len(&self) -> usize {
-        self.path.len()
-    }
-}
-
-impl From<PathRelativeUrl> for Route {
+impl From<PathRelativeUrl> for Path {
     fn from(url: PathRelativeUrl) -> Self {
         let PathRelativeUrl { path, .. } = url;
 
-        Self { path }
+        path
     }
 }
 
-impl Display for Route {
+impl Display for Path {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtRes {
         write!(f, "{}", {
             let mut p = self
-                .path
                 .segments()
                 .iter()
                 .fold("".to_owned(), |p, s| p + s + "/");
@@ -114,10 +103,10 @@ impl Display for Route {
     }
 }
 
-// impl From<AbsoluteUrl> for Route {}
-// impl From<SchemeRelativeUrl> for Route {}
+// impl From<AbsoluteUrl> for Path {}
+// impl From<SchemeRelativeUrl> for Path {}
 
-impl FromStr for Route {
+impl FromStr for Path {
     type Err = <PathRelativeUrl as Parse>::ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -125,7 +114,7 @@ impl FromStr for Route {
     }
 }
 
-impl TryFrom<&[u8]> for Route {
+impl TryFrom<&[u8]> for Path {
     type Error = <PathRelativeUrl as Parse>::ParseError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -159,9 +148,9 @@ impl Resource {
     }
 }
 
-impl From<Resource> for (Route, Option<Query>) {
-    fn from(res: Resource) -> (Route, Option<Query>) {
-        (Route { path: res.path }, res.query)
+impl From<Resource> for (Path, Option<Query>) {
+    fn from(res: Resource) -> (Path, Option<Query>) {
+        (res.path, res.query)
     }
 }
 
@@ -203,3 +192,5 @@ impl FromStr for Resource {
         s.parse::<PathRelativeUrl>().map(|url| url.into())
     }
 }
+
+repeat_tfs!(Resource);

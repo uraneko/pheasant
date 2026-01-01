@@ -7,6 +7,10 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn count(&self) -> usize {
+        self.segments.len()
+    }
+
     pub fn len(&self) -> usize {
         self.segments.iter().map(|s| s.len()).sum()
     }

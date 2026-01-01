@@ -1,5 +1,6 @@
-use crate::PheasantError;
-use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt};
+use crate::{
+    ByteIterator, ClientError, ErrorStatus, PheasantError, ServerError, err_stt, repeat_tfs,
+};
 use alloc::str::FromStr;
 use alloc::string::String;
 use core::fmt;
@@ -79,6 +80,7 @@ impl FromStr for Method {
         }
     }
 }
+repeat_tfs!(Method);
 
 impl Method {
     pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {

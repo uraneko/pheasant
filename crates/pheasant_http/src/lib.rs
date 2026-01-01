@@ -12,28 +12,23 @@
 extern crate alloc;
 extern crate std;
 
-use alloc::string::{FromUtf8Error, String, ToString};
-use alloc::{vec, vec::Vec};
-use core::error::Error;
+use alloc::string::FromUtf8Error;
 use core::fmt::{self, Debug, Display, Formatter};
-use core::str::FromStr;
 use core::str::Utf8Error;
-use hashbrown::HashSet;
-use pheasant_uri::Route;
 
+pub mod client;
 pub mod headers;
 pub mod maybe_glob;
+pub mod message;
 pub mod method;
 pub mod mime;
 pub mod protocol;
-pub mod request;
-pub mod respond;
+pub mod server;
 pub mod status;
 
 pub use headers::{Header, contains_header, header_value};
 pub use method::Method;
 pub use mime::Mime;
-pub use respond::Respond;
 // pub use monopoly::MonoPoly;
 pub use maybe_glob::MaybeGlob;
 pub use protocol::Protocol;
@@ -56,6 +51,19 @@ pub use status::{
 // Access-Control-Allow-Methods header
 // this appears to be caused by firefox only sending an Origin header with the Post request
 // there was no requesting from firefox's side for any methods or headers, only the client origin
+
+#[macro_export]
+macro_rules! repeat_tfs {
+    ($t: ty) => {
+        impl<'a> TryFrom<&'a str> for $t {
+            type Error = <Self as FromStr>::Err;
+
+            fn try_from(s: &str) -> Result<Self, Self::Error> {
+                s.parse()
+            }
+        }
+    };
+}
 
 pub struct ByteIterator<I: Iterator<Item = u8>> {
     iter: I,

@@ -1,5 +1,4 @@
-use crate::ErrorStatus;
-use crate::{ByteIterator, ClientError, PheasantError, ServerError};
+use crate::{ByteIterator, ClientError, ErrorStatus, PheasantError, ServerError, repeat_tfs};
 use alloc::str::FromStr;
 use core::fmt::{self, Display, Formatter};
 /// Http protocol version
@@ -56,6 +55,7 @@ impl FromStr for Protocol {
         }
     }
 }
+repeat_tfs!(Protocol);
 
 impl Protocol {
     pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {

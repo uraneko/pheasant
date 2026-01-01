@@ -7,7 +7,7 @@ pub mod http {
 }
 
 pub mod uri {
-    pub use pheasant_uri::{Origin, Query, Resource, Route, Url};
+    pub use pheasant_uri::{Origin, Query, Resource, Url};
 }
 
 pub mod services {
