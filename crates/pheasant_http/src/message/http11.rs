@@ -127,7 +127,7 @@ impl<'a> Lex<'a> {
             return Err(Error::ArbitraryEol(eol));
         }
 
-        std::println!("=> {:?}", str::from_utf8(&self.buf[self.cursor..]));
+        // std::println!("=> {:?}", str::from_utf8(&self.buf[self.cursor..]));
         let Some(sep) = find(&self.buf, self.cursor, b':') else {
             return Err(Error::CouldntFindTheColon);
         };

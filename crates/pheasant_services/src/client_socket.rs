@@ -1,5 +1,5 @@
 use crate::Service;
-use pheasant_http::request::Request;
+use pheasant_http::server::Request;
 use std::io::Result as IoRes;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 

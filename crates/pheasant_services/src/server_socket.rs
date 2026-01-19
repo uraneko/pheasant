@@ -1,5 +1,6 @@
 use crate::Service;
-use pheasant_http::request::Request;
+use pheasant_http::server::Request;
+use sqlx::sqlite;
 use std::io::Result as IoRes;
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 
@@ -26,7 +27,7 @@ pub fn bind_socket(addr: impl Into<Ipv4Addr>, mut port: u16) -> Result<TcpListen
 pub struct Socket {
     pub socket: TcpListener,
     pub buffer: Vec<u8>,
-    pub conn: sqlite::Connection,
+    pub conn: sqlite::SqliteConnection,
 }
 
 impl Socket {

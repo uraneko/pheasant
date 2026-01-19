@@ -1,4 +1,7 @@
-use pheasant_http::{ErrorStatus, Method, Respond, err_stt, request::Request};
+use pheasant_http::{
+    ErrorStatus, Method, err_stt,
+    server::{Request, Respond},
+};
 
 pub mod client_socket;
 pub mod content_meta;
@@ -6,6 +9,7 @@ pub mod cookies;
 pub mod cors;
 pub mod errors;
 pub mod parse;
+pub mod print;
 pub mod range;
 pub mod server_socket;
 pub mod stream;
@@ -13,7 +17,7 @@ pub mod stream;
 pub use content_meta::MessageBodyInfo;
 pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
-pub use errors::{bad_request, error_status, internal_server_error, not_found};
+pub use errors::http_error;
 pub use parse::parse;
 pub use range::{Ranges, support_ranges};
 pub use server_socket::{Socket, bind_socket};
@@ -77,9 +81,9 @@ pub trait Server {
     fn port(&self) -> u16;
 }
 
-pub trait Resource<S: Server> {
+pub trait Resource<S: Server>: Sized {
     async fn get(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -88,7 +92,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn post(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -97,7 +101,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn put(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -106,7 +110,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn patch(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -115,7 +119,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn head(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -124,7 +128,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn trace(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -133,7 +137,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn delete(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -142,7 +146,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn options(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -151,7 +155,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn connect(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
@@ -160,7 +164,7 @@ pub trait Resource<S: Server> {
     }
 
     async fn run(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,

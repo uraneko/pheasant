@@ -9,8 +9,8 @@ mod lex;
 mod semantic_tree;
 mod syntax_tree;
 
-// reflect result on itself
-pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
+/// swaps the ok and err values of a Result<T,E> returning a Result<E, T>
+pub(crate) fn flip_result<T, E>(res: Result<T, E>) -> Result<E, T> {
     match res {
         Err(e) => Ok(e),
         Ok(o) => Err(o),

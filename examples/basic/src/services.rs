@@ -161,7 +161,7 @@ impl Resource<Socket> for CreateTable {
 }
 
 pub fn lookup(req: &Request, resp: &mut Respond) -> Result<Services, ErrorStatus> {
-    println!("{:?} - {:?}", req.path_str(), req.query());
+    // println!("{:?} - {:?}", req.path_str(), req.query());
     Ok(match req.path_str().as_str() {
         "/" => Services::Index(Index::new(req)),
         "/icon" => Services::Icon(Icon::new(req)?),

@@ -1,4 +1,4 @@
-use pheasant_http::{ErrorStatus, Method, Respond, err_stt};
+use pheasant_http::{ErrorStatus, Method, err_stt, server::Respond};
 use std::io::{BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 

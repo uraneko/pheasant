@@ -554,7 +554,7 @@ fn maybe_port(tokens: &[Token], layout: &mut [Layout; 7]) {
     } else {
         colon
     };
-    println!("{}", colon);
+    // println!("{}", colon);
 
     if let Some(addr) = tokens.iter().position(|t| t == &Token::AddressSign)
         && addr > colon

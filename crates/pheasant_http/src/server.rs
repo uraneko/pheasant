@@ -72,6 +72,10 @@ impl Request {
         self.query.as_ref()
     }
 
+    pub fn query_mut(&mut self) -> Option<&mut Query> {
+        self.query.as_mut()
+    }
+
     pub fn headers(&self) -> &[Header] {
         &self.headers
     }
