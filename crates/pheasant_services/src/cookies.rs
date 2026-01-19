@@ -183,6 +183,7 @@ impl AsRef<CookieParams> for CookieParams {
     }
 }
 
+#[derive(Debug)]
 pub struct CookieParams {
     // NOTE prefix is ignored (not handled in code) for now
     prefix: Option<Prefix>,
@@ -190,7 +191,7 @@ pub struct CookieParams {
     expires: Option<DateTime<Utc>>,
     http_only: bool,
     // has precedence over the expires property
-    max_age: i64,
+    max_age: Option<i64>,
     // requires the secure attrbute to be set
     partitioned: bool,
     path: Option<Path>,
@@ -212,9 +213,9 @@ pub fn write_params(params: CookieParams, buf: &mut Vec<u8>) {
         buf.extend(b"; HttpOnly");
     }
 
-    if params.max_age > 0 {
+    if let Some(max_age) = params.max_age {
         buf.extend(b"; Max-Age=");
-        buf.extend(format!("{}", params.max_age).as_bytes());
+        buf.extend(format!("{}", max_age).as_bytes());
     }
 
     if params.partitioned {
@@ -246,7 +247,7 @@ impl CookieParams {
             domain: None,
             expires: None,
             http_only: false,
-            max_age: 0,
+            max_age: None,
             partitioned: false,
             path: None,
             samesite: None,
@@ -286,7 +287,7 @@ impl CookieParams {
     // Max-Age=2592000
     pub fn max_age(&mut self, max_age: i64) -> &mut Self {
         // self.max_age = max_age.num_seconds();
-        self.max_age = max_age;
+        self.max_age = Some(max_age);
 
         self
     }
@@ -321,6 +322,7 @@ impl CookieParams {
     }
 }
 
+#[derive(Debug)]
 pub enum Prefix {
     Secure,
     Host,
@@ -328,6 +330,7 @@ pub enum Prefix {
     HostHttp,
 }
 
+#[derive(Debug)]
 pub enum SameSite {
     Strict,
     Lax,
