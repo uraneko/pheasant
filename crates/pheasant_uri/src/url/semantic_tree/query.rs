@@ -13,7 +13,12 @@ impl SpellChecker for Query {
     type Input<'a> = &'a [Token];
 
     fn spell_check(group: &[Token]) -> Result<(), Error> {
-        if group.iter().any(|t| t.is_qmark() || t.is_pound()) {
+        // FIX used to be
+        // BUG this breaks parser when query contains '?' char
+        // if group.iter().any(|t| t.is_qmark() || t.is_pound()) {
+        //     return Err(Error::InvalidTokenForComponent);
+        // }
+        if group.iter().any(|t| t.is_pound()) {
             return Err(Error::InvalidTokenForComponent);
         }
 
