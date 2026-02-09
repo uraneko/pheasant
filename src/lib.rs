@@ -12,7 +12,7 @@ pub mod uri {
 
 pub mod services {
     pub use pheasant_services::{
-        Cors, MessageBodyInfo, Ranges, ReadCookies, Resource, Server, Service, Socket,
+        Cors, Forward, MessageBodyInfo, Ranges, ReadCookies, Resource, Server, Service, Socket,
         WriteCookies, bind_socket, cors, date, http_error, parse, print, read_stream, req_buf,
         resp_write_stream, support_ranges, write_stream,
     };
