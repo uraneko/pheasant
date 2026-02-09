@@ -9,6 +9,8 @@ pub struct ReadCookies {
 
 impl ReadCookies {
     pub fn from_headers(headers: &[Header]) -> Result<Self, Error> {
+        // WARN if 2 cookies have the same name
+        // then the second cookie would overwrite the first
         let mut cookies = HashMap::new();
         let mut headers = headers
             .into_iter()
@@ -165,6 +167,10 @@ impl WriteCookies {
             .for_each(|(field, (value, params))| {
                 write_cookie(field, value, params, buf);
             });
+    }
+
+    pub fn clear(field: &[u8], buf: &mut Vec<u8>) {
+        buf.extend([b"set-cookie: ", field, b"=; Max-Age=0\n"].concat());
     }
 }
 
