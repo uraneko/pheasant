@@ -11,7 +11,7 @@ name = "simple"
 members = [
 	"crates/pheasant_http",
 	"crates/pheasant_uri",
-	"crates/pheasant_services",
+	"crates/pheasant_services", "crates/pheasant_iptcp",
 ]
 resolver = "3"
 exclude = ["examples/simple"]

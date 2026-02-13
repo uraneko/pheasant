@@ -1,0 +1,10 @@
+[package]
+name = "pheasant_iptcp"
+version = "0.1.0"
+edition = "2024"
+
+[[example]]
+name = "socket"
+path = "examples/socket.rs"
+
+[dependencies]
