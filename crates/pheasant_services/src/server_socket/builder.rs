@@ -1,5 +1,5 @@
 use super::{Error, Socket};
-use sqlx::{Connection, sqlite};
+use sqlx::{ConnectOptions, sqlite};
 use std::net::TcpListener;
 
 // #[derive(Debug, Default, PartialEq, Eq, Hash, Clone)]
@@ -22,7 +22,12 @@ impl Builder {
         Ok(Socket {
             socket: self.socket?,
             buffer: Vec::with_capacity(self.buf_size),
-            conn: sqlite::SqliteConnection::connect(self.path).await.unwrap(),
+            conn: sqlite::SqliteConnectOptions::new()
+                .filename(self.path)
+                .create_if_missing(true)
+                .connect()
+                .await
+                .unwrap(),
         })
     }
 

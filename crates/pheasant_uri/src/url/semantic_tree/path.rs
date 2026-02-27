@@ -16,7 +16,9 @@ impl Path {
     }
 
     pub fn segments(&self) -> &[String] {
-        &self.segments
+        // WARN new change
+        // not sure if this could break some stuff
+        &self.segments[1..]
     }
 
     pub fn serialized(&self) -> String {

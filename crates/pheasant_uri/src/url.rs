@@ -241,6 +241,7 @@ pub struct SchemeRelativeUrl {
     fragment: Option<String>,
 }
 
+// TODO make a macro to do these impls
 impl Parse for SchemeRelativeUrl {
     type Token = Token;
     type TokenGroup = TokenGroup;

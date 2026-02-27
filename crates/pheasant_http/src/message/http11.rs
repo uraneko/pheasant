@@ -343,6 +343,7 @@ fn sidestep_whitespace(buf: &[u8], mut idx: usize) -> usize {
 }
 
 fn find(buf: &[u8], mut idx: usize, sep: u8) -> Option<usize> {
+    // BUG index out of bounds, the len is 0 but the index is 0 BUG on windows 11 vm
     while buf[idx] != sep {
         if idx == buf.len() - 1 {
             return None;

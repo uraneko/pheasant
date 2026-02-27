@@ -82,11 +82,14 @@ pub fn guess_mime(data: &[u8]) -> Mime {
     };
 
     match s.trim() {
-        s if s.starts_with('{') && s.ends_with('}') => mime::APPLICATION_JSON,
+        s if s.starts_with('{') && s.ends_with('}') || s.starts_with('[') && s.ends_with(']') => {
+            mime::APPLICATION_JSON
+        }
         s if s.starts_with("<!DOCTYPE html>") => mime::TEXT_HTML,
-        s if css_syntaxful(s) => mime::TEXT_CSS,
+        s if probably_css(s) => mime::TEXT_CSS,
         s if s.starts_with("<?xml ") && s.ends_with("</svg>") => mime::IMAGE_SVG,
-        s if js_syntaxful(s) => mime::TEXT_JAVASCRIPT,
+        s if probably_rust(s) => mime::TEXT_PLAIN,
+        s if probably_js(s) => mime::TEXT_JAVASCRIPT,
         _ => mime::TEXT_PLAIN,
     }
 }
@@ -103,7 +106,7 @@ const CSS_SYNTAX: &[&str] = &[
     "display: grid",
 ];
 
-fn css_syntaxful(s: &str) -> bool {
+fn probably_css(s: &str) -> bool {
     CSS_SYNTAX.iter().any(|expr| s.contains(expr))
 }
 
@@ -128,9 +131,37 @@ const JS_SYNTAX: &[&str] = &[
     "Property(",
 ];
 
-fn js_syntaxful(s: &str) -> bool {
+fn probably_js(s: &str) -> bool {
     JS_SYNTAX.iter().any(|expr| s.contains(expr))
 }
+
+const RUST_SYNTAX: &[&str] = &[
+    "fn main(",
+    " fn ",
+    "(|| ",
+    "(|_| ",
+    "Option<",
+    "Result<",
+    "Ok(",
+    "Err(",
+    "Some(",
+    "None",
+    "struct ",
+    "pub ",
+    "enum ",
+    "&[&str",
+    ".collect::<",
+    "let ",
+    "let mut ",
+];
+
+fn probably_rust(s: &str) -> bool {
+    RUST_SYNTAX.iter().any(|expr| s.contains(expr))
+}
+
+// TODO make a tokenizer + a const list tokens for every language
+// tokenize input: if all input tokens are contained within that language's tokens list
+// then mime type must be that token
 
 // pub enum Language {
 //     Ar(Dialect),
