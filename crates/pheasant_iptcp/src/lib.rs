@@ -1,107 +1,169 @@
-//! socket domain and type definitions can be found at /usr/include/bits/socket.h
-// #include <sys/socket.h>
-// #include <netinet/in.h>
-// #include <arpa/inet.h>
+//! socket domain and type definitions can be found at
+//! /usr/include/bits/socket.h
+//! #include <sys/socket.h>
+//! #include <netinet/in.h>
+//! #include <arpa/inet.h>
 
-type int = i16;
+use core::ffi::{c_char, c_int, c_uint};
 
-// #include <sys/socket.h>
 unsafe extern "C" {
-    pub fn socket(domain: int, type_: int, protocol: int) -> int;
+    pub fn socket(domain: c_int, type_: c_int, protocol: c_int) -> c_int;
 
-    pub fn setsockopt(
-        fd: int,
-        level: int,
-        optname: int,
-        // optval: *const std::ffi::c_void,
-        optval: *const u32,
-        optlen: socketlen_t,
-    ) -> int;
+    pub fn bind(sockfd: c_int, socket_address: SocketAddress, socketlen_t: c_int) -> c_int;
 
-    pub fn getsockopt(
-        fd: int,
-        level: int,
-        optname: int,
-        optval: *mut i32,
-        optlen: socketlen_t,
-    ) -> int;
-
-    pub fn bind(fd: int, addr: *mut sockaddr, addrlen: socketlen_t);
+    // socket len is size of socket's address structure type
+    pub fn connect(sockfd: c_int, socket_address: SocketAddress, socketlen_t: c_int) -> c_int;
 }
 
+// TODO
 unsafe extern "C" {
     pub fn perror(msg: *const u8);
+
+    pub fn strerror();
+
+    pub fn ioctl();
+
+    pub fn fcntl();
 }
 
-type socketlen_t = u32;
-type sa_family_t = u32;
+#[allow(non_camel_case_types)]
+type sa_family_t = c_uint;
 
 #[repr(C)]
-pub struct sockaddr_storage {
-    ss_family: sa_family_t, /* Address family */
-}
-
-#[repr(C)]
-pub struct sockaddr {
+pub struct SocketAddress {
     sa_family: sa_family_t,
-    sa_data: [u8; 14],
+    sa_data: [c_char; 14],
 }
 
-struct in_addr {
-    s_addr: in_addr_t,
+pub struct AcquireSockFd {
+    domain: Domain,
+    type_: SocketType,
+    proto: ProtocolNumber,
 }
 
-type in_addr_t = u32;
-type in_port_t = u16;
+impl AcquireSockFd {
+    pub fn new(domain: Domain, type_: SocketType, proto: ProtocolNumber) -> Self {
+        Self {
+            domain,
+            type_,
+            proto,
+        }
+    }
 
-struct sockaddr_in {
-    sin_family: sa_family_t, /* AF_INET */
-    sin_port: in_port_t,     /* Port number */
-    sin_addr: in_addr,       /* IPv4 address */
+    pub fn acquire(self) -> c_int {
+        unsafe {
+            socket(
+                self.domain.as_int(),
+                self.type_.as_int(),
+                self.proto.as_int(),
+            )
+        }
+    }
 }
 
-pub struct sockaddr_un {
-    pub sun_family: sa_family_t, /* Address family */
-    pub sun_path: Vec<u8>,       /* Socket pathname */
-}
-
-pub const AF_UNIX: u32 = 1;
-pub const SOL_SOCKET: i16 = 1;
-pub const SO_REUSEADDR: i16 = 2;
-pub const SO_REUSEPORT: i16 = 15;
-pub const SO_ERROR: i16 = 4;
-pub const OPT: i16 = 1;
-
-#[repr(C)]
+// values gotten from /usr/include/bits/socket.h
+// under /* Protocol families.  */ definitions
+// AF_* definitions are just aliases for the PF_* definitions there
 pub enum Domain {
-    // ipv4 addr
-    AfInet = 2,
-    // local addr, such as file:///... if i understand correctly
-    AfUnix = 1,
+    // for local communications
+    AfUnix, // aka AF_LOCAL
+    // for ipv4
+    AfInet,
+    // for ipv6
+    AfInet6,
+    AfIpx,
+    AfNetlinK,
+    AfX25,
+    AfAx25,
+    AfAtmpvc,
+    AfAppletalk,
+    AfPacket,
 }
 
-impl From<Domain> for i16 {
-    fn from(domain: Domain) -> i16 {
-        match domain {
-            Domain::AfInet => 2,
-            Domain::AfUnix => 1,
+impl Domain {
+    pub fn as_int(&self) -> c_int {
+        use Domain::*;
+
+        match self {
+            AfUnix => 1,
+            AfInet => 2,
+            AfInet6 => 10,
+            AfIpx => 4,
+            AfNetlinK => 16,
+            AfX25 => 9,
+            AfAx25 => 3,
+            AfAtmpvc => 8,
+            AfAppletalk => 5,
+            AfPacket => 17,
         }
     }
 }
 
-#[repr(C)]
-pub enum Type {
-    // for tcp based communication
-    SockStream = 1,
-    // for udp based communication
-    SockDgram = 2,
+// values retrieved from bits/socket_type.h
+// under section /* Types of sockets.  */
+pub enum SocketType {
+    // use this to open a tcp socket
+    SockStream,
+    // use this to open a udp socket
+    SockDgram,
+    SockSeqPacket,
+    // use this for direct access to the underlying ip protocol
+    SockRaw,
+    SockRdm,
+    SockPacket,
 }
 
-impl From<Type> for i16 {
-    fn from(ty: Type) -> i16 {
-        match ty {
-            Type::SockStream => 1,
-            Type::SockDgram => 2,
+impl SocketType {
+    pub fn as_int(&self) -> c_int {
+        use SocketType::*;
+
+        match self {
+            SockStream => 1,
+            SockDgram => 2,
+            SockRaw => 3,
+            SockRdm => 4,
+            SockSeqPacket => 5,
+            SockPacket => 10,
         }
     }
+}
+
+#[derive(Default)]
+pub enum ProtocolNumber {
+    #[default]
+    SocketTypeDefault,
+    Ipv4,
+    Ipv6,
+    Tcp,
+    Udp,
+    Else(c_int),
+}
+
+impl ProtocolNumber {
+    pub fn as_int(&self) -> c_int {
+        match self {
+            Self::SocketTypeDefault => 0,
+            Self::Ipv4 => 4,
+            Self::Ipv6 => 41,
+            Self::Tcp => 6,
+            Self::Udp => 17,
+            Self::Else(num) => *num,
+        }
+    }
+}
+
+macro_rules! int_enum {
+    ($enm: ident, $cty: ident, $($var: ident),+, $($int: expr),+) => {
+        pub enum $enm {
+            $($var)+,
+        }
+
+        impl From<$enm> for $cty {
+            fn from(enm: $enm) -> Self {
+                match enm {
+                    $($var => $int),+
+                }
+            }
+        }
+    };
 }
