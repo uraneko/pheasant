@@ -1,4 +1,5 @@
 use core::ffi::c_uchar;
+extern crate std;
 
 pub mod inet;
 pub use inet::{InAddr, SockAddrIn};
@@ -35,7 +36,7 @@ pub type in_addr_t = uint32_t;
 impl From<SockAddrIn> for SockAddr {
     fn from(sa_in: SockAddrIn) -> SockAddr {
         let [o0, o1, o2, o3] = sa_in.sin_addr.s_addr.to_be_bytes();
-        let data = format!("{}.{}.{}.{}:{}", o0, o1, o2, o3, sa_in.sin_port)
+        let data = std::format!("{}.{}.{}.{}:{}", o0, o1, o2, o3, sa_in.sin_port)
             .into_bytes()
             .try_into()
             .unwrap();

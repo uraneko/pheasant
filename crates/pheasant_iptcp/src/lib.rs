@@ -1,3 +1,4 @@
+#![no_std]
 #![allow(non_camel_case_types)]
 //! socket domain and type definitions can be found at
 //! /usr/include/bits/socket.h

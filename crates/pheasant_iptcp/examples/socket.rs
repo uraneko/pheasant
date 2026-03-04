@@ -61,4 +61,5 @@ fn main() {
         );
     }
     println!("addr: {:?}\nlen: {}", sa_in, len);
+    std::thread::sleep(std::time::Duration::from_secs(5));
 }
