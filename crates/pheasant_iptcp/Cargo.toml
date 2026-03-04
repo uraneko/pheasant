@@ -8,3 +8,4 @@ name = "socket"
 path = "examples/socket.rs"
 
 [dependencies]
+errno = "0.3.14"
