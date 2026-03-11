@@ -10,7 +10,7 @@
 // while the externally exposable rust safe socket api should go into a new pheasant_socket
 // also rename pheasant_http to pheasant_prologue
 
-use core::ffi::{CStr, c_int, c_uint};
+use core::ffi::{CStr, c_int, c_uint, c_void};
 pub mod sockaddr;
 pub use sockaddr::{InAddr, SockAddr, SockAddrIn, in_addr_t};
 
@@ -30,12 +30,19 @@ unsafe extern "C" {
         sockfd: c_int,
         level: c_int,
         option_name: c_int,
-        option_value: *const core::ffi::c_void,
+        option_value: *const c_void,
         option_len: socklen_t,
     ) -> c_int;
 
+    pub fn read(sockfd: c_int, buf: *mut c_void, count: size_t) -> ssize_t;
+
+    pub fn write(sockfd: c_int, buf: *const c_void, count: size_t) -> ssize_t;
+
     pub fn inet_addr(addr: *const i8) -> in_addr_t;
 }
+
+type size_t = u64;
+type ssize_t = u64;
 
 #[repr(C)]
 pub enum SocketLevel {
