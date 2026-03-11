@@ -38,9 +38,72 @@ unsafe extern "C" {
 
     pub fn write(sockfd: c_int, buf: *const c_void, count: size_t) -> ssize_t;
 
+    pub fn recv(sockfd: c_int, buf: *mut c_void, count: size_t, flags: c_int) -> ssize_t;
+
+    pub fn send(sockfd: c_int, buf: *const c_void, count: size_t, flags: c_int) -> ssize_t;
+
     pub fn inet_addr(addr: *const i8) -> in_addr_t;
 }
 
+#[repr(C)]
+pub enum SendFlag {
+    MsgConfirm = 2048,
+    MsgDontroute = 4,
+    MsgDontwait = 64,
+    MsgEor = 128,
+    MsgMore = 32768,
+    MsgNosignal = 16384,
+    MsgOob = 1,
+}
+
+impl SendFlag {
+    pub fn to_int(&self) -> c_int {
+        use SendFlag::*;
+
+        match self {
+            MsgConfirm => 2048,
+            MsgDontroute => 4,
+            MsgDontwait => 64,
+            MsgEor => 128,
+            MsgMore => 32768,
+            MsgNosignal => 16384,
+            MsgOob => 1,
+        }
+    }
+
+    pub fn union(flags: &[Self]) -> c_int {
+        flags.into_iter().fold(0, |acc, f| acc | f.to_int())
+    }
+}
+
+#[repr(C)]
+pub enum RecvFlag {
+    MsgDontwait = 64,
+    MsgErrqueue = 8192,
+    MsgOob = 1,
+    MsgPeek = 2,
+    MsgTrunc = 32,
+    MsgWaitall = 256,
+}
+
+impl RecvFlag {
+    pub fn to_int(&self) -> c_int {
+        use RecvFlag::*;
+
+        match self {
+            MsgDontwait => 64,
+            MsgErrqueue => 8192,
+            MsgOob => 1,
+            MsgPeek => 2,
+            MsgTrunc => 32,
+            MsgWaitall => 256,
+        }
+    }
+
+    pub fn union(flags: &[Self]) -> c_int {
+        flags.into_iter().fold(0, |acc, f| acc | f.to_int())
+    }
+}
 type size_t = u64;
 type ssize_t = u64;
 

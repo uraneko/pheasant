@@ -62,12 +62,24 @@ fn main() {
 
     let mut req = [0u8; 512];
     unsafe {
+        use RecvFlag::*;
+
         println!(
             "read up to {} bytes",
-            read(
+            recv(
                 clisockfd,
                 &mut req as *mut [u8] as *mut c_void,
-                req.len() as u64
+                10,
+                RecvFlag::union(&[MsgErrqueue, MsgDontwait])
+            )
+        );
+        println!(
+            "read up to {} bytes",
+            recv(
+                clisockfd,
+                &mut req as *mut [u8] as *mut c_void,
+                req.len() as u64,
+                0
             )
         );
     }
@@ -77,10 +89,11 @@ fn main() {
     unsafe {
         println!(
             "wrote up to {} bytes",
-            write(
+            send(
                 clisockfd,
                 resp as *const [u8] as *const c_void,
-                resp.len() as u64
+                resp.len() as u64,
+                0
             )
         );
     }
