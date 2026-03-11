@@ -2,14 +2,41 @@ use core::ffi::c_void;
 use pheasant_sys::*;
 
 fn main() {
-    let sockfd = AcquireSockFd::new(AddressFamily::PfInet, SocketType::SockStream, 0).acquire();
+    let sockfd = AcquireSockFd::new(
+        AddressFamily::PfInet,
+        SocketType::SockStream,
+        ProtocolNumber::Tcp,
+    )
+    .acquire();
     println!("socketfd -> {}", sockfd);
 
-    let buf_size: i32 = 2048;
+    // NOTE this number would be doubled on success
+    // i.e., your actual buf size would be buf_size * 2
+    // WARN if buf_size < 2304 setsockopt would force buf_size = 2304;
+    // -> which would make you actual buf size 4608 bytes
+    let buf_size: i32 = 2306;
     let ptr = &buf_size as *const i32 as *const c_void;
     unsafe {
         println!("{:?} -> {}", ptr, *(ptr as *const i32));
     }
+
+    let mut val = 0i32;
+    let mut size = core::mem::size_of_val(&buf_size);
+    unsafe {
+        println!(
+            "err {} {{ {} }}",
+            getsockopt(
+                sockfd,
+                1,
+                SocketOption::SO_SNDBUF.as_int(),
+                &mut val as *mut i32 as *mut c_void,
+                &mut size as *mut usize as *mut u32
+            ),
+            errno::errno()
+        );
+    }
+    println!("buf size is {}", val);
+
     unsafe {
         println!(
             "err {} {{ {} }}",
@@ -18,7 +45,7 @@ fn main() {
                 1,
                 SocketOption::SO_SNDBUF.as_int(),
                 ptr,
-                core::mem::size_of_val(&buf_size) as u32
+                core::mem::size_of_val(&ptr) as u32
             ),
             errno::errno()
         );
@@ -35,6 +62,23 @@ fn main() {
             errno::errno()
         );
     }
+
+    let mut val = 0i32;
+    let mut size = core::mem::size_of_val(&buf_size);
+    unsafe {
+        println!(
+            "err {} {{ {} }}",
+            getsockopt(
+                sockfd,
+                1,
+                SocketOption::SO_SNDBUF.as_int(),
+                &mut val as *mut i32 as *mut c_void,
+                &mut size as *mut usize as *mut u32
+            ),
+            errno::errno()
+        );
+    }
+    println!("buf size is {}", val);
 
     let sa_in = SockAddrIn::new(AddressFamily::PfInet, c"127.0.10.1", u16::from_be(9988));
     println!(

@@ -779,6 +779,9 @@ dependencies = [
 [[package]]
 name = "pheasant_socket"
 version = "0.1.0"
+dependencies = [
+ "pheasant_sys",
+]
 
 [[package]]
 name = "pheasant_sys"

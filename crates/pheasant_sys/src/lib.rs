@@ -6,10 +6,6 @@
 //! #include <netinet/in.h>
 //! #include <arpa/inet.h>
 
-// TODO the c bindings and definitions should go into a new crate pheasant_sys
-// while the externally exposable rust safe socket api should go into a new pheasant_socket
-// also rename pheasant_http to pheasant_prologue
-
 use core::ffi::{CStr, c_int, c_uint, c_void};
 pub mod sockaddr;
 pub use sockaddr::{InAddr, SockAddr, SockAddrIn, in_addr_t};
@@ -32,6 +28,14 @@ unsafe extern "C" {
         option_name: c_int,
         option_value: *const c_void,
         option_len: socklen_t,
+    ) -> c_int;
+
+    pub fn getsockopt(
+        sockfd: c_int,
+        level: c_int,
+        name: c_int,
+        value: *mut c_void,
+        len: *mut socklen_t,
     ) -> c_int;
 
     pub fn read(sockfd: c_int, buf: *mut c_void, count: size_t) -> ssize_t;
@@ -107,39 +111,39 @@ impl RecvFlag {
 type size_t = u64;
 type ssize_t = u64;
 
-#[repr(C)]
-pub enum SocketLevel {
-    SolSocket = 0,
-    IprotoTcp = 6,
-}
+// #[repr(C)]
+// pub enum SocketLevel {
+//     SolSocket = 0,
+//     IprotoTcp = 6,
+// }
 
-impl SocketLevel {
-    pub fn as_int(&self) -> c_int {
-        use SocketLevel::*;
-        match self {
-            IPPROTO_IP => 0,
-            IPPROTO_ICMP => 1,
-            IPPROTO_IGMP => 2,
-            IPPROTO_IPIP => 4,
-            IPPROTO_TCP => 6,
-            IPPROTO_EGP => 8,
-            IPPROTO_PUP => 12,
-            IPPROTO_UDP => 17,
-            IPPROTO_IDP => 22,
-            IPPROTO_TP => 29,
-            IPPROTO_DCCP => 33,
-            IPPROTO_IPV6 => 41,
-            IPPROTO_RSVP => 46,
-            IPPROTO_GRE => 47,
-            IPPROTO_ESP => 50,
-            IPPROTO_AH => 51,
-            IPPROTO_MTP => 92,
-            IPPROTO_BEETPH => 94,
-            IPPROTO_ENCAP => 98,
-            IPPROTO_PIM => 103,
-        }
-    }
-}
+// impl SocketLevel {
+//     pub fn as_int(&self) -> c_int {
+//         use SocketLevel::*;
+//         match self {
+//             IPPROTO_IP => 0,
+//             IPPROTO_ICMP => 1,
+//             IPPROTO_IGMP => 2,
+//             IPPROTO_IPIP => 4,
+//             IPPROTO_TCP => 6,
+//             IPPROTO_EGP => 8,
+//             IPPROTO_PUP => 12,
+//             IPPROTO_UDP => 17,
+//             IPPROTO_IDP => 22,
+//             IPPROTO_TP => 29,
+//             IPPROTO_DCCP => 33,
+//             IPPROTO_IPV6 => 41,
+//             IPPROTO_RSVP => 46,
+//             IPPROTO_GRE => 47,
+//             IPPROTO_ESP => 50,
+//             IPPROTO_AH => 51,
+//             IPPROTO_MTP => 92,
+//             IPPROTO_BEETPH => 94,
+//             IPPROTO_ENCAP => 98,
+//             IPPROTO_PIM => 103,
+//         }
+//     }
+// }
 
 #[repr(C)]
 pub enum SocketOption {
@@ -204,6 +208,10 @@ impl From<c_int> for ProtocolNumber {
     fn from(int: c_int) -> Self {
         if int == 0 {
             return Default::default();
+        } else if int == 1 {
+            return Self::Icmp;
+        } else if int == 6 {
+            return Self::Tcp;
         }
 
         panic!("this should be a TryInto impl");
@@ -307,6 +315,7 @@ impl SocketType {
 pub enum ProtocolNumber {
     #[default]
     SocketTypeDefault,
+    Icmp,
     Ipv4,
     Ipv6,
     Tcp,
@@ -322,6 +331,7 @@ impl ProtocolNumber {
             Self::Ipv6 => 41,
             Self::Tcp => 6,
             Self::Udp => 17,
+            Self::Icmp => 1,
             Self::Else(num) => *num,
         }
     }
