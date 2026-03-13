@@ -1,5 +1,4 @@
-use crate::Error;
-use crate::{AddressFamily, inet_addr};
+use crate::AddressFamily;
 
 // in addr
 #[allow(non_camel_case_types)]
@@ -149,3 +148,8 @@ impl core::str::FromStr for SockAddrIn {
         })
     }
 }
+
+impl crate::socket::SockAddrCasting for SockAddrIn {
+    const ADDRESS_FAMILY: crate::AddressFamily = Self::AF;
+}
+impl crate::socket::TrueSockAddr for SockAddrIn {}

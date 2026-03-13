@@ -1,6 +1,6 @@
 pub mod inet;
 // pub mod inet6;
-// pub mod unix;
+pub mod unix;
 
 pub use inet::{InAddr, SockAddrIn};
 /// c_uint repr of an address family
@@ -21,12 +21,12 @@ pub struct SockAddr {
 
 impl SockAddr {
     pub const SIZE: u32 = core::mem::size_of::<Self>() as u32;
-    pub fn new(sa_family: u16, data: &str) -> Self {
-        Self {
-            sa_family,
-            sa_data: data.as_bytes().try_into().unwrap(),
-        }
-    }
+    // pub fn new(sa_family: u16, data: &str) -> Self {
+    //     Self {
+    //         sa_family,
+    //         sa_data: data.as_bytes().try_into().unwrap(),
+    //     }
+    // }
 }
 
 // handles both ipv4 and 6
