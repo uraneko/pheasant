@@ -6,6 +6,3 @@ edition = "2024"
 [[example]]
 name = "socket"
 path = "examples/socket.rs"
-
-[dev-dependencies]
-errno = "0.3.14"

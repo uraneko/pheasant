@@ -25,9 +25,9 @@ unsafe extern "C" {
     pub fn setsockopt(
         sockfd: c_int,
         level: c_int,
-        option_name: c_int,
-        option_value: *const c_void,
-        option_len: socklen_t,
+        name: c_int,
+        value: *const c_void,
+        len: socklen_t,
     ) -> c_int;
 
     pub fn getsockopt(
@@ -111,76 +111,84 @@ impl RecvFlag {
 type size_t = u64;
 type ssize_t = u64;
 
-// #[repr(C)]
-// pub enum SocketLevel {
-//     SolSocket = 0,
-//     IprotoTcp = 6,
-// }
+#[repr(C)]
+pub enum SocketLevel {
+    // this sets/gets the option for the socket level itself not a deeper protocol
+    // whatever that means
+    Socket = 1,
+    Ip = 0,
+    Ipv6 = 41,
+    Icmpv6 = 58,
+    Raw = 255,
+}
 
-// impl SocketLevel {
-//     pub fn as_int(&self) -> c_int {
-//         use SocketLevel::*;
-//         match self {
-//             IPPROTO_IP => 0,
-//             IPPROTO_ICMP => 1,
-//             IPPROTO_IGMP => 2,
-//             IPPROTO_IPIP => 4,
-//             IPPROTO_TCP => 6,
-//             IPPROTO_EGP => 8,
-//             IPPROTO_PUP => 12,
-//             IPPROTO_UDP => 17,
-//             IPPROTO_IDP => 22,
-//             IPPROTO_TP => 29,
-//             IPPROTO_DCCP => 33,
-//             IPPROTO_IPV6 => 41,
-//             IPPROTO_RSVP => 46,
-//             IPPROTO_GRE => 47,
-//             IPPROTO_ESP => 50,
-//             IPPROTO_AH => 51,
-//             IPPROTO_MTP => 92,
-//             IPPROTO_BEETPH => 94,
-//             IPPROTO_ENCAP => 98,
-//             IPPROTO_PIM => 103,
-//         }
-//     }
-// }
+impl SocketLevel {
+    pub fn into_int(&self) -> c_int {
+        use SocketLevel::*;
+
+        match self {
+            Ip => 0,
+            Socket => 1,
+            Ipv6 => 41,
+            Icmpv6 => 58,
+            Raw => 255,
+        }
+    }
+}
 
 #[repr(C)]
+// these are all SOL_SOCKET level options
+// different levels have different options
 pub enum SocketOption {
-    SO_DEBUG = 1,
-    SO_BROADCAST = 6,
-    SO_REUSEADDR = 2,
-    SO_REUSEPORT = 15,
-    SO_KEEPALIVE = 9,
-    SO_LINGER = 13,
-    SO_OOBINLINE = 10,
-    SO_SNDBUF = 7,
-    SO_RCVBUF = 8,
-    SO_DONTROUTE = 5,
-    SO_RCVLOWAT = 18,
-    SO_RCVTIMEO = 66,
-    SO_SNDLOWAT = 19,
-    SO_SNDTIMEO = 67,
+    // SO_DEBUG
+    Debug = 1,
+    // SO_REUSEADDR
+    ReuseAddr = 2,
+    // SO_TYPE
+    Type = 3,
+    // SO_ERROR
+    Error = 4,
+    // SO_DONTROUTE
+    DontRoute = 5,
+    Broadcast = 6,
+    SndBuf = 7,
+    RcvBuf = 8,
+    KeepAlive = 9,
+    OOBInline = 10,
+    Linger = 13,
+    ReusePort = 15,
+    RcvLowAT = 18,
+    SndLowAT = 19,
+    AcceptConn = 30,
+    Protocol = 38,
+    // SO_RCVTIMEO
+    RcvTimeOut = 66,
+    // SO_SNDTIMEO
+    SndTimeOut = 67,
 }
 
 impl SocketOption {
-    pub fn as_int(&self) -> c_int {
+    pub fn into_int(&self) -> c_int {
         use SocketOption::*;
         match self {
-            SO_DEBUG => 1,
-            SO_BROADCAST => 6,
-            SO_REUSEADDR => 2,
-            SO_REUSEPORT => 15,
-            SO_KEEPALIVE => 9,
-            SO_LINGER => 13,
-            SO_OOBINLINE => 10,
-            SO_SNDBUF => 7,
-            SO_RCVBUF => 8,
-            SO_DONTROUTE => 5,
-            SO_RCVLOWAT => 18,
-            SO_RCVTIMEO => 66,
-            SO_SNDLOWAT => 19,
-            SO_SNDTIMEO => 67,
+            Debug => 1,
+            ReuseAddr => 2,
+            Type => 3,
+            Error => 4,
+            DontRoute => 5,
+            Broadcast => 6,
+            SndBuf => 7,
+            RcvBuf => 8,
+            KeepAlive => 9,
+            OOBInline => 10,
+            Linger => 13,
+            ReusePort => 15,
+            RcvLowAT => 18,
+            SndLowAT => 19,
+            AcceptConn => 30,
+            Protocol => 38,
+            RcvTimeOut => 66,
+            SndTimeOut => 67,
         }
     }
 }
@@ -193,9 +201,9 @@ unsafe extern "C" {
 
     pub fn strerror();
 
-    pub fn ioctl();
+    pub fn fcntl(fd: c_int, cmd: c_int) -> c_int;
 
-    pub fn fcntl();
+    pub fn ioctl(d: c_int, request: c_int, ...) -> c_int;
 }
 
 pub struct AcquireSockFd {
@@ -204,39 +212,24 @@ pub struct AcquireSockFd {
     proto: ProtocolNumber,
 }
 
-impl From<c_int> for ProtocolNumber {
-    fn from(int: c_int) -> Self {
-        if int == 0 {
-            return Default::default();
-        } else if int == 1 {
-            return Self::Icmp;
-        } else if int == 6 {
-            return Self::Tcp;
-        }
-
-        panic!("this should be a TryInto impl");
-    }
-}
-
 impl AcquireSockFd {
-    pub fn new(
-        domain: ProtocolFamily,
-        type_: SocketType,
-        proto: impl Into<ProtocolNumber>,
-    ) -> Self {
+    pub fn new<T>(domain: ProtocolFamily, type_: SocketType, proto: T) -> Self
+    where
+        T: TryInto<ProtocolNumber, Error: core::fmt::Debug>,
+    {
         Self {
             domain,
             type_,
-            proto: proto.into(),
+            proto: proto.try_into().unwrap(),
         }
     }
 
     pub fn acquire(self) -> c_int {
         unsafe {
             socket(
-                self.domain.as_int(),
-                self.type_.as_int(),
-                self.proto.as_int(),
+                self.domain.into_int(),
+                self.type_.into_int(),
+                self.proto.into_int(),
             )
         }
     }
@@ -245,45 +238,51 @@ impl AcquireSockFd {
 // values gotten from /usr/include/bits/socket.h
 // under /* Protocol families.  */ definitions
 // AF_* definitions are just aliases for the PF_* definitions there
+// DOCS using Af* syntax instead of Pf since 'https://linux.die.net/man/2/socket' claims:
+// However, already the BSD man page promises:
+// "The protocol family generally is the same as the address family",
+// and subsequent standards use AF_* everywhere.
+#[derive(Debug, Clone, Copy)]
 pub enum ProtocolFamily {
     // for local communications
-    PfUnix, // aka AF_LOCAL
+    AfUnix, // aka AF_LOCAL
     // for ipv4
-    PfInet,
+    AfInet,
     // for ipv6
-    PfInet6,
-    PfIpx,
-    PfNetlinK,
-    PfX25,
-    PfAx25,
-    PfAtmpvc,
-    PfAppletalk,
-    PfPacket,
+    AfInet6,
+    AfIpx,
+    AfNetlinK,
+    AfX25,
+    AfAx25,
+    AfAtmpvc,
+    AfAppletalk,
+    AfPacket,
 }
 
 pub type AddressFamily = ProtocolFamily;
 
 impl ProtocolFamily {
-    pub fn as_int(&self) -> c_int {
+    pub fn into_int(&self) -> c_int {
         use ProtocolFamily::*;
 
         match self {
-            PfUnix => 1,
-            PfInet => 2,
-            PfInet6 => 10,
-            PfIpx => 4,
-            PfNetlinK => 16,
-            PfX25 => 9,
-            PfAx25 => 3,
-            PfAtmpvc => 8,
-            PfAppletalk => 5,
-            PfPacket => 17,
+            AfUnix => 1,
+            AfInet => 2,
+            AfInet6 => 10,
+            AfIpx => 4,
+            AfNetlinK => 16,
+            AfX25 => 9,
+            AfAx25 => 3,
+            AfAtmpvc => 8,
+            AfAppletalk => 5,
+            AfPacket => 17,
         }
     }
 }
 
 // values retrieved from bits/socket_type.h
 // under section /* Types of sockets.  */
+#[derive(Debug, Clone, Copy)]
 pub enum SocketType {
     // use this to open a tcp socket
     SockStream,
@@ -293,11 +292,29 @@ pub enum SocketType {
     // use this for direct access to the underlying ip protocol
     SockRaw,
     SockRdm,
-    SockPacket,
+}
+// sock type conv fail
+#[derive(Debug)]
+pub enum ConversionError {
+    BadInt(i32),
+}
+
+impl TryFrom<i32> for SocketType {
+    type Error = ConversionError;
+    fn try_from(int: i32) -> Result<Self, Self::Error> {
+        Ok(match int {
+            1 => Self::SockStream,
+            2 => Self::SockDgram,
+            3 => Self::SockRaw,
+            4 => Self::SockRdm,
+            5 => Self::SockSeqPacket,
+            int => return Err(ConversionError::BadInt(int)),
+        })
+    }
 }
 
 impl SocketType {
-    pub fn as_int(&self) -> c_int {
+    pub fn into_int(&self) -> c_int {
         use SocketType::*;
 
         match self {
@@ -306,12 +323,11 @@ impl SocketType {
             SockRaw => 3,
             SockRdm => 4,
             SockSeqPacket => 5,
-            SockPacket => 10,
         }
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum ProtocolNumber {
     #[default]
     SocketTypeDefault,
@@ -324,7 +340,7 @@ pub enum ProtocolNumber {
 }
 
 impl ProtocolNumber {
-    pub fn as_int(&self) -> c_int {
+    pub fn into_int(&self) -> c_int {
         match self {
             Self::SocketTypeDefault => 0,
             Self::Ipv4 => 4,
@@ -334,6 +350,21 @@ impl ProtocolNumber {
             Self::Icmp => 1,
             Self::Else(num) => *num,
         }
+    }
+}
+
+impl TryFrom<i32> for ProtocolNumber {
+    type Error = ConversionError;
+    fn try_from(int: i32) -> Result<Self, Self::Error> {
+        Ok(match int {
+            0 => Self::SocketTypeDefault,
+            4 => Self::Ipv4,
+            41 => Self::Ipv6,
+            6 => Self::Tcp,
+            17 => Self::Udp,
+            1 => Self::Icmp,
+            int => return Err(ConversionError::BadInt(int)),
+        })
     }
 }
 
@@ -413,5 +444,22 @@ impl ListenOnSocket {
 
     pub fn listen(self) -> c_int {
         unsafe { listen(self.sockfd, self.backlog) }
+    }
+}
+
+#[repr(C)]
+pub struct linger {
+    // bool active or not
+    l_onoff: i32,
+    // in seconds
+    l_linger: i32,
+}
+
+impl linger {
+    pub fn new(active: bool, duration: i32) -> Self {
+        Self {
+            l_onoff: if active { 1 } else { 0 },
+            l_linger: duration,
+        }
     }
 }

@@ -73,7 +73,7 @@ impl SockAddrIn {
 
     pub fn new(af: AddressFamily, addr: impl Into<InAddr>, sin_port: in_port_t) -> Self {
         Self {
-            sin_family: af.as_int() as u16,
+            sin_family: af.into_int() as u16,
             sin_addr: addr.into(),
             sin_port,
             padding: [0; 8],

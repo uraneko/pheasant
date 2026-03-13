@@ -2,13 +2,9 @@ use core::ffi::c_void;
 use pheasant_sys::*;
 
 fn main() {
-    let sockfd = AcquireSockFd::new(
-        AddressFamily::PfInet,
-        SocketType::SockStream,
-        ProtocolNumber::Tcp,
-    )
-    .acquire();
+    let sockfd = AcquireSockFd::new(AddressFamily::AfInet, SocketType::SockStream, 0).acquire();
     println!("socketfd -> {}", sockfd);
+    println!("{}", std::io::Error::last_os_error());
 
     // NOTE this number would be doubled on success
     // i.e., your actual buf size would be buf_size * 2
@@ -27,12 +23,12 @@ fn main() {
             "err {} {{ {} }}",
             getsockopt(
                 sockfd,
-                1,
-                SocketOption::SO_SNDBUF.as_int(),
+                0,
+                SocketOption::SndBuf.into_int(),
                 &mut val as *mut i32 as *mut c_void,
                 &mut size as *mut usize as *mut u32
             ),
-            errno::errno()
+            std::io::Error::last_os_error()
         );
     }
     println!("buf size is {}", val);
@@ -42,24 +38,24 @@ fn main() {
             "err {} {{ {} }}",
             setsockopt(
                 sockfd,
-                1,
-                SocketOption::SO_SNDBUF.as_int(),
+                0,
+                SocketOption::SndBuf.into_int(),
                 ptr,
                 core::mem::size_of_val(&ptr) as u32
             ),
-            errno::errno()
+            std::io::Error::last_os_error()
         );
 
         println!(
             "err {} {{ {} }}",
             setsockopt(
                 sockfd,
-                1,
-                SocketOption::SO_REUSEADDR.as_int(),
+                0,
+                SocketOption::ReuseAddr.into_int(),
                 &1 as *const i32 as *const c_void,
                 core::mem::size_of_val(&buf_size) as u32
             ),
-            errno::errno()
+            std::io::Error::last_os_error()
         );
     }
 
@@ -71,27 +67,59 @@ fn main() {
             getsockopt(
                 sockfd,
                 1,
-                SocketOption::SO_SNDBUF.as_int(),
+                SocketOption::SndBuf.into_int(),
                 &mut val as *mut i32 as *mut c_void,
                 &mut size as *mut usize as *mut u32
             ),
-            errno::errno()
+            std::io::Error::last_os_error()
         );
     }
     println!("buf size is {}", val);
 
-    let sa_in = SockAddrIn::new(AddressFamily::PfInet, c"127.0.10.1", u16::from_be(9988));
+    let sa_in = SockAddrIn::new(AddressFamily::AfInet, c"127.0.10.1", u16::from_be(9988));
     println!(
         "err {} {{ {} }}",
         BindSocketToAddr::new(sockfd, sa_in).bind(),
-        errno::errno()
+        std::io::Error::last_os_error()
     );
+    let mut listening = 0;
+    unsafe {
+        println!(
+            "err {} {{ {} }} \\ are we listening -> {}",
+            getsockopt(
+                sockfd,
+                0,
+                SocketOption::AcceptConn.into_int(),
+                &mut listening as *mut i32 as *mut c_void,
+                &mut size as *mut usize as *mut u32
+            ),
+            std::io::Error::last_os_error(),
+            if listening == 0 { false } else { true }
+        );
+    }
+
     println!(
-        "err {} {{ {} }}",
+        ">>>> err {} {{ {} }}",
         ListenOnSocket::new(sockfd, 5).listen(),
-        errno::errno()
+        std::io::Error::last_os_error()
     );
-    let mut sa_in = SockAddrIn::new(AddressFamily::PfInet, c"0.0.0.0", u16::from_be(0));
+    let mut listening = 0;
+    unsafe {
+        println!(
+            "err {} {{ {} }} \\ are we listening -> {}",
+            getsockopt(
+                sockfd,
+                0,
+                SocketOption::AcceptConn.into_int(),
+                &mut listening as *mut i32 as *mut c_void,
+                &mut size as *mut usize as *mut u32
+            ),
+            std::io::Error::last_os_error(),
+            if listening == 0 { false } else { true }
+        );
+    }
+
+    let mut sa_in = SockAddrIn::new(AddressFamily::AfInet, c"0.0.0.0", u16::from_be(0));
     let mut len = SockAddrIn::SIZE;
     println!("\x1b[1;34mhttp://127.0.10.1:9988\x1b[0m");
     let clisockfd = unsafe {
@@ -101,22 +129,27 @@ fn main() {
             &mut len as *mut u32,
         )
     };
-    println!("err {} {{ {} }}", clisockfd, errno::errno());
+    println!("peer-addr: {:?}", sa_in);
+    println!(
+        "err {} {{ {} }}",
+        clisockfd,
+        std::io::Error::last_os_error()
+    );
     println!("addr: {:?}\nlen: {}", sa_in, len);
 
-    let mut req = [0u8; 512];
+    let mut req = [0u8; 4096];
     unsafe {
-        use RecvFlag::*;
+        // use RecvFlag::*;
 
-        println!(
-            "read up to {} bytes",
-            recv(
-                clisockfd,
-                &mut req as *mut [u8] as *mut c_void,
-                10,
-                RecvFlag::union(&[MsgErrqueue, MsgDontwait])
-            )
-        );
+        // println!(
+        //     "read up to {} bytes",
+        //     recv(
+        //         clisockfd,
+        //         &mut req as *mut [u8] as *mut c_void,
+        //         10,
+        //         RecvFlag::union(&[MsgErrqueue, MsgDontwait])
+        //     )
+        // );
         println!(
             "read up to {} bytes",
             recv(
@@ -127,7 +160,7 @@ fn main() {
             )
         );
     }
-    println!("{:?}", str::from_utf8(&req));
+    println!("{:?}", &req[..1866]);
 
     let resp = b"HTTP/1.1 200 OK\ncontent-length: 32\ncontent-type: text/plain\n\ni now write to the client socket";
     unsafe {
