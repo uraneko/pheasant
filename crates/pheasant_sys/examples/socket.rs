@@ -38,7 +38,7 @@ fn main() {
             "err {} {{ {} }}",
             setsockopt(
                 sockfd,
-                0,
+                1,
                 SocketOption::SndBuf.into_int(),
                 ptr,
                 core::mem::size_of_val(&ptr) as u32
@@ -50,7 +50,7 @@ fn main() {
             "err {} {{ {} }}",
             setsockopt(
                 sockfd,
-                0,
+                1,
                 SocketOption::ReuseAddr.into_int(),
                 &1 as *const i32 as *const c_void,
                 core::mem::size_of_val(&buf_size) as u32
@@ -88,7 +88,7 @@ fn main() {
             "err {} {{ {} }} \\ are we listening -> {}",
             getsockopt(
                 sockfd,
-                0,
+                1,
                 SocketOption::AcceptConn.into_int(),
                 &mut listening as *mut i32 as *mut c_void,
                 &mut size as *mut usize as *mut u32
@@ -109,7 +109,7 @@ fn main() {
             "err {} {{ {} }} \\ are we listening -> {}",
             getsockopt(
                 sockfd,
-                0,
+                1,
                 SocketOption::AcceptConn.into_int(),
                 &mut listening as *mut i32 as *mut c_void,
                 &mut size as *mut usize as *mut u32
@@ -122,6 +122,13 @@ fn main() {
     let mut sa_in = SockAddrIn::new(AddressFamily::AfInet, c"0.0.0.0", u16::from_be(0));
     let mut len = SockAddrIn::SIZE;
     println!("\x1b[1;34mhttp://127.0.10.1:9988\x1b[0m");
+
+    // println!(
+    //     "err {} {{ {} }}",
+    //     unsafe { close(sockfd) },
+    //     std::io::Error::last_os_error()
+    // );
+
     let clisockfd = unsafe {
         accept(
             sockfd,
@@ -161,6 +168,11 @@ fn main() {
         );
     }
     println!("{:?}", &req[..1866]);
+    println!(
+        "err {} {{ {} }}",
+        unsafe { shutdown(sockfd, Shutdown::Write.into()) },
+        std::io::Error::last_os_error()
+    );
 
     let resp = b"HTTP/1.1 200 OK\ncontent-length: 32\ncontent-type: text/plain\n\ni now write to the client socket";
     unsafe {

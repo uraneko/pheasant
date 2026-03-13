@@ -15,9 +15,6 @@ type c_uint = u16;
 #[allow(non_camel_case_types)]
 type sa_family_t = c_uint;
 
-// WARN assuming i got the documentation write
-// this type should be a trait implemented by
-// the various socket address families structs
 #[repr(C)]
 #[derive(Debug)]
 pub struct SockAddr {

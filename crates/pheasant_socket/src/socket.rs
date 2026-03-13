@@ -1,7 +1,14 @@
+use super::Error;
 use core::ffi::c_void;
 use pheasant_sys::*;
 
 pub mod options;
+
+// this trait is a gate keeper
+// that makes sure fake sockaddr types: i.e., () (the unit type)
+// are allowed for initializing a new Socket instance without a real address
+// but have no knowledge of the real socket methods
+pub trait TrueSockAddr: SockAddrCasting {}
 
 pub trait SockAddrCasting: Copy {
     const SIZE: u32 = SockAddr::SIZE;
@@ -14,6 +21,10 @@ pub trait SockAddrCasting: Copy {
     fn cast_mut(&mut self) -> *mut SockAddr {
         self as *mut Self as *mut SockAddr
     }
+}
+
+impl SockAddrCasting for () {
+    const ADDRESS_FAMILY: AddressFamily = AddressFamily::AfInet;
 }
 
 pub trait VoidCasting {
@@ -33,29 +44,101 @@ pub trait VoidCasting {
 #[derive(Debug, Clone, Copy)]
 pub struct Socket<A: SockAddrCasting> {
     sockfd: u32,
+    is_bound: bool,
     address: A,
 }
 
-impl<A: SockAddrCasting> Socket<A> {
-    pub fn fd(&self) -> u32 {
-        self.sockfd
+impl Socket<()> {
+    pub fn new(
+        domain: AddressFamily,
+        type_: SocketType,
+        proto: ProtocolNumber,
+    ) -> Result<Self, Error> {
+        match unsafe { socket(domain.into(), type_.into(), proto.into()) } {
+            fd if fd >= 0 => Ok(Self {
+                sockfd: fd as u32,
+                address: (),
+                is_bound: false,
+            }),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
     }
 
-    pub fn new(fd: u32, addr: A) -> Self {
+    pub fn init<A: TrueSockAddr>(self, addr: A) -> Socket<A> {
+        Socket {
+            sockfd: self.sockfd,
+            address: addr,
+            is_bound: false,
+        }
+    }
+
+    // pub fn connect
+}
+
+impl<A: TrueSockAddr> Socket<A> {
+    /// returns true if this socket's address was changed
+    /// or false if it was not
+    ///
+    /// if self.is_bound || self.is_listening == Ok(true)
+    /// the operation is abandoned since the address is already bound or in a listening state
+    pub fn re_addr(&mut self, addr: A) -> bool {
+        if self.is_bound || self.is_listening() == Ok(true) {
+            return false;
+        }
+        self.address = addr;
+
+        true
+    }
+
+    /// returns a new socket instance from the address and fd
+    /// the user is responsible for assuring that fd is a proper open socket fd
+    pub fn from_params(fd: u32, addr: A, is_bound: bool) -> Self {
         Self {
             sockfd: fd,
             address: addr,
+            is_bound,
+        }
+    }
+
+    /// returns the socket address family set in/by the socket() call
+    pub fn address_family(&self) -> AddressFamily {
+        A::ADDRESS_FAMILY
+    }
+
+    /// returns true if the socket is in a listening state (listen was called)
+    /// else return false
+    ///
+    /// #### Error
+    /// throws if the getsockopt call fails with -1
+    pub fn is_listening(&self) -> Result<bool, Error> {
+        let mut listening = 0;
+        let mut size = listening.size_of();
+        match unsafe {
+            getsockopt(
+                self.fd() as i32,
+                SocketLevel::Socket.into_int(),
+                SocketOption::AcceptConn.into_int(),
+                listening.cast_mut(),
+                &mut size as *mut u32,
+            )
+        } {
+            0 => Ok(if listening == 0 { false } else { true }),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
         }
     }
 
     /// dont use this with client sockets
     /// only bind if you intend to to listen and accept
-    pub fn bind(&self) -> Result<(), Error> {
+    pub fn bind(&mut self) -> Result<(), Error> {
         match unsafe { bind(self.fd() as i32, self.address.cast_ref(), A::SIZE) } {
-            0 => Ok(()),
-            -1 => Err(Error::errno()),
+            0 => self.is_bound = true,
+            -1 => return Err(Error::errno()),
             err => unreachable!("unexpected error code {}", err),
         }
+
+        Ok(())
     }
 
     /// connect is for client sockets only
@@ -92,13 +175,75 @@ impl<A: SockAddrCasting> Socket<A> {
 
                 Err(Error::errno())
             }
-            fd if fd >= 0 => Ok(Socket::new(fd as u32, peer_addr)),
+            fd if fd >= 0 => Ok(Socket::from_params(fd as u32, peer_addr, true)),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    pub fn shutdown_read(&self) -> Result<(), Error> {
+        match unsafe { shutdown(self.fd() as i32, 0) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    pub fn shutdown_write(&self) -> Result<(), Error> {
+        match unsafe { shutdown(self.fd() as i32, 1) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    pub fn shutdown_readwrite(&self) -> Result<(), Error> {
+        match unsafe { shutdown(self.fd() as i32, 2) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    /// closes this socket's fd in the system
+    /// effectively rendering it useless
+    /// thats why this also consumes self
+    ///
+    /// on success: returns the address that was on self (may or may not have been bound)
+    pub fn close(self) -> Result<A, Error> {
+        match unsafe { close(self.fd() as i32) } {
+            0 => Ok(self.address),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    /// returns the last socket error if any
+    pub fn error(&self) -> Result<Option<Error>, Error> {
+        let mut err = 0;
+        let mut size = err.size_of();
+        match unsafe {
+            getsockopt(
+                self.fd() as i32,
+                SocketLevel::Socket.into_int(),
+                SocketOption::Error.into_int(),
+                err.cast_mut(),
+                &mut size as *mut u32,
+            )
+        } {
+            0 if err == 0 => Ok(None),
+            0 => Ok(Some(err.into())),
+            -1 => Err(Error::errno()),
             err => unreachable!("unexpected error code {}", err),
         }
     }
 }
 
 impl<A: SockAddrCasting> Socket<A> {
+    /// returns a copy of this socket fd
+    pub fn fd(&self) -> u32 {
+        self.sockfd
+    }
+
     /// returns the socket_type value used on the socket() call
     pub fn socket_type(&self) -> Result<SocketType, Error> {
         let mut socktype = 0i32;
@@ -136,188 +281,11 @@ impl<A: SockAddrCasting> Socket<A> {
             err => unreachable!("unexpected error code {}", err),
         }
     }
-
-    /// returns the socket address family set in/by the socket() call
-    pub fn address_family(&self) -> AddressFamily {
-        A::ADDRESS_FAMILY
-    }
-
-    /// returns true if the socket is in a listening state (listen was called)
-    /// else return false
-    ///
-    /// #### Error
-    /// throws if the getsockopt call fails with -1
-    pub fn is_listening(&self) -> Result<bool, Error> {
-        let mut listening = 0;
-        let mut size = listening.size_of();
-        match unsafe {
-            getsockopt(
-                self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::AcceptConn.into_int(),
-                listening.cast_mut(),
-                &mut size as *mut u32,
-            )
-        } {
-            0 => Ok(if listening == 0 { false } else { true }),
-            -1 => Err(Error::errno()),
-            err => unreachable!("unexpected error code {}", err),
-        }
-    }
-
-    /// returns the last socket error if any
-    pub fn error(&self) -> Result<Option<Error>, Error> {
-        let mut err = 0;
-        let mut size = err.size_of();
-        match unsafe {
-            getsockopt(
-                self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::Error.into_int(),
-                err.cast_mut(),
-                &mut size as *mut u32,
-            )
-        } {
-            0 if err == 0 => Ok(None),
-            0 => Ok(Some(err.into())),
-            -1 => Err(Error::errno()),
-            err => unreachable!("unexpected error code {}", err),
-        }
-    }
 }
+
+impl<A: TrueSockAddr> Socket<A> {}
 
 impl VoidCasting for u32 {}
 impl VoidCasting for i32 {}
 impl VoidCasting for bool {}
 impl VoidCasting for linger {}
-
-// sources
-// '/usr/include/asm-generic/errno.h'
-// '/usr/include/asm-generic/errno-base.h'
-#[derive(Debug)]
-#[repr(i32)]
-pub enum Error {
-    // EPERM
-    OperationNotPermitted = 1,
-    // ENOENT
-    FileOrDirDoesntExist = 2,
-    // EINTR
-    SysCalInterrupted = 4,
-    // EBADF
-    BadFileNumber = 9,
-    // EWOULDBLOCK / EAGAIN
-    // TryAgain = 11,
-    OperationWouldBlock = 11,
-    // ENOMEM
-    OutOfMemory = 12,
-    // EACCES
-    PermissionDenied = 13,
-    // EFAULT
-    BadAddress = 14,
-    // ENOTDIR
-    NotADir = 20,
-    // EINVAL
-    InvalidArgument = 22,
-    // ENFILE
-    FileTableOverflow = 23,
-    // EMFILE
-    TooManyOpenFiles = 24,
-    // EROFS
-    ReadOnlyFileSystem = 30,
-    // ENAMETOOLONG
-    FileNameTooLong = 36,
-    // ELOOP
-    TooManySymLinks = 40,
-    // EPROTO
-    ProtocolError = 71,
-    // ENOTSOCK
-    SocketOperationOnNonSocket = 88,
-    // EPROTONOSUPPORT
-    UnsupportedProtocol = 93,
-    // EOPNOTSUPP
-    OperationNotSupported = 95,
-    // EAFNOSUPPORT
-    AddressFamilyNotSupportedByProto = 97,
-    // EADDRINUSE
-    AddressInUse = 98,
-    // EADDRNOTAVAIL
-    CantAssignRequestedAddr = 99,
-    // ENETUNREACH
-    NetworkUnreachable = 101,
-    // ECONNABORTED
-    ConnectionAborted = 103,
-    // ENOBUFS
-    NoBufferSpaceAvailable = 105,
-    // EISCONN
-    TransportEndpointAlreadyConnected = 106,
-    // ENOTCONN
-    TransportEndpointNotConnected = 107,
-    // ETIMEDOUT
-    ConnectionTimedOut = 110,
-    // ECONNREFUSED
-    ConnectionRefused = 111,
-    // EALREADY
-    OperationAlreadyInProgress = 114,
-    // EINPROGRESS
-    OperationNowInProgress = 115,
-    Other(i32),
-}
-
-impl From<i32> for Error {
-    fn from(err: i32) -> Self {
-        match err {
-            1 => Self::OperationNotPermitted,
-            2 => Self::FileOrDirDoesntExist,
-            4 => Self::SysCalInterrupted,
-            9 => Self::BadFileNumber,
-            11 => Self::OperationWouldBlock,
-            12 => Self::OutOfMemory,
-            13 => Self::PermissionDenied,
-            14 => Self::BadAddress,
-            20 => Self::NotADir,
-            22 => Self::InvalidArgument,
-            23 => Self::FileTableOverflow,
-            24 => Self::TooManyOpenFiles,
-            30 => Self::ReadOnlyFileSystem,
-            36 => Self::FileNameTooLong,
-            40 => Self::TooManySymLinks,
-            71 => Self::ProtocolError,
-            88 => Self::SocketOperationOnNonSocket,
-            93 => Self::UnsupportedProtocol,
-            95 => Self::OperationNotSupported,
-            97 => Self::AddressFamilyNotSupportedByProto,
-            98 => Self::AddressInUse,
-            99 => Self::CantAssignRequestedAddr,
-            101 => Self::NetworkUnreachable,
-            103 => Self::ConnectionAborted,
-            105 => Self::NoBufferSpaceAvailable,
-            106 => Self::TransportEndpointAlreadyConnected,
-            107 => Self::TransportEndpointNotConnected,
-            110 => Self::ConnectionTimedOut,
-            111 => Self::ConnectionRefused,
-            114 => Self::OperationAlreadyInProgress,
-            115 => Self::OperationNowInProgress,
-            err => Self::Other(err),
-        }
-    }
-}
-
-impl From<Option<i32>> for Error {
-    fn from(opt: Option<i32>) -> Self {
-        let Some(err) = opt else {
-            return Self::Other(-1);
-        };
-
-        err.into()
-    }
-}
-
-extern crate std;
-impl Error {
-    fn errno() -> Self {
-        let err = std::io::Error::last_os_error()
-            .raw_os_error()
-            .unwrap_or_else(|| 0);
-        err.into()
-    }
-}

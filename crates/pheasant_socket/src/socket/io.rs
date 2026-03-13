@@ -1,9 +1,11 @@
 use pheasant_sys::*;
 
-pub struct Recv {}
+pub struct Recv<'a> {
+    buffer: &'a mut Vec<u8>,
+    options: u32,
+}
 
-pub struct Send {}
-
-pub struct Read {}
-
-pub struct Write {}
+pub struct Send<'a> {
+    buffer: &'a Vec<u8>,
+    options: u32,
+}

@@ -46,7 +46,35 @@ unsafe extern "C" {
 
     pub fn send(sockfd: c_int, buf: *const c_void, count: size_t, flags: c_int) -> ssize_t;
 
+    // WARN dont use
+    /// dont use this function
+    ///
+    /// use inet_aton() / inet_pton() instead
+    #[deprecated]
     pub fn inet_addr(addr: *const i8) -> in_addr_t;
+    // pub fn inet_aton();
+    // pub fn inet_pton();
+
+    //
+    pub fn shutdown(sockfd: c_int, how: c_int) -> c_int;
+
+    pub fn close(fd: c_int) -> c_int;
+}
+
+pub enum Shutdown {
+    Read = 0,
+    Write = 1,
+    ReadWrite = 2,
+}
+
+impl From<Shutdown> for i32 {
+    fn from(shd: Shutdown) -> Self {
+        match shd {
+            Shutdown::Read => 0,
+            Shutdown::Write => 1,
+            Shutdown::ReadWrite => 2,
+        }
+    }
 }
 
 #[repr(C)]
@@ -225,13 +253,7 @@ impl AcquireSockFd {
     }
 
     pub fn acquire(self) -> c_int {
-        unsafe {
-            socket(
-                self.domain.into_int(),
-                self.type_.into_int(),
-                self.proto.into_int(),
-            )
-        }
+        unsafe { socket(self.domain.into(), self.type_.into(), self.proto.into()) }
     }
 }
 
@@ -251,7 +273,7 @@ pub enum ProtocolFamily {
     // for ipv6
     AfInet6,
     AfIpx,
-    AfNetlinK,
+    AfNetLink,
     AfX25,
     AfAx25,
     AfAtmpvc,
@@ -261,25 +283,59 @@ pub enum ProtocolFamily {
 
 pub type AddressFamily = ProtocolFamily;
 
-impl ProtocolFamily {
-    pub fn into_int(&self) -> c_int {
-        use ProtocolFamily::*;
-
-        match self {
-            AfUnix => 1,
-            AfInet => 2,
-            AfInet6 => 10,
-            AfIpx => 4,
-            AfNetlinK => 16,
-            AfX25 => 9,
-            AfAx25 => 3,
-            AfAtmpvc => 8,
-            AfAppletalk => 5,
-            AfPacket => 17,
+impl From<ProtocolFamily> for i32 {
+    fn from(pf: ProtocolFamily) -> c_int {
+        // WARN dont do this anymore:
+        // ```
+        // use Enum::*;
+        // match self {
+        //     Variant1 => 1,
+        //     Variant2 => ....
+        // }
+        // ```
+        // any wrongly typed variant name would end the match as the compiler mistakes
+        // the mistyped name for a variable that catches the match value
+        match pf {
+            ProtocolFamily::AfUnix => 1,
+            ProtocolFamily::AfInet => 2,
+            ProtocolFamily::AfInet6 => 10,
+            ProtocolFamily::AfIpx => 4,
+            ProtocolFamily::AfNetLink => 16,
+            ProtocolFamily::AfX25 => 9,
+            ProtocolFamily::AfAx25 => 3,
+            ProtocolFamily::AfAtmpvc => 8,
+            ProtocolFamily::AfAppletalk => 5,
+            ProtocolFamily::AfPacket => 17,
         }
     }
 }
 
+impl From<ProtocolFamily> for u16 {
+    fn from(pf: ProtocolFamily) -> u16 {
+        // WARN dont do this anymore:
+        // ```
+        // use Enum::*;
+        // match self {
+        //     Variant1 => 1,
+        //     Variant2 => ....
+        // }
+        // ```
+        // any wrongly typed variant name would end the match as the compiler mistakes
+        // the mistyped name for a variable that catches the match value
+        match pf {
+            ProtocolFamily::AfUnix => 1,
+            ProtocolFamily::AfInet => 2,
+            ProtocolFamily::AfInet6 => 10,
+            ProtocolFamily::AfIpx => 4,
+            ProtocolFamily::AfNetLink => 16,
+            ProtocolFamily::AfX25 => 9,
+            ProtocolFamily::AfAx25 => 3,
+            ProtocolFamily::AfAtmpvc => 8,
+            ProtocolFamily::AfAppletalk => 5,
+            ProtocolFamily::AfPacket => 17,
+        }
+    }
+}
 // values retrieved from bits/socket_type.h
 // under section /* Types of sockets.  */
 #[derive(Debug, Clone, Copy)]
@@ -292,6 +348,9 @@ pub enum SocketType {
     // use this for direct access to the underlying ip protocol
     SockRaw,
     SockRdm,
+    // Deprecated
+    // use (afpacket, sock*, 0)
+    // SockPacket
 }
 // sock type conv fail
 #[derive(Debug)]
@@ -313,16 +372,14 @@ impl TryFrom<i32> for SocketType {
     }
 }
 
-impl SocketType {
-    pub fn into_int(&self) -> c_int {
-        use SocketType::*;
-
-        match self {
-            SockStream => 1,
-            SockDgram => 2,
-            SockRaw => 3,
-            SockRdm => 4,
-            SockSeqPacket => 5,
+impl From<SocketType> for i32 {
+    fn from(st: SocketType) -> c_int {
+        match st {
+            SocketType::SockStream => 1,
+            SocketType::SockDgram => 2,
+            SocketType::SockRaw => 3,
+            SocketType::SockRdm => 4,
+            SocketType::SockSeqPacket => 5,
         }
     }
 }
@@ -330,7 +387,7 @@ impl SocketType {
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ProtocolNumber {
     #[default]
-    SocketTypeDefault,
+    Default,
     Icmp,
     Ipv4,
     Ipv6,
@@ -339,16 +396,16 @@ pub enum ProtocolNumber {
     Else(c_int),
 }
 
-impl ProtocolNumber {
-    pub fn into_int(&self) -> c_int {
-        match self {
-            Self::SocketTypeDefault => 0,
-            Self::Ipv4 => 4,
-            Self::Ipv6 => 41,
-            Self::Tcp => 6,
-            Self::Udp => 17,
-            Self::Icmp => 1,
-            Self::Else(num) => *num,
+impl From<ProtocolNumber> for i32 {
+    fn from(pn: ProtocolNumber) -> c_int {
+        match pn {
+            ProtocolNumber::Default => 0,
+            ProtocolNumber::Ipv4 => 4,
+            ProtocolNumber::Ipv6 => 41,
+            ProtocolNumber::Tcp => 6,
+            ProtocolNumber::Udp => 17,
+            ProtocolNumber::Icmp => 1,
+            ProtocolNumber::Else(num) => num,
         }
     }
 }
@@ -357,7 +414,7 @@ impl TryFrom<i32> for ProtocolNumber {
     type Error = ConversionError;
     fn try_from(int: i32) -> Result<Self, Self::Error> {
         Ok(match int {
-            0 => Self::SocketTypeDefault,
+            0 => Self::Default,
             4 => Self::Ipv4,
             41 => Self::Ipv6,
             6 => Self::Tcp,
@@ -463,3 +520,5 @@ impl linger {
         }
     }
 }
+
+pub const INADDR_ANY: u32 = 0;
