@@ -42,9 +42,11 @@ unsafe extern "C" {
 
     pub fn write(sockfd: c_int, buf: *const c_void, count: size_t) -> ssize_t;
 
-    pub fn recv(sockfd: c_int, buf: *mut c_void, count: size_t, flags: c_int) -> ssize_t;
+    pub fn recv(sockfd: c_int, buf: *mut c_void, count: size_t, flags: c_int) -> i64;
 
-    pub fn send(sockfd: c_int, buf: *const c_void, count: size_t, flags: c_int) -> ssize_t;
+    // the return type is ssize_t
+    // i had thought ssize_t = u64 but on error this and recv return -1 and set errno
+    pub fn send(sockfd: c_int, buf: *const c_void, count: size_t, flags: c_int) -> i64;
 
     // WARN dont use
     /// dont use this function
@@ -266,19 +268,21 @@ impl AcquireSockFd {
 // and subsequent standards use AF_* everywhere.
 #[derive(Debug, Clone, Copy)]
 pub enum ProtocolFamily {
+    // for disconnecting, at least on linux for afinet
+    Unspec,
     // for local communications
-    AfUnix, // aka AF_LOCAL
+    Unix, // aka AF_LOCAL
     // for ipv4
-    AfInet,
+    Inet,
     // for ipv6
-    AfInet6,
-    AfIpx,
-    AfNetLink,
-    AfX25,
-    AfAx25,
-    AfAtmpvc,
-    AfAppletalk,
-    AfPacket,
+    Inet6,
+    Ipx,
+    NetLink,
+    X25,
+    Ax25,
+    Atmpvc,
+    Appletalk,
+    Packet,
 }
 
 pub type AddressFamily = ProtocolFamily;
@@ -296,16 +300,17 @@ impl From<ProtocolFamily> for i32 {
         // any wrongly typed variant name would end the match as the compiler mistakes
         // the mistyped name for a variable that catches the match value
         match pf {
-            ProtocolFamily::AfUnix => 1,
-            ProtocolFamily::AfInet => 2,
-            ProtocolFamily::AfInet6 => 10,
-            ProtocolFamily::AfIpx => 4,
-            ProtocolFamily::AfNetLink => 16,
-            ProtocolFamily::AfX25 => 9,
-            ProtocolFamily::AfAx25 => 3,
-            ProtocolFamily::AfAtmpvc => 8,
-            ProtocolFamily::AfAppletalk => 5,
-            ProtocolFamily::AfPacket => 17,
+            ProtocolFamily::Unspec => 0,
+            ProtocolFamily::Unix => 1,
+            ProtocolFamily::Inet => 2,
+            ProtocolFamily::Inet6 => 10,
+            ProtocolFamily::Ipx => 4,
+            ProtocolFamily::NetLink => 16,
+            ProtocolFamily::X25 => 9,
+            ProtocolFamily::Ax25 => 3,
+            ProtocolFamily::Atmpvc => 8,
+            ProtocolFamily::Appletalk => 5,
+            ProtocolFamily::Packet => 17,
         }
     }
 }
@@ -323,16 +328,17 @@ impl From<ProtocolFamily> for u16 {
         // any wrongly typed variant name would end the match as the compiler mistakes
         // the mistyped name for a variable that catches the match value
         match pf {
-            ProtocolFamily::AfUnix => 1,
-            ProtocolFamily::AfInet => 2,
-            ProtocolFamily::AfInet6 => 10,
-            ProtocolFamily::AfIpx => 4,
-            ProtocolFamily::AfNetLink => 16,
-            ProtocolFamily::AfX25 => 9,
-            ProtocolFamily::AfAx25 => 3,
-            ProtocolFamily::AfAtmpvc => 8,
-            ProtocolFamily::AfAppletalk => 5,
-            ProtocolFamily::AfPacket => 17,
+            ProtocolFamily::Unspec => 0,
+            ProtocolFamily::Unix => 1,
+            ProtocolFamily::Inet => 2,
+            ProtocolFamily::Inet6 => 10,
+            ProtocolFamily::Ipx => 4,
+            ProtocolFamily::NetLink => 16,
+            ProtocolFamily::X25 => 9,
+            ProtocolFamily::Ax25 => 3,
+            ProtocolFamily::Atmpvc => 8,
+            ProtocolFamily::Appletalk => 5,
+            ProtocolFamily::Packet => 17,
         }
     }
 }

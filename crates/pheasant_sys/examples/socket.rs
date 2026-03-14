@@ -2,7 +2,7 @@ use core::ffi::c_void;
 use pheasant_sys::*;
 
 fn main() {
-    let sockfd = AcquireSockFd::new(AddressFamily::AfInet, SocketType::SockStream, 0).acquire();
+    let sockfd = AcquireSockFd::new(AddressFamily::Inet, SocketType::SockStream, 0).acquire();
     println!("socketfd -> {}", sockfd);
     println!("{}", std::io::Error::last_os_error());
 
@@ -76,7 +76,7 @@ fn main() {
     }
     println!("buf size is {}", val);
 
-    let sa_in = SockAddrIn::new(AddressFamily::AfInet, c"127.0.10.1", u16::from_be(9988));
+    let sa_in = SockAddrIn::new(AddressFamily::Inet, c"127.0.10.1", u16::from_be(9988));
     println!(
         "err {} {{ {} }}",
         BindSocketToAddr::new(sockfd, sa_in).bind(),
@@ -119,7 +119,7 @@ fn main() {
         );
     }
 
-    let mut sa_in = SockAddrIn::new(AddressFamily::AfInet, c"0.0.0.0", u16::from_be(0));
+    let mut sa_in = SockAddrIn::new(AddressFamily::Inet, c"0.0.0.0", u16::from_be(0));
     let mut len = SockAddrIn::SIZE;
     println!("\x1b[1;34mhttp://127.0.10.1:9988\x1b[0m");
 

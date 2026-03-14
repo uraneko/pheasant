@@ -21,7 +21,7 @@ pub struct SockAddr {
     // use AddressFamily::ChoiceFamily.as_int() to populate this field
     // as it refers to a c_uint repr of the address family value
     sa_family: sa_family_t,
-    sa_data: [c_uchar; 14],
+    sa_data: [c_uchar; 108],
 }
 
 #[allow(non_camel_case_types)]
@@ -29,21 +29,6 @@ pub type uint32_t = u32;
 // alias of uint32_t
 #[allow(non_camel_case_types)]
 pub type in_addr_t = uint32_t;
-
-impl From<SockAddrIn> for SockAddr {
-    fn from(sa_in: SockAddrIn) -> SockAddr {
-        let [o0, o1, o2, o3] = sa_in.sin_addr.s_addr.to_be_bytes();
-        let data = std::format!("{}.{}.{}.{}:{}", o0, o1, o2, o3, sa_in.sin_port)
-            .into_bytes()
-            .try_into()
-            .unwrap();
-
-        Self {
-            sa_family: sa_in.sin_family,
-            sa_data: data,
-        }
-    }
-}
 
 impl SockAddr {
     pub const SIZE: u32 = core::mem::size_of::<Self>() as u32;
@@ -59,14 +44,4 @@ impl SockAddr {
 pub struct SockAddrStorage {
     // address family int repr
     ss_family: sa_family_t,
-}
-
-#[cfg(test)]
-mod sizes {
-    use super::{SockAddr, SockAddrIn};
-
-    #[test]
-    fn sockaddr_in() {
-        assert_eq!(SockAddr::SIZE, SockAddrIn::SIZE);
-    }
 }

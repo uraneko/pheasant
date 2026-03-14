@@ -4,11 +4,13 @@ use crate::AddressFamily;
 #[derive(Clone, Copy)]
 pub struct SockAddrUn {
     // AF_UNIX
-    sun_family: u16,
+    family: u16,
     // suffix with \0 for best interoperability
     // \0 being included in the 108  bytes
-    sun_path: [u8; 108],
+    path: [u8; 108],
+    padding: [u8; PADDING],
 }
+const PADDING: usize = super::SockAddr::SIZE as usize - 110;
 
 /// there are 3 different approaches to initializing a unix socket
 /// - pathname: using a path in the local fs
@@ -17,26 +19,29 @@ pub struct SockAddrUn {
 /// socket file in the local fs
 impl SockAddrUn {
     pub const SIZE: u32 = core::mem::size_of::<Self>() as u32;
-    pub const AF: AddressFamily = AddressFamily::AfUnix;
+    pub const AF: AddressFamily = AddressFamily::Unix;
 
     pub fn pathname_unchecked(arr: [u8; 108]) -> Self {
         Self {
-            sun_family: Self::AF.into(),
-            sun_path: arr,
+            family: Self::AF.into(),
+            path: arr,
+            padding: [0; _],
         }
     }
 
     pub fn abstract_unchecked(arr: [u8; 108]) -> Self {
         Self {
-            sun_family: Self::AF.into(),
-            sun_path: arr,
+            family: Self::AF.into(),
+            path: arr,
+            padding: [0; _],
         }
     }
 
     pub fn unnamed() -> Self {
         Self {
-            sun_family: Self::AF.into(),
-            sun_path: [0; _],
+            family: Self::AF.into(),
+            path: [0; _],
+            padding: [0; _],
         }
     }
 }
@@ -56,7 +61,8 @@ impl core::str::FromStr for SockAddrUn {
     type Err = ConversionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = s.as_bytes();
-        if bytes.len() > 108 {
+        let len = bytes.len();
+        if (len == 108 && bytes[107] != 0) || len > 108 {
             return Err(Self::Err::PathnameTooLong);
         }
 
@@ -82,3 +88,8 @@ fn slice_to_array(slice: &[u8]) -> [u8; 108] {
 
     arr
 }
+
+impl crate::socket::SockAddrCasting for SockAddrUn {
+    const ADDRESS_FAMILY: crate::AddressFamily = Self::AF;
+}
+impl crate::socket::TrueSockAddr for SockAddrUn {}

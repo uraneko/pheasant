@@ -1,22 +1,40 @@
 use crate::AddressFamily;
 
 // in addr
-#[allow(non_camel_case_types)]
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct InAddr {
-    pub s_addr: u32,
+    pub addr: u32,
 }
 
 impl InAddr {
+    pub fn new(o0: u8, o1: u8, o2: u8, o3: u8) -> Self {
+        Self {
+            addr: u32::from_be_bytes([o0, o1, o2, o3]),
+        }
+    }
+
     pub fn to_bytes(&self) -> [u8; 4] {
-        self.s_addr.to_le_bytes()
+        self.addr.to_ne_bytes()
+    }
+
+    pub fn any() -> Self {
+        Self { addr: 0 }
+    }
+
+    pub fn localhost() -> Self {
+        Self::new(127, 0, 0, 1)
+    }
+
+    // loopback range is last 8 bytes so 127.0.0.x are all loopback addresses
+    pub fn loopback(o: u8) -> Self {
+        Self::new(127, 0, 0, o)
     }
 }
 
 impl core::fmt::Debug for InAddr {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let a = self.s_addr.to_le_bytes();
+        let a = self.addr.to_ne_bytes();
 
         write!(f, "{}.{}.{}.{}", a[0], a[1], a[2], a[3])
     }
@@ -47,14 +65,6 @@ fn split_str_addr(s: &str) -> Result<[u8; 4], ConversionError> {
         .map_err(|_| ConversionError::StrParseFailed)?;
 
     Ok([b0, b1, b2, b3])
-}
-
-impl InAddr {
-    fn new(o0: u8, o1: u8, o2: u8, o3: u8) -> Self {
-        Self {
-            s_addr: u32::from_be_bytes([o0, o1, o2, o3]),
-        }
-    }
 }
 
 impl<'a> TryFrom<&'a str> for InAddr {
@@ -92,27 +102,35 @@ impl From<(u8, u8, u8, u8)> for InAddr {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct SockAddrIn {
-    pub sin_family: u16,
-    pub sin_port: u16,
-    pub sin_addr: InAddr,
-    // size_of SockAddrIn is 12 octets
-    // while size_of SockAddr is 20 octets
-    // this padding is needed for the pointer cast
-    // NOTE copied this from the libc crate
-    pub padding: [u8; 8],
+    pub family: u16,
+    pub port: u16,
+    pub addr: InAddr,
+    pub padding: [u8; PADDING],
+}
+pub const PADDING: usize = (super::SockAddr::SIZE as usize) - core::mem::size_of::<InAddr>() - 4;
+
+impl Default for SockAddrIn {
+    fn default() -> Self {
+        Self {
+            family: Self::AF.into(),
+            port: 0,
+            addr: InAddr::default(),
+            padding: [0u8; _],
+        }
+    }
 }
 
 impl SockAddrIn {
     pub const SIZE: u32 = core::mem::size_of::<SockAddrIn>() as u32;
-    pub const AF: AddressFamily = AddressFamily::AfInet;
+    pub const AF: AddressFamily = AddressFamily::Inet;
 
-    pub fn new(addr: impl Into<InAddr>, sin_port: u16) -> Self {
-        let sin_port = u16::from_be(sin_port);
+    pub fn new(addr: impl Into<InAddr>, port: u16) -> Self {
+        let port = u16::from_be(port);
         Self {
-            sin_family: Self::AF.into(),
-            sin_addr: addr.into(),
-            sin_port,
-            padding: [0; 8],
+            family: Self::AF.into(),
+            addr: addr.into(),
+            port,
+            padding: [0; _],
         }
     }
 }
@@ -132,19 +150,19 @@ impl core::str::FromStr for SockAddrIn {
         let Some(addr_str) = iter.next() else {
             return Err(Self::Err::InvalidStr);
         };
-        let sin_addr = addr_str.parse()?;
+        let addr = addr_str.parse()?;
 
         let Some(port_str) = iter.next() else {
             return Err(Self::Err::InvalidStr);
         };
-        let sin_port = port_str.parse().map_err(|_| Self::Err::StrParseFailed)?;
-        let sin_port = u16::from_be(sin_port);
+        let port = port_str.parse().map_err(|_| Self::Err::StrParseFailed)?;
+        let port = u16::from_be(port);
 
         Ok(Self {
-            sin_family: Self::AF.into(),
-            sin_addr,
-            sin_port,
-            padding: [0; 8],
+            family: Self::AF.into(),
+            addr,
+            port,
+            padding: [0; _],
         })
     }
 }

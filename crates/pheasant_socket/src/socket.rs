@@ -1,7 +1,9 @@
 use super::Error;
 use core::ffi::c_void;
+use heapless::Vec;
 use pheasant_sys::*;
 
+pub mod io;
 pub mod options;
 
 // this trait is a gate keeper
@@ -24,7 +26,7 @@ pub trait SockAddrCasting: Copy {
 }
 
 impl SockAddrCasting for () {
-    const ADDRESS_FAMILY: AddressFamily = AddressFamily::AfInet;
+    const ADDRESS_FAMILY: AddressFamily = AddressFamily::Inet;
 }
 
 pub trait VoidCasting {
@@ -73,7 +75,19 @@ impl Socket<()> {
         }
     }
 
-    // pub fn connect
+    /// connect is for client sockets only
+    ///
+    /// NOTE: explicitly calling bind before this method is discouraged
+    /// let the kernel bind for you
+    ///
+    /// addr is the server address that you want to connect to
+    pub fn connect<A: TrueSockAddr>(&self, addr: &A) -> Result<(), Error> {
+        match unsafe { connect(self.fd() as i32, addr.cast_ref(), A::SIZE) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
 }
 
 impl<A: TrueSockAddr> Socket<A> {
@@ -139,17 +153,6 @@ impl<A: TrueSockAddr> Socket<A> {
         }
 
         Ok(())
-    }
-
-    /// connect is for client sockets only
-    ///
-    /// NOTE: explicitly calling bind before this method is discouraged
-    pub fn connect(&self, addr: &A) -> Result<(), Error> {
-        match unsafe { connect(self.fd() as i32, addr.cast_ref(), A::SIZE) } {
-            0 => Ok(()),
-            -1 => Err(Error::errno()),
-            err => unreachable!("unexpected error code {}", err),
-        }
     }
 
     pub fn listen(&self, backlog: u32) -> Result<(), Error> {
@@ -236,6 +239,48 @@ impl<A: TrueSockAddr> Socket<A> {
             err => unreachable!("unexpected error code {}", err),
         }
     }
+
+    /// if you want write
+    /// just use this method: send with flags = 0
+    pub fn send<const SIZE: usize>(
+        &self,
+        buf: &[u8],
+        flags: impl Into<i32>,
+    ) -> Result<usize, Error> {
+        match unsafe {
+            send(
+                self.fd() as i32,
+                buf.cast_ref(),
+                buf.len() as u64,
+                flags.into(),
+            )
+        } {
+            n if n >= 0 => Ok(n as usize),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    /// if you want plain read
+    /// just use this method with flags = 0
+    pub fn recv<const SIZE: usize>(
+        &self,
+        buf: &mut [u8],
+        flags: impl Into<i32>,
+    ) -> Result<usize, Error> {
+        match unsafe {
+            recv(
+                self.fd() as i32,
+                buf.cast_mut(),
+                buf.len() as u64,
+                flags.into(),
+            )
+        } {
+            n if n >= 0 => Ok(n as usize),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
 }
 
 impl<A: SockAddrCasting> Socket<A> {
@@ -289,3 +334,13 @@ impl VoidCasting for u32 {}
 impl VoidCasting for i32 {}
 impl VoidCasting for bool {}
 impl VoidCasting for linger {}
+impl VoidCasting for [u8] {}
+impl<const N: usize> VoidCasting for Vec<u8, N> {
+    fn cast_ref(&self) -> *const c_void {
+        self.as_slice() as *const [u8] as *const c_void
+    }
+
+    fn cast_mut(&mut self) -> *mut c_void {
+        self.as_mut_slice() as *mut [u8] as *mut c_void
+    }
+}

@@ -1,4 +1,5 @@
 use super::*;
+/// these are for sol socket level
 
 #[derive(Debug, Clone, Copy)]
 pub struct SetSockOpts {
