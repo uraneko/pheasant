@@ -88,6 +88,60 @@ impl Socket<()> {
             err => unreachable!("unexpected error code {}", err),
         }
     }
+
+    /// if you want write
+    /// just use this method: send with flags = 0
+    ///
+    /// NOTE unlike with the server's send
+    /// here you dont need to provide a conn_fd socket fd value
+    /// as conn_fd here is self.sockfd
+    /// assuming that this client socket has successfully established a connection
+    /// with the listening socket
+    pub fn send<const SIZE: usize>(
+        &self,
+        buf: &[u8],
+        flags: impl Into<i32>,
+    ) -> Result<usize, Error> {
+        match unsafe {
+            send(
+                self.fd() as i32,
+                buf.cast_ref(),
+                buf.len() as u64,
+                flags.into(),
+            )
+        } {
+            n if n >= 0 => Ok(n as usize),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    /// if you want plain read
+    /// just use this method with flags = 0
+    ///
+    /// NOTE unlike with the server's recv
+    /// here you dont need to provide a conn_fd socket fd value
+    /// as conn_fd here is self.sockfd
+    /// assuming that this client socket has successfully established a connection
+    /// with the listening socket
+    pub fn recv<const SIZE: usize>(
+        &self,
+        buf: &mut [u8],
+        flags: impl Into<i32>,
+    ) -> Result<usize, Error> {
+        match unsafe {
+            recv(
+                self.fd() as i32,
+                buf.cast_mut(),
+                buf.len() as u64,
+                flags.into(),
+            )
+        } {
+            n if n >= 0 => Ok(n as usize),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
 }
 
 impl<A: TrueSockAddr> Socket<A> {
@@ -242,14 +296,18 @@ impl<A: TrueSockAddr> Socket<A> {
 
     /// if you want write
     /// just use this method: send with flags = 0
+    ///
+    /// if you ran a successful accept call
+    /// then conn_fd is the sockfd value of the accept return value socket
     pub fn send<const SIZE: usize>(
         &self,
+        conn_fd: u32,
         buf: &[u8],
         flags: impl Into<i32>,
     ) -> Result<usize, Error> {
         match unsafe {
             send(
-                self.fd() as i32,
+                conn_fd as i32,
                 buf.cast_ref(),
                 buf.len() as u64,
                 flags.into(),
@@ -263,14 +321,18 @@ impl<A: TrueSockAddr> Socket<A> {
 
     /// if you want plain read
     /// just use this method with flags = 0
+    ///
+    /// if you ran a successful accept call
+    /// then conn_fd is the sockfd value of the accept return value socket
     pub fn recv<const SIZE: usize>(
         &self,
+        conn_fd: u32,
         buf: &mut [u8],
         flags: impl Into<i32>,
     ) -> Result<usize, Error> {
         match unsafe {
             recv(
-                self.fd() as i32,
+                conn_fd as i32,
                 buf.cast_mut(),
                 buf.len() as u64,
                 flags.into(),

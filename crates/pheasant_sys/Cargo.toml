@@ -4,5 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [[example]]
-name = "socket"
-path = "examples/socket.rs"
+name = "scratch"
+
+[[example]]
+name = "server"
+
+[[example]]
+name = "client"
