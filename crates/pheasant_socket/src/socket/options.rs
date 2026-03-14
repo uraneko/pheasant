@@ -7,6 +7,10 @@ pub struct SetSockOpts {
 }
 
 impl SetSockOpts {
+    pub fn new(sockfd: u32) -> Self {
+        Self { sockfd }
+    }
+
     pub fn snd_buf_size(self, buf_size: i32) -> Result<Self, Error> {
         let ptr = buf_size.cast_ref();
         let len = buf_size.size_of();
@@ -117,6 +121,10 @@ pub struct GetSockOpts {
 }
 
 impl GetSockOpts {
+    pub fn new(sockfd: u32) -> Self {
+        Self { sockfd }
+    }
+
     pub fn snd_buf_size(self) -> Result<u32, Error> {
         let mut buf_size = 0;
         let mut size = buf_size.size_of();

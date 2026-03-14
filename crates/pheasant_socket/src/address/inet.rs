@@ -10,7 +10,7 @@ pub struct InAddr {
 impl InAddr {
     pub fn new(o0: u8, o1: u8, o2: u8, o3: u8) -> Self {
         Self {
-            addr: u32::from_be_bytes([o0, o1, o2, o3]),
+            addr: u32::from_be_bytes([o3, o2, o1, o0]),
         }
     }
 
@@ -46,25 +46,25 @@ pub enum ConversionError {
 }
 
 fn split_str_addr(s: &str) -> Result<[u8; 4], ConversionError> {
-    let mut iter = s.split(".").map(|b| b.parse());
-    let b0 = iter
+    let mut iter = s.split(".").map(|o| o.parse());
+    let o0 = iter
         .next()
         .ok_or_else(|| ConversionError::InvalidStr)?
         .map_err(|_| ConversionError::StrParseFailed)?;
-    let b1 = iter
+    let o1 = iter
         .next()
         .ok_or_else(|| ConversionError::InvalidStr)?
         .map_err(|_| ConversionError::StrParseFailed)?;
-    let b2 = iter
+    let o2 = iter
         .next()
         .ok_or_else(|| ConversionError::InvalidStr)?
         .map_err(|_| ConversionError::StrParseFailed)?;
-    let b3 = iter
+    let o3 = iter
         .next()
         .ok_or_else(|| ConversionError::InvalidStr)?
         .map_err(|_| ConversionError::StrParseFailed)?;
 
-    Ok([b0, b1, b2, b3])
+    Ok([o0, o1, o2, o3])
 }
 
 impl<'a> TryFrom<&'a str> for InAddr {
@@ -125,7 +125,7 @@ impl SockAddrIn {
     pub const AF: AddressFamily = AddressFamily::Inet;
 
     pub fn new(addr: impl Into<InAddr>, port: u16) -> Self {
-        let port = u16::from_be(port);
+        let port = port;
         Self {
             family: Self::AF.into(),
             addr: addr.into(),
@@ -156,7 +156,7 @@ impl core::str::FromStr for SockAddrIn {
             return Err(Self::Err::InvalidStr);
         };
         let port = port_str.parse().map_err(|_| Self::Err::StrParseFailed)?;
-        let port = u16::from_be(port);
+        let port = port;
 
         Ok(Self {
             family: Self::AF.into(),

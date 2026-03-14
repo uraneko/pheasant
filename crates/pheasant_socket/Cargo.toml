@@ -3,6 +3,12 @@ name = "pheasant_socket"
 version = "0.1.0"
 edition = "2024"
 
+[[example]]
+name = "server"
+
+[[example]]
+name = "client"
+
 [dependencies]
 heapless = "0.9.2"
 pheasant_sys = { path = "../pheasant_sys", version = "0.1.0" }

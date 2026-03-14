@@ -6,6 +6,9 @@ use pheasant_sys::*;
 pub mod io;
 pub mod options;
 
+pub use io::{recv::RecvFlags, send::SendFlags};
+pub use options::{GetSockOpts, SetSockOpts};
+
 // this trait is a gate keeper
 // that makes sure fake sockaddr types: i.e., () (the unit type)
 // are allowed for initializing a new Socket instance without a real address
@@ -52,10 +55,13 @@ pub struct Socket<A: SockAddrCasting> {
 
 impl Socket<()> {
     pub fn new(
-        domain: AddressFamily,
-        type_: SocketType,
-        proto: ProtocolNumber,
+        domain: impl Into<AddressFamily>,
+        type_: impl Into<SocketType>,
+        proto: impl Into<ProtocolNumber>,
     ) -> Result<Self, Error> {
+        let domain = domain.into();
+        let type_ = type_.into();
+        let proto = proto.into();
         match unsafe { socket(domain.into(), type_.into(), proto.into()) } {
             fd if fd >= 0 => Ok(Self {
                 sockfd: fd as u32,
@@ -97,11 +103,7 @@ impl Socket<()> {
     /// as conn_fd here is self.sockfd
     /// assuming that this client socket has successfully established a connection
     /// with the listening socket
-    pub fn send<const SIZE: usize>(
-        &self,
-        buf: &[u8],
-        flags: impl Into<i32>,
-    ) -> Result<usize, Error> {
+    pub fn send(&self, buf: &[u8], flags: impl Into<i32>) -> Result<usize, Error> {
         match unsafe {
             send(
                 self.fd() as i32,
@@ -124,11 +126,7 @@ impl Socket<()> {
     /// as conn_fd here is self.sockfd
     /// assuming that this client socket has successfully established a connection
     /// with the listening socket
-    pub fn recv<const SIZE: usize>(
-        &self,
-        buf: &mut [u8],
-        flags: impl Into<i32>,
-    ) -> Result<usize, Error> {
+    pub fn recv(&self, buf: &mut [u8], flags: impl Into<i32>) -> Result<usize, Error> {
         match unsafe {
             recv(
                 self.fd() as i32,
@@ -299,12 +297,7 @@ impl<A: TrueSockAddr> Socket<A> {
     ///
     /// if you ran a successful accept call
     /// then conn_fd is the sockfd value of the accept return value socket
-    pub fn send<const SIZE: usize>(
-        &self,
-        conn_fd: u32,
-        buf: &[u8],
-        flags: impl Into<i32>,
-    ) -> Result<usize, Error> {
+    pub fn send(&self, conn_fd: u32, buf: &[u8], flags: impl Into<i32>) -> Result<usize, Error> {
         match unsafe {
             send(
                 conn_fd as i32,
@@ -324,7 +317,7 @@ impl<A: TrueSockAddr> Socket<A> {
     ///
     /// if you ran a successful accept call
     /// then conn_fd is the sockfd value of the accept return value socket
-    pub fn recv<const SIZE: usize>(
+    pub fn recv(
         &self,
         conn_fd: u32,
         buf: &mut [u8],

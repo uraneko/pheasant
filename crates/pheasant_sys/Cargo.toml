@@ -2,12 +2,3 @@
 name = "pheasant_sys"
 version = "0.1.0"
 edition = "2024"
-
-[[example]]
-name = "scratch"
-
-[[example]]
-name = "server"
-
-[[example]]
-name = "client"

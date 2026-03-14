@@ -236,29 +236,6 @@ unsafe extern "C" {
     pub fn ioctl(d: c_int, request: c_int, ...) -> c_int;
 }
 
-pub struct AcquireSockFd {
-    domain: ProtocolFamily,
-    type_: SocketType,
-    proto: ProtocolNumber,
-}
-
-impl AcquireSockFd {
-    pub fn new<T>(domain: ProtocolFamily, type_: SocketType, proto: T) -> Self
-    where
-        T: TryInto<ProtocolNumber, Error: core::fmt::Debug>,
-    {
-        Self {
-            domain,
-            type_,
-            proto: proto.try_into().unwrap(),
-        }
-    }
-
-    pub fn acquire(self) -> c_int {
-        unsafe { socket(self.domain.into(), self.type_.into(), self.proto.into()) }
-    }
-}
-
 // values gotten from /usr/include/bits/socket.h
 // under /* Protocol families.  */ definitions
 // AF_* definitions are just aliases for the PF_* definitions there
@@ -428,85 +405,6 @@ impl TryFrom<i32> for ProtocolNumber {
             1 => Self::Icmp,
             int => return Err(ConversionError::BadInt(int)),
         })
-    }
-}
-
-// macro_rules! int_enum {
-//     ($enm: ident, $cty: ident, $($var: ident),+, $($int: expr),+) => {
-//         pub enum $enm {
-//             $($var)+,
-//         }
-//
-//         impl From<$enm> for $cty {
-//             fn from(enm: $enm) -> Self {
-//                 match enm {
-//                     $($var => $int),+
-//                 }
-//             }
-//         }
-//     };
-// }
-
-// A must be one of the sockaddr_* c types
-#[repr(C)]
-pub struct BindSocketToAddr<A> {
-    sockfd: c_int,
-    address: A,
-}
-
-impl<A: Into<SockAddrIn>> BindSocketToAddr<A> {
-    pub fn new(sockfd: c_int, address: A) -> Self {
-        Self { sockfd, address }
-    }
-
-    pub fn bind(self) -> c_int {
-        unsafe {
-            bind(
-                self.sockfd,
-                &self.address as *const A as *const SockAddr,
-                SockAddrIn::SIZE,
-            )
-        }
-    }
-}
-
-// A must be one of the sockaddr_* c types
-#[repr(C)]
-pub struct ConnectSocket<A> {
-    sockfd: c_int,
-    address: A,
-}
-
-impl<A: Into<SockAddrIn>> ConnectSocket<A> {
-    pub fn new(sockfd: c_int, address: A) -> Self {
-        Self { sockfd, address }
-    }
-
-    pub fn connect(self) -> c_int {
-        unsafe {
-            connect(
-                self.sockfd,
-                &self.address as *const A as *const SockAddr,
-                SockAddrIn::SIZE,
-            )
-        }
-    }
-}
-
-// A must be one of the sockaddr_* c types
-#[repr(C)]
-pub struct ListenOnSocket {
-    sockfd: c_int,
-    backlog: i32,
-}
-
-impl ListenOnSocket {
-    pub fn new(sockfd: c_int, backlog: i32) -> Self {
-        Self { sockfd, backlog }
-    }
-
-    pub fn listen(self) -> c_int {
-        unsafe { listen(self.sockfd, self.backlog) }
     }
 }
 
