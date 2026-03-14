@@ -61,6 +61,14 @@ unsafe extern "C" {
     pub fn shutdown(sockfd: c_int, how: c_int) -> c_int;
 
     pub fn close(fd: c_int) -> c_int;
+
+    pub fn unlink(pathname: *const u8) -> i32;
+
+    // TODO
+    pub fn poll();
+
+    // TODO
+    pub fn select();
 }
 
 pub enum Shutdown {

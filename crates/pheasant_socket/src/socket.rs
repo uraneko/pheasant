@@ -50,7 +50,7 @@ pub trait VoidCasting {
 pub struct Socket<A: SockAddrCasting> {
     sockfd: u32,
     is_bound: bool,
-    address: A,
+    addr: A,
 }
 
 impl Socket<()> {
@@ -65,7 +65,7 @@ impl Socket<()> {
         match unsafe { socket(domain.into(), type_.into(), proto.into()) } {
             fd if fd >= 0 => Ok(Self {
                 sockfd: fd as u32,
-                address: (),
+                addr: (),
                 is_bound: false,
             }),
             -1 => Err(Error::errno()),
@@ -76,7 +76,7 @@ impl Socket<()> {
     pub fn init<A: TrueSockAddr>(self, addr: A) -> Socket<A> {
         Socket {
             sockfd: self.sockfd,
-            address: addr,
+            addr: addr,
             is_bound: false,
         }
     }
@@ -152,7 +152,7 @@ impl<A: TrueSockAddr> Socket<A> {
         if self.is_bound || self.is_listening() == Ok(true) {
             return false;
         }
-        self.address = addr;
+        self.addr = addr;
 
         true
     }
@@ -162,7 +162,7 @@ impl<A: TrueSockAddr> Socket<A> {
     pub fn from_params(fd: u32, addr: A, is_bound: bool) -> Self {
         Self {
             sockfd: fd,
-            address: addr,
+            addr: addr,
             is_bound,
         }
     }
@@ -198,7 +198,7 @@ impl<A: TrueSockAddr> Socket<A> {
     /// dont use this with client sockets
     /// only bind if you intend to to listen and accept
     pub fn bind(&mut self) -> Result<(), Error> {
-        match unsafe { bind(self.fd() as i32, self.address.cast_ref(), A::SIZE) } {
+        match unsafe { bind(self.fd() as i32, self.addr.cast_ref(), A::SIZE) } {
             0 => self.is_bound = true,
             -1 => return Err(Error::errno()),
             err => unreachable!("unexpected error code {}", err),
@@ -216,7 +216,7 @@ impl<A: TrueSockAddr> Socket<A> {
     }
 
     pub fn accept(&self) -> Result<Socket<A>, Error> {
-        let mut peer_addr = self.address.clone();
+        let mut peer_addr = self.addr.clone();
         let mut size = A::SIZE;
         match unsafe {
             accept(
@@ -266,7 +266,7 @@ impl<A: TrueSockAddr> Socket<A> {
     /// on success: returns the address that was on self (may or may not have been bound)
     pub fn close(self) -> Result<A, Error> {
         match unsafe { close(self.fd() as i32) } {
-            0 => Ok(self.address),
+            0 => Ok(self.addr),
             -1 => Err(Error::errno()),
             err => unreachable!("unexpected error code {}", err),
         }
@@ -383,7 +383,15 @@ impl<A: SockAddrCasting> Socket<A> {
     }
 }
 
-impl<A: TrueSockAddr> Socket<A> {}
+impl Socket<crate::address::SockAddrUn> {
+    pub fn unlink(&self) -> Result<(), Error> {
+        match unsafe { unlink(self.addr.path().as_ptr()) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+}
 
 impl VoidCasting for u32 {}
 impl VoidCasting for i32 {}

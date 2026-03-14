@@ -21,6 +21,14 @@ impl SockAddrUn {
     pub const SIZE: u32 = core::mem::size_of::<Self>() as u32;
     pub const AF: AddressFamily = AddressFamily::Unix;
 
+    pub fn path(&self) -> &[u8] {
+        let Some(pos) = self.path.iter().position(|ch| *ch == 0) else {
+            return &self.path;
+        };
+
+        &self.path[..pos]
+    }
+
     pub fn pathname_unchecked(arr: [u8; 108]) -> Self {
         Self {
             family: Self::AF.into(),
