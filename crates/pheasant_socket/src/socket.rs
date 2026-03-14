@@ -1,6 +1,5 @@
 use super::Error;
 use core::ffi::c_void;
-use heapless::Vec;
 use pheasant_sys::*;
 
 pub mod io;
@@ -398,12 +397,3 @@ impl VoidCasting for i32 {}
 impl VoidCasting for bool {}
 impl VoidCasting for linger {}
 impl VoidCasting for [u8] {}
-impl<const N: usize> VoidCasting for Vec<u8, N> {
-    fn cast_ref(&self) -> *const c_void {
-        self.as_slice() as *const [u8] as *const c_void
-    }
-
-    fn cast_mut(&mut self) -> *mut c_void {
-        self.as_mut_slice() as *mut [u8] as *mut c_void
-    }
-}
