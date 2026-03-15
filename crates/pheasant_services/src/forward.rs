@@ -1,4 +1,4 @@
-use pheasant_http::{Status, server::Respond};
+use pheasant_prologue::{Status, server::Respond};
 
 pub struct Forward {
     status: Status,

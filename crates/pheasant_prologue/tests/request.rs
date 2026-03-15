@@ -1,4 +1,4 @@
-use pheasant_http::{
+use pheasant_prologue::{
     Method, Protocol,
     message::{
         Token,

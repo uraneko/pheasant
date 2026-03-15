@@ -1,4 +1,4 @@
-use pheasant_http::{ErrorStatus, err_stt, server::Respond, status};
+use pheasant_prologue::{ErrorStatus, err_stt, server::Respond, status};
 use std::io::{Read, Seek, SeekFrom, Write};
 
 pub struct Ranges {

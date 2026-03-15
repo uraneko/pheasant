@@ -1,5 +1,5 @@
-pub mod http {
-    pub use pheasant_http::{
+pub mod prologue {
+    pub use pheasant_prologue::{
         ClientError, ErrorStatus, Header, Informational, Method, Mime, Protocol, Redirection,
         ServerError, Status, Successful, client, contains_header, err_stt, header_value, server,
         status,

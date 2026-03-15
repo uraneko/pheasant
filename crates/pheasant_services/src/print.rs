@@ -1,5 +1,5 @@
 pub mod server {
-    use pheasant_http::server::{Request, Respond};
+    use pheasant_prologue::server::{Request, Respond};
     pub fn print_resp(resp: &Respond) {
         println!(
             "{} {} {}",

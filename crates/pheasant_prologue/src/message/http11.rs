@@ -173,7 +173,7 @@ impl<'a> Lex<'a> {
     /// takes only the headers specified by the filters variable
     /// # Example
     /// ```
-    /// use pheasant_http::message::http11::{Error, Lex};
+    /// use pheasant_prologue::message::http11::{Error, Lex};
     ///
     /// let mut lex = Lex::new(
     ///     b"access-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n");

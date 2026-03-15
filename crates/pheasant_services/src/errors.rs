@@ -1,5 +1,5 @@
 use crate::MessageBodyInfo;
-use pheasant_http::{ErrorStatus, server::Respond, status};
+use pheasant_prologue::{ErrorStatus, server::Respond, status};
 
 pub fn http_error(err: ErrorStatus, resp: &mut Respond) {
     resp.status(status!(err.code()));

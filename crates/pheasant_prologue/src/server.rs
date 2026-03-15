@@ -98,7 +98,7 @@ impl Request {
     /// so we lowercase the request header value first
     ///
     /// ```
-    /// use pheasant_http::message::http11::{Error, Lex};
+    /// use pheasant_prologue::message::http11::{Error, Lex};
     ///
     /// let mut req = Lex::new(b"GET / HTTP/1.1\naccess-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n\n").request()?;
     /// req.lowercase_header_value(b"access-control-request-headers");
