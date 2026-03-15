@@ -1,8 +1,10 @@
 #![no_std]
-use pheasant_sys::*;
 
 pub mod address;
+pub mod prologue;
 pub mod socket;
+
+pub use prologue::{AddressFamily, ProtocolNumber, SocketLevel, SocketType};
 
 // sources
 // '/usr/include/asm-generic/errno.h'

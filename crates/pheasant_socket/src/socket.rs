@@ -1,12 +1,16 @@
-use super::Error;
+use crate::{AddressFamily, Error, ProtocolNumber, SocketLevel, SocketType};
 use core::ffi::c_void;
-use pheasant_sys::*;
+use pheasant_sys::socket::{
+    SockAddr, accept, bind, close, connect, getsockopt, listen, recv, send, shutdown, socket,
+    unlink,
+};
 
 pub mod io;
 pub mod options;
 
 pub use io::{recv::RecvFlags, send::SendFlags};
-pub use options::{GetSockOpts, SetSockOpts};
+pub use options::linger;
+pub use options::socket::{GetSockOpts, SetSockOpts, SocketOption};
 
 // this trait is a gate keeper
 // that makes sure fake sockaddr types: i.e., () (the unit type)
@@ -182,8 +186,8 @@ impl<A: TrueSockAddr> Socket<A> {
         match unsafe {
             getsockopt(
                 self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::AcceptConn.into_int(),
+                SocketLevel::Socket.into(),
+                SocketOption::AcceptConn.into(),
                 listening.cast_mut(),
                 &mut size as *mut u32,
             )
@@ -278,8 +282,8 @@ impl<A: TrueSockAddr> Socket<A> {
         match unsafe {
             getsockopt(
                 self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::Error.into_int(),
+                SocketLevel::Socket.into(),
+                SocketOption::Error.into(),
                 err.cast_mut(),
                 &mut size as *mut u32,
             )
@@ -350,8 +354,8 @@ impl<A: SockAddrCasting> Socket<A> {
         match unsafe {
             getsockopt(
                 self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::Type.into_int(),
+                SocketLevel::Socket.into(),
+                SocketOption::Type.into(),
                 socktype.cast_mut(),
                 &mut size as *mut u32,
             )
@@ -369,8 +373,8 @@ impl<A: SockAddrCasting> Socket<A> {
         match unsafe {
             getsockopt(
                 self.fd() as i32,
-                SocketLevel::Socket.into_int(),
-                SocketOption::Protocol.into_int(),
+                SocketLevel::Socket.into(),
+                SocketOption::Protocol.into(),
                 proto.cast_mut(),
                 &mut size as *mut u32,
             )
@@ -383,6 +387,7 @@ impl<A: SockAddrCasting> Socket<A> {
 }
 
 impl Socket<crate::address::SockAddrUn> {
+    /// use this instead of close to clean up unix sockets
     pub fn unlink(&self) -> Result<(), Error> {
         match unsafe { unlink(self.addr.path().as_ptr()) } {
             0 => Ok(()),

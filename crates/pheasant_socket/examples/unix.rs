@@ -1,9 +1,8 @@
 use pheasant_socket::{
-    Error,
+    AddressFamily, Error, ProtocolNumber, SocketType,
     address::unix::SockAddrUn,
     socket::{SetSockOpts, Socket},
 };
-use pheasant_sys::{AddressFamily, ProtocolNumber, SocketType};
 
 fn main() -> Result<(), Error> {
     let socket = Socket::new(
