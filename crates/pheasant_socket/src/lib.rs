@@ -1,5 +1,4 @@
 #![no_std]
-
 pub mod address;
 pub mod prologue;
 pub mod socket;
@@ -127,12 +126,8 @@ impl From<Option<i32>> for Error {
     }
 }
 
-extern crate std;
 impl Error {
     fn errno() -> Self {
-        let err = std::io::Error::last_os_error()
-            .raw_os_error()
-            .unwrap_or_else(|| 0);
-        err.into()
+        errno::errno().0.into()
     }
 }
