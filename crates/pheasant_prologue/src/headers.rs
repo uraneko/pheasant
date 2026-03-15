@@ -109,8 +109,8 @@ impl From<(Vec<u8>, Vec<u8>)> for Header {
 impl From<[Vec<u8>; 2]> for Header {
     fn from(mut vecs: [Vec<u8>; 2]) -> Self {
         Self {
-            field: std::mem::take(&mut vecs[0]),
-            value: unwhitespace_vec(std::mem::take(&mut vecs[1])),
+            field: core::mem::take(&mut vecs[0]),
+            value: unwhitespace_vec(core::mem::take(&mut vecs[1])),
         }
     }
 }

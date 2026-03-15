@@ -1,9 +1,9 @@
 pub mod url;
 pub mod urn;
 
-pub use url::derivatives::{Origin, Resource, Route};
+pub use url::derivatives::{Origin, Resource};
 pub use url::{AbsoluteUrl, PathRelativeUrl, SchemeRelativeUrl, Url};
-pub use url::{Path, Query, Scheme};
+pub use url::{Host, Path, Query, Scheme};
 pub use urn::Urn;
 
 // pub use components::{Host, Nid, Nss, Path, Query, Scheme, User};
@@ -11,6 +11,19 @@ pub use urn::Urn;
 
 // WARN We assume Http/Https schemes only
 // we also assume no user nor fragment components
+
+#[macro_export]
+macro_rules! repeat_tfs {
+    ($t: ty) => {
+        impl<'a> TryFrom<&'a str> for $t {
+            type Error = <Self as FromStr>::Err;
+
+            fn try_from(s: &str) -> Result<Self, Self::Error> {
+                s.parse()
+            }
+        }
+    };
+}
 
 // this is for individual components
 // e.g., url's Scheme, Path or urn's NSS...

@@ -14,7 +14,7 @@ macro_rules! token {
     };
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
     Seq(String),
     Slash,

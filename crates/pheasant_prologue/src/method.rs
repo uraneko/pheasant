@@ -1,16 +1,14 @@
-use crate::PheasantError;
-use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt};
+use crate::{
+    ByteIterator, ClientError, ErrorStatus, PheasantError, ServerError, err_stt, repeat_tfs,
+};
 use alloc::str::FromStr;
 use alloc::string::String;
 use core::fmt;
-use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
-use quote::{ToTokens, TokenStreamExt};
-use syn::Ident;
 
 /// HTTP Method enum
 /// only Get method is somewhat supported at the moment
 #[repr(u16)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Method {
     Head = 1,
     Get = 2,
@@ -82,6 +80,7 @@ impl FromStr for Method {
         }
     }
 }
+repeat_tfs!(Method);
 
 impl Method {
     pub fn from_iter<I: Iterator<Item = u8>>(i: I) -> Result<Self, ErrorStatus> {

@@ -1,15 +1,10 @@
-use pheasant_http::{Respond, status};
+use crate::MessageBodyInfo;
+use pheasant_prologue::{ErrorStatus, server::Respond, status};
 
-pub fn not_found(resp: &mut Respond) {
-    resp.status(status!(404));
-    resp.headers_mut()
-        .extend(b"content-type: text/plain\ncontent-length: 14\n");
-    resp.body_mut().extend(b"not found haha");
-}
-
-pub fn bad_request(resp: &mut Respond) {
-    resp.status(status!(400));
-    resp.headers_mut()
-        .extend(b"Content-Type: text/plain\nContent-Length: 14\n");
-    resp.body_mut().extend(b"bad request haha");
+pub fn http_error(err: ErrorStatus, resp: &mut Respond) {
+    resp.status(status!(err.code()));
+    resp.body_mut().clear();
+    let msg = err.text().as_bytes();
+    MessageBodyInfo::new(msg).dump_headers(resp.headers_mut());
+    resp.body_mut().extend(msg);
 }

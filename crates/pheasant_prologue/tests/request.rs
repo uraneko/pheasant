@@ -1,9 +1,10 @@
-use pheasant_http::{
+use pheasant_prologue::{
     Method, Protocol,
-    request::{
+    message::{
         Token,
         http11::{Error, Lex, build_headers, content_length},
     },
+    status,
 };
 
 const REQ0: &str = "POST /subscribe HTTP/1.1\nHost: example.com\n\rContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 50\n\nname=Brian%20Smith&email=brian.smith%40example.com";
@@ -53,13 +54,13 @@ fn path_query() {
 }
 
 #[test]
-fn protocol() {
+fn req_proto() {
     let mut buf = REQ0.bytes().collect::<Vec<u8>>();
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
 
-    assert_eq!(Ok(Protocol::Http11), lexer.protocol().map(|(p, _)| p));
+    assert_eq!(Ok(Protocol::Http11), lexer.req_proto().map(|(p, _)| p));
 }
 
 #[test]
@@ -68,9 +69,9 @@ fn field() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
 
-    assert_eq!(Ok(Token::Field(b"Host".to_vec())), lexer.field());
+    assert_eq!(Ok(Token::Field(b"host".to_vec())), lexer.field());
 }
 
 #[test]
@@ -79,7 +80,7 @@ fn value() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     _ = lexer.field();
 
     assert_eq!(
@@ -94,7 +95,7 @@ fn end_of_headers() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     _ = lexer.field();
     _ = lexer.value();
     _ = lexer.field();
@@ -116,9 +117,9 @@ fn header() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     let tokens = [
-        Token::Field(b"Host".to_vec()),
+        Token::Field(b"host".to_vec()),
         Token::Value(b"example.com".to_vec()),
         Token::LFCR,
     ];
@@ -132,15 +133,15 @@ fn headers() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     let tokens = vec![
-        Token::Field(b"Host".to_vec()),
+        Token::Field(b"host".to_vec()),
         Token::Value(b"example.com".to_vec()),
         Token::LFCR,
-        Token::Field(b"Content-Type".to_vec()),
+        Token::Field(b"content-type".to_vec()),
         Token::Value(b"application/x-www-form-urlencoded".to_vec()),
         Token::CRLF,
-        Token::Field(b"Content-Length".to_vec()),
+        Token::Field(b"content-length".to_vec()),
         Token::Value(b"50".to_vec()),
         Token::LF,
         Token::LF,
@@ -155,7 +156,7 @@ fn body() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     let Ok(tokens) = lexer.headers() else {
         panic!("headers are not parsing")
     };
@@ -198,14 +199,14 @@ fn no_body() {
     assert_eq!(req.proto(), Protocol::Http11);
 
     let Ok(headers) = build_headers(vec![
-        Token::Field(b"Host".to_vec()),
+        Token::Field(b"host".to_vec()),
         Token::Value(b"example.com".to_vec()),
         Token::LFCR,
-        Token::Field(b"Content-Type".to_vec()),
+        Token::Field(b"content-type".to_vec()),
         Token::Value(b"application/x-www-form-urlencoded".to_vec()),
-        Token::CRLF,
-        Token::Field(b"Content-Length".to_vec()),
-        Token::Value(b"50".to_vec()),
+        // Token::CRLF,
+        // Token::Field(b"content-length".to_vec()),
+        // Token::Value(b"50".to_vec()),
         Token::LF,
         Token::LF,
     ]) else {
@@ -264,7 +265,7 @@ fn linefeed() {
     _ = lexer.method();
     _ = lexer.url();
 
-    assert_eq!(Ok(Token::LF), lexer.protocol().map(|(_, sep)| sep));
+    assert_eq!(Ok(Token::LF), lexer.req_proto().map(|(_, sep)| sep));
 }
 
 #[test]
@@ -273,7 +274,7 @@ fn lf_cr() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     _ = lexer.field();
 
     assert_eq!(Ok(Token::LFCR), lexer.value().map(|[_, sep]| sep));
@@ -285,7 +286,7 @@ fn cr_lf() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     _ = lexer.field();
     _ = lexer.value();
     _ = lexer.field();
@@ -299,7 +300,7 @@ fn maybe_eol() {
     let mut lexer = Lex::new(&mut buf);
     _ = lexer.method();
     _ = lexer.url();
-    _ = lexer.protocol();
+    _ = lexer.req_proto();
     _ = lexer.field();
     _ = lexer.value();
     _ = lexer.field();
@@ -312,4 +313,15 @@ fn maybe_eol() {
     assert_eq!(cursor + 1, lexer.cursor());
     assert!(lexer.maybe_eol().is_none());
     assert_eq!(cursor + 1, lexer.cursor());
+}
+
+const RESP0: &str = "HTTP/1.1 200 OK\ncontent-length: 4\ncontent-type:text/plain\r\n\r\nabcd";
+
+#[test]
+fn status() {
+    let mut buf = RESP0.bytes().collect::<Vec<u8>>();
+    let mut lexer = Lex::new(&mut buf);
+    _ = lexer.resp_proto();
+
+    assert_eq!(Ok(status!(200)), lexer.status());
 }

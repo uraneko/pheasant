@@ -9,8 +9,8 @@ mod lex;
 mod semantic_tree;
 mod syntax_tree;
 
-// reflect result on itself
-pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
+/// swaps the ok and err values of a Result<T,E> returning a Result<E, T>
+pub(crate) fn flip_result<T, E>(res: Result<T, E>) -> Result<E, T> {
     match res {
         Err(e) => Ok(e),
         Ok(o) => Err(o),
@@ -18,8 +18,8 @@ pub(crate) fn ref_res<T, E>(res: Result<T, E>) -> Result<E, T> {
 }
 
 use lex::{Error as LexError, Token, lex};
-use semantic_tree::{Component, Error as SemanticError, Host, User, semantic_tree};
-pub use semantic_tree::{Path, Query, Scheme};
+use semantic_tree::{Component, Error as SemanticError, User, semantic_tree};
+pub use semantic_tree::{Host, Path, Query, Scheme};
 use syntax_tree::{Error as SyntaxError, TokenGroup, syntax_tree};
 
 pub trait PercentEncodable {
@@ -241,6 +241,7 @@ pub struct SchemeRelativeUrl {
     fragment: Option<String>,
 }
 
+// TODO make a macro to do these impls
 impl Parse for SchemeRelativeUrl {
     type Token = Token;
     type TokenGroup = TokenGroup;

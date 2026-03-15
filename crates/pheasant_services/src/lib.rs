@@ -1,23 +1,35 @@
-use pheasant_http::{ErrorStatus, Method, Respond, request::Request};
+use pheasant_prologue::{
+    ErrorStatus, Method, err_stt,
+    server::{Request, Respond},
+};
 
+pub mod client_socket;
 pub mod content_meta;
+pub mod cookies;
 pub mod cors;
 pub mod errors;
+pub mod forward;
 pub mod parse;
+pub mod print;
 pub mod range;
-pub mod socket;
-pub mod stream;
+pub mod server_socket;
 
 pub use content_meta::MessageBodyInfo;
+pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
-pub use errors::{bad_request, not_found};
+pub use errors::http_error;
+pub use forward::Forward;
 pub use parse::parse;
-pub use range::Range;
-pub use socket::{Socket, bind_socket};
-pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
+pub use range::{Ranges, support_ranges};
+
+type TcpSocket<T> = pheasant_socket::socket::Socket<T>;
+
+pub fn date() -> chrono::DateTime<chrono::Utc> {
+    chrono::Utc::now()
+}
 
 pub trait Service<S: Server> {
-    async fn run(
+    async fn serve(
         &self,
         socket: &mut S,
         req: Request,
@@ -45,115 +57,94 @@ pub trait Server {
     where
         Self: Sized,
     {
-        service.run(self, req, buf).await
+        service.serve(self, req, buf).await
     }
-
-    /// prints out the socket url on the stdout
-    fn init_message(&self) {
-        use std::io::Write;
-
-        let mut stdout = std::io::stdout();
-        _ = stdout.write(
-            format!(
-                "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m",
-                self.addr()
-                    .map(|addr| addr.to_string())
-                    .unwrap_or(format!("localhost:{}", self.port())),
-            )
-            .as_bytes(),
-        );
-        _ = stdout.flush();
-    }
-
-    fn addr(&self) -> Result<std::net::SocketAddr, std::io::Error>;
-
-    fn port(&self) -> u16;
 }
 
-pub trait Resource<S: Server> {
+pub trait Resource<S: Server>: Sized {
     async fn get(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn post(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn put(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn patch(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn head(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn trace(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn delete(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn options(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn connect(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        Ok(())
+        err_stt!(?405)
     }
 
     async fn run(
-        &self,
+        self,
         socket: &mut S,
         req: Request,
         resp: &mut Respond,

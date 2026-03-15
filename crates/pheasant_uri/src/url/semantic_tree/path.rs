@@ -7,12 +7,18 @@ pub struct Path {
 }
 
 impl Path {
+    pub fn count(&self) -> usize {
+        self.segments.len()
+    }
+
     pub fn len(&self) -> usize {
         self.segments.iter().map(|s| s.len()).sum()
     }
 
     pub fn segments(&self) -> &[String] {
-        &self.segments
+        // WARN new change
+        // not sure if this could break some stuff
+        &self.segments[1..]
     }
 
     pub fn serialized(&self) -> String {

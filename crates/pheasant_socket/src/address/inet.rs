@@ -14,6 +14,7 @@ impl InAddr {
         }
     }
 
+    /// returns the 4 bytes of the address
     pub fn to_bytes(&self) -> [u8; 4] {
         self.addr.to_ne_bytes()
     }
@@ -132,6 +133,16 @@ impl SockAddrIn {
             port,
             padding: [0; _],
         }
+    }
+
+    /// returns the 4 bytes of the address in native endianne order
+    pub fn addr(&self) -> [u8; 4] {
+        self.addr.to_bytes()
+    }
+
+    /// returns the port value of this address
+    pub fn port(&self) -> u16 {
+        self.port
     }
 }
 

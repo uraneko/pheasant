@@ -1,4 +1,4 @@
-use pheasant::http::{ErrorStatus, err_stt, request::Request};
+use pheasant::http::{ErrorStatus, Respond, err_stt, request::Request, status};
 use pheasant::services::{Cors, Resource, Service, Socket, not_found};
 
 pub enum Services {
@@ -9,16 +9,16 @@ pub enum Services {
 }
 
 impl Service<Socket> for Services {
-    async fn run(
+    async fn serve(
         &self,
         socket: &mut Socket,
         req: Request,
-        buf: &mut Vec<u8>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         match self {
-            Self::Index(index) => index.run(socket, req, buf).await,
-            Self::Icon(icon) => icon.run(socket, req, buf).await,
-            Self::CreateTable => CreateTable.run(socket, req, buf).await,
+            Self::Index(index) => index.run(socket, req, resp).await,
+            Self::Icon(icon) => icon.run(socket, req, resp).await,
+            Self::CreateTable => CreateTable.run(socket, req, resp).await,
             Self::Error => Ok(()),
         }
     }
@@ -57,18 +57,16 @@ impl Resource<Socket> for Index {
         &self,
         _socket: &mut Socket,
         _req: Request,
-        buf: &mut Vec<u8>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        let html0 = "<!DOCTYPE html><html><body style='background:";
-        let html1 = ";color:beige'><h1>hello web</h1></body></html>";
+        let html0 = b"<!DOCTYPE html><html><body style='background:";
+        let html1 = b";color:beige'><h1>hello web</h1></body></html>";
         let len = html0.len() + html1.len() + self.background.len();
-        buf.extend(
-            format!(
-                "HTTP/1.1 200 Ok\nContent-Type:text/html\nContent-Length:{}\n\n{}{}{}",
-                len, html0, self.background, html1
-            )
-            .as_bytes(),
-        );
+        resp.headers_mut()
+            .extend(format!("Content-Type:text/html\nContent-Length:{}\n", len,).as_bytes());
+        resp.body_mut().extend(html0);
+        resp.body_mut().extend(self.background.as_bytes());
+        resp.body_mut().extend(html1);
 
         Ok(())
     }
@@ -110,16 +108,16 @@ impl Resource<Socket> for Icon {
         &self,
         _socket: &mut Socket,
         _req: Request,
-        buf: &mut Vec<u8>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        buf.extend(
+        resp.headers_mut().extend(
             format!(
-                "HTTP/1.1 200 Ok\nContent-Type: image/svg+xml\nContent-Length: {}\n\n{}",
+                "Content-Type: image/svg+xml\nContent-Length: {}\n",
                 self.icon.len(),
-                self.icon
             )
             .as_bytes(),
         );
+        resp.body_mut().extend(self.icon.as_bytes());
 
         Ok(())
     }
@@ -128,16 +126,15 @@ impl Resource<Socket> for Icon {
         &self,
         _socket: &mut Socket,
         req: Request,
-        buf: &mut Vec<u8>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
-        buf.extend(b"HTTP/1.1 204 No Content\n");
+        resp.status(status!(204));
         Cors::new()
             .origin("127.10.10.1:1024")
             .origin("127.0.0.1:1024")
             .header("*")
-            .cors(req.headers(), buf)
+            .cors(req.headers(), resp.headers_mut())
             .unwrap();
-        buf.push(b'\n');
 
         Ok(())
     }
@@ -150,7 +147,7 @@ impl Resource<Socket> for CreateTable {
         &self,
         socket: &mut Socket,
         _req: Request,
-        _buf: &mut Vec<u8>,
+        _resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         let query = "
     CREATE TABLE users (name TEXT, age INTEGER);
@@ -163,8 +160,8 @@ impl Resource<Socket> for CreateTable {
     }
 }
 
-pub fn lookup(req: &Request, buf: &mut Vec<u8>) -> Result<Services, ErrorStatus> {
-    println!("{:?} - {:?}", req.path_str(), req.query());
+pub fn lookup(req: &Request, resp: &mut Respond) -> Result<Services, ErrorStatus> {
+    // println!("{:?} - {:?}", req.path_str(), req.query());
     Ok(match req.path_str().as_str() {
         "/" => Services::Index(Index::new(req)),
         "/icon" => Services::Icon(Icon::new(req)?),
@@ -172,7 +169,7 @@ pub fn lookup(req: &Request, buf: &mut Vec<u8>) -> Result<Services, ErrorStatus>
         "/db/create_table" => Services::CreateTable,
         // "/auth/signup"
         _ => {
-            not_found(buf);
+            not_found(resp);
 
             Services::Error
         }

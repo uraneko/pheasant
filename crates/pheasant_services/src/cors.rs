@@ -1,5 +1,6 @@
 use core::str::Utf8Error;
-use pheasant_http::{Header, MaybeGlob, Method, header_value};
+use hashbrown::HashSet;
+use pheasant_prologue::{Header, MaybeGlob, Method, header_value};
 
 // pub fn cors(resp: &mut Vec<u8>, status: &str) {
 //     let headers = "access-control-allow-headers: *\n";
@@ -13,17 +14,17 @@ use pheasant_http::{Header, MaybeGlob, Method, header_value};
 pub struct Cors {
     /// allowed methods
     /// can take a glob `*`
-    methods: MaybeGlob<Vec<Method>>,
+    methods: MaybeGlob<HashSet<Method>>,
     /// allowed headers + headers expose
     /// can take a glob `*`
-    headers: MaybeGlob<Vec<&'static str>>,
+    headers: MaybeGlob<HashSet<&'static str>>,
     /// this extends the list of client script (js) exposable response headers in a cors situation
     /// see `https://developer.mozilla.org/en-US/docs/Glossary/CORS-safelisted_response_header`
     /// for the list headers that are safelisted by default
-    expose: MaybeGlob<Vec<&'static str>>,
+    expose: MaybeGlob<HashSet<&'static str>>,
     /// allowed origins
     /// can take a glob `*`
-    origins: MaybeGlob<Vec<&'static str>>,
+    origins: MaybeGlob<HashSet<&'static str>>,
     /// are credentials allowed across origins
     credentials: bool,
     /// preflight request caching timeout
@@ -38,16 +39,16 @@ impl Cors {
         Self {
             credentials: false,
             max_age: None,
-            methods: MaybeGlob::Value(vec![Head, Get, Options]),
-            headers: MaybeGlob::Value(vec![]),
-            expose: MaybeGlob::Value(vec![]),
+            methods: MaybeGlob::Value(HashSet::from([Head, Get, Options])),
+            headers: MaybeGlob::Value(HashSet::new()),
+            expose: MaybeGlob::Value(HashSet::new()),
             origins: MaybeGlob::Glob,
         }
     }
 
     pub fn methods(mut self, m: &[Method]) -> Self {
         match self.methods {
-            MaybeGlob::Glob => self.methods = MaybeGlob::Value(m.to_vec()),
+            MaybeGlob::Glob => self.methods = MaybeGlob::Value(m.into_iter().map(|m| *m).collect()),
             MaybeGlob::Value(ref mut methods) => methods.extend(m),
         }
 
@@ -56,8 +57,8 @@ impl Cors {
 
     pub fn method(mut self, method: Method) -> Self {
         match self.methods {
-            MaybeGlob::Glob => self.methods = MaybeGlob::Value(vec![method]),
-            MaybeGlob::Value(ref mut methods) => methods.push(method),
+            MaybeGlob::Glob => self.methods = MaybeGlob::Value(HashSet::from([method])),
+            MaybeGlob::Value(ref mut methods) => _ = methods.insert(method),
         }
 
         self
@@ -77,7 +78,7 @@ impl Cors {
         }
 
         let MaybeGlob::Value(headers) = self.headers.as_mut() else {
-            self.headers = MaybeGlob::Value(h.to_vec());
+            self.headers = MaybeGlob::Value(h.into_iter().map(|h| *h).collect());
 
             return self;
         };
@@ -93,10 +94,10 @@ impl Cors {
             }
         } else {
             match self.headers {
-                MaybeGlob::Glob => self.headers = MaybeGlob::Value(vec![header]),
+                MaybeGlob::Glob => self.headers = MaybeGlob::Value([header].into_iter().collect()),
                 MaybeGlob::Value(ref mut headers) => {
                     headers.clear();
-                    headers.push(header);
+                    headers.insert(header);
                 }
             }
         }
@@ -113,7 +114,7 @@ impl Cors {
         }
 
         let MaybeGlob::Value(headers) = self.headers.as_mut() else {
-            self.headers = MaybeGlob::Value(h.to_vec());
+            self.headers = MaybeGlob::Value(h.into_iter().map(|h| *h).collect());
 
             return self;
         };
@@ -130,10 +131,10 @@ impl Cors {
             }
         } else {
             match self.headers {
-                MaybeGlob::Glob => self.headers = MaybeGlob::Value(vec![header]),
+                MaybeGlob::Glob => self.headers = MaybeGlob::Value(HashSet::from([header])),
                 MaybeGlob::Value(ref mut headers) => {
                     headers.clear();
-                    headers.push(header);
+                    headers.insert(header);
                 }
             }
         }
@@ -149,7 +150,7 @@ impl Cors {
         }
 
         let MaybeGlob::Value(origins) = self.origins.as_mut() else {
-            self.origins = MaybeGlob::Value(ori.to_vec());
+            self.origins = MaybeGlob::Value(ori.into_iter().map(|o| *o).collect());
 
             return self;
         };
@@ -165,10 +166,10 @@ impl Cors {
             }
         } else {
             match self.origins {
-                MaybeGlob::Glob => self.origins = MaybeGlob::Value(vec![origin]),
+                MaybeGlob::Glob => self.origins = MaybeGlob::Value(HashSet::from([origin])),
                 MaybeGlob::Value(ref mut origins) => {
                     origins.clear();
-                    origins.push(origin);
+                    origins.insert(origin);
                 }
             };
         }
@@ -202,11 +203,11 @@ impl From<Utf8Error> for Error {
     }
 }
 
-pub fn allows_header(headers: &[&str], header: &str) -> bool {
+pub fn allows_header(headers: &HashSet<&str>, header: &str) -> bool {
     headers.iter().any(|h| *h == header)
 }
 
-pub fn allows_origin(origins: &[&str], origin: &str) -> bool {
+pub fn allows_origin(origins: &HashSet<&str>, origin: &str) -> bool {
     origins.contains(&origin)
 }
 
@@ -219,6 +220,14 @@ impl Cors {
         };
 
         headers.iter().any(|h| *h == header)
+    }
+
+    pub fn allows_method(&self, method: &str) -> bool {
+        let MaybeGlob::Value(ref methods) = self.methods else {
+            return true;
+        };
+
+        methods.iter().any(|m| m.as_str() == method)
     }
 
     pub fn allows_origin(&self, origin: &str) -> bool {
@@ -251,7 +260,7 @@ impl Cors {
         Ok(())
     }
 
-    pub fn allow_method(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn allow_methods(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
         let MaybeGlob::Value(ref methods) = self.methods else {
             buffer.extend(b"access-control-allow-methods: *\n");
 
@@ -267,6 +276,7 @@ impl Cors {
         // NOTE this if block is needless
         // as the server we simply send the allowed methods and let the client
         // figure out its own permissions
+        //
         // if methods.contains(&str::from_utf8(value).map(|s| {
         //     s.trim()
         //         .to_lowercase()
@@ -277,11 +287,12 @@ impl Cors {
         buffer.extend(b"access-control-allow-methods: ");
         methods.iter().fold(&mut *buffer, |acc, m| {
             acc.extend(m.as_str().as_bytes());
-            acc.push(b',');
+            acc.extend(b", ");
 
             acc
         });
 
+        buffer.pop();
         buffer.pop();
         buffer.push(10);
 
@@ -300,33 +311,25 @@ impl Cors {
         if headers.is_empty() {
             return Ok(());
         }
-
         // NOTE it probably makes more sense to write all allowed headers
         // since client may cache that knowledge and use different headers later
-        let mut state = 0;
-        for header in str::from_utf8(value)?
+
+        let mut headers = str::from_utf8(value)?
             .split(|ch| ch == ',')
             .map(|h| h.trim())
-            .filter(|h| allows_header(headers, h))
-        {
-            match state {
-                // we do have matching headers
-                // so we write the header field
-                // to the buffer
-                0 => state = 1,
-                1 => {
-                    buffer.extend(b"access-control-allow-headers: ");
-                    buffer.extend(header.as_bytes());
+            .filter(|h| allows_header(headers, h));
 
-                    state = 2;
-                }
-                2 => {
-                    buffer.extend(header.as_bytes());
-                    buffer.push(b',');
-                }
-                _ => (),
-            }
+        if let Some(header) = headers.next() {
+            buffer.extend(b"access-control-allow-headers: ");
+            buffer.extend(header.as_bytes());
+            buffer.push(b',');
         }
+
+        while let Some(header) = headers.next() {
+            buffer.extend(header.as_bytes());
+            buffer.push(b',');
+        }
+
         buffer.pop();
         buffer.push(10);
 
@@ -376,19 +379,38 @@ impl Cors {
     }
 
     pub fn cors(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+        // if there is no origin then we assume the request is not a cors one
+        // and we early return
         let Some(value) = header_value(headers, b"origin") else {
-            return Err(Error::MissingRequestOrigin);
+            // return Err(Error::MissingRequestOrigin);
+            return Ok(());
         };
         self.allow_origin(value, buffer)?;
 
         if let Some(value) = header_value(headers, b"access-control-request-method") {
-            self.allow_method(value, buffer)?;
+            self.allow_methods(value, buffer)?;
         }
 
         if let Some(value) = header_value(headers, b"access-control-request-headers") {
             self.allow_headers(value, buffer)?;
         }
 
+        self.allow_credentials(buffer);
+        self.allow_max_age(buffer);
+
+        Ok(())
+    }
+
+    pub fn cors_with_cookies(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+        // if there is no origin then we assume the request is not a cors one
+        // and we early return
+        let Some(value) = header_value(headers, b"origin") else {
+            // return Err(Error::MissingRequestOrigin);
+            return Ok(());
+        };
+        self.allow_origin(value, buffer)?;
+        self.allow_methods(value, buffer)?;
+        self.allow_headers(value, buffer)?;
         self.allow_credentials(buffer);
         self.allow_max_age(buffer);
 

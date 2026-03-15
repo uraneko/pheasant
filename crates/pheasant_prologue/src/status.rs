@@ -56,8 +56,7 @@ macro_rules! err_stt {
 macro_rules! status_enum {
      ($name: ident, $($var: ident $code: literal),*) => {
         #[repr(u16)]
-        #[derive(Debug, Clone, Copy, PartialEq,
-            Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
          pub enum $name {$(
              $var = $code,
          )*}
@@ -70,7 +69,7 @@ macro_rules! status_enum {
          }
      }
 
-     impl std::str::FromStr for $name {
+     impl core::str::FromStr for $name {
          type Err = ();
 
          fn from_str(s: &str) -> Result<Self,Self::Err> {
@@ -215,6 +214,7 @@ impl ServerError {
         }
     }
 
+    /// nothing really unsafe going on here
     fn code(&self) -> u16 {
         unsafe { core::mem::transmute::<Self, u16>(*self) }
     }
@@ -319,7 +319,7 @@ impl Informational {
 }
 
 /// enum wrapping all response status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Status {
     Informational(Informational),
     Successful(Successful),
@@ -358,85 +358,217 @@ impl Default for Status {
 
 impl FromStr for Status {
     type Err = ();
-    fn from_str(text: &str) -> Result<Self, ()> {
-        match text {
-            "EarlyHints" => Ok(Self::Informational(Informational::EarlyHints)),
-            "ProcessingDeprecated" => Ok(Self::Informational(Informational::ProcessingDeprecated)),
-            "SwitchingProtocols" => Ok(Self::Informational(Informational::SwitchingProtocols)),
-            "Continue" => Ok(Self::Informational(Informational::Continue)),
+    fn from_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "EarlyHints" | "103" => Ok(Self::Informational(Informational::EarlyHints)),
+            "ProcessingDeprecated" | "102" => {
+                Ok(Self::Informational(Informational::ProcessingDeprecated))
+            }
+            "SwitchingProtocols" | "101" => {
+                Ok(Self::Informational(Informational::SwitchingProtocols))
+            }
+            "Continue" | "100" => Ok(Self::Informational(Informational::Continue)),
 
-            "IMUsed" => Ok(Self::Successful(Successful::IMUsed)),
-            "AlreadyReported" => Ok(Self::Successful(Successful::AlreadyReported)),
-            "MultiStatus" => Ok(Self::Successful(Successful::MultiStatus)),
-            "PartialContent" => Ok(Self::Successful(Successful::PartialContent)),
-            "ResetContent" => Ok(Self::Successful(Successful::ResetContent)),
-            "NoContent" => Ok(Self::Successful(Successful::NoContent)),
-            "NonAuthoritativeInformation" => {
+            "IMUsed" | "226" => Ok(Self::Successful(Successful::IMUsed)),
+            "AlreadyReported" | "208" => Ok(Self::Successful(Successful::AlreadyReported)),
+            "MultiStatus" | "207" => Ok(Self::Successful(Successful::MultiStatus)),
+            "PartialContent" | "206" => Ok(Self::Successful(Successful::PartialContent)),
+            "ResetContent" | "205" => Ok(Self::Successful(Successful::ResetContent)),
+            "NoContent" | "204" => Ok(Self::Successful(Successful::NoContent)),
+            "NonAuthoritativeInformation" | "203" => {
                 Ok(Self::Successful(Successful::NonAuthoritativeInformation))
             }
-            "Accepted" => Ok(Self::Successful(Successful::Accepted)),
-            "Created" => Ok(Self::Successful(Successful::Created)),
-            "OK" => Ok(Self::Successful(Successful::OK)),
+            "Accepted" | "202" => Ok(Self::Successful(Successful::Accepted)),
+            "Created" | "201" => Ok(Self::Successful(Successful::Created)),
+            "OK" | "200" => Ok(Self::Successful(Successful::OK)),
 
-            "PermanentRedirect" => Ok(Self::Redirection(Redirection::PermanentRedirect)),
-            "TemporaryRedirect" => Ok(Self::Redirection(Redirection::TemporaryRedirect)),
-            "Unused" => Ok(Self::Redirection(Redirection::Unused)),
-            "UseProxyDeprecated" => Ok(Self::Redirection(Redirection::UseProxyDeprecated)),
-            "NotModified" => Ok(Self::Redirection(Redirection::NotModified)),
-            "SeeOther" => Ok(Self::Redirection(Redirection::SeeOther)),
-            "Found" => Ok(Self::Redirection(Redirection::Found)),
-            "MovedPermanently" => Ok(Self::Redirection(Redirection::MovedPermanently)),
-            "MultipleChoices" => Ok(Self::Redirection(Redirection::MultipleChoices)),
+            "PermanentRedirect" | "308" => Ok(Self::Redirection(Redirection::PermanentRedirect)),
+            "TemporaryRedirect" | "307" => Ok(Self::Redirection(Redirection::TemporaryRedirect)),
+            "Unused" | "306" => Ok(Self::Redirection(Redirection::Unused)),
+            "UseProxyDeprecated" | "305" => Ok(Self::Redirection(Redirection::UseProxyDeprecated)),
+            "NotModified" | "304" => Ok(Self::Redirection(Redirection::NotModified)),
+            "SeeOther" | "303" => Ok(Self::Redirection(Redirection::SeeOther)),
+            "Found" | "302" => Ok(Self::Redirection(Redirection::Found)),
+            "MovedPermanently" | "301" => Ok(Self::Redirection(Redirection::MovedPermanently)),
+            "MultipleChoices" | "300" => Ok(Self::Redirection(Redirection::MultipleChoices)),
 
-            "BadRequest" => Ok(Self::ClientError(ClientError::BadRequest)),
-            "Unauthorized" => Ok(Self::ClientError(ClientError::Unauthorized)),
-            "PaymentRequired" => Ok(Self::ClientError(ClientError::PaymentRequired)),
-            "Forbidden" => Ok(Self::ClientError(ClientError::Forbidden)),
-            "NotFound" => Ok(Self::ClientError(ClientError::NotFound)),
-            "MethodNotAllowed" => Ok(Self::ClientError(ClientError::MethodNotAllowed)),
-            "NotAcceptable" => Ok(Self::ClientError(ClientError::NotAcceptable)),
-            "ProxyAuthenticationRequired" => {
+            "BadRequest" | "400" => Ok(Self::ClientError(ClientError::BadRequest)),
+            "Unauthorized" | "401" => Ok(Self::ClientError(ClientError::Unauthorized)),
+            "PaymentRequired" | "402" => Ok(Self::ClientError(ClientError::PaymentRequired)),
+            "Forbidden" | "403" => Ok(Self::ClientError(ClientError::Forbidden)),
+            "NotFound" | "404" => Ok(Self::ClientError(ClientError::NotFound)),
+            "MethodNotAllowed" | "405" => Ok(Self::ClientError(ClientError::MethodNotAllowed)),
+            "NotAcceptable" | "406" => Ok(Self::ClientError(ClientError::NotAcceptable)),
+            "ProxyAuthenticationRequired" | "407" => {
                 Ok(Self::ClientError(ClientError::ProxyAuthenticationRequired))
             }
-            "RequestTimeout" => Ok(Self::ClientError(ClientError::RequestTimeout)),
-            "Conflict" => Ok(Self::ClientError(ClientError::Conflict)),
-            "Gone" => Ok(Self::ClientError(ClientError::Gone)),
-            "LengthRequired" => Ok(Self::ClientError(ClientError::LengthRequired)),
-            "PreconditionFailed" => Ok(Self::ClientError(ClientError::PreconditionFailed)),
-            "ContentTooLarge" => Ok(Self::ClientError(ClientError::ContentTooLarge)),
-            "URITooLong" => Ok(Self::ClientError(ClientError::URITooLong)),
-            "UnsupportedMediaType" => Ok(Self::ClientError(ClientError::UnsupportedMediaType)),
-            "RangeNotSatisfiable" => Ok(Self::ClientError(ClientError::RangeNotSatisfiable)),
-            "ExpectationFailed" => Ok(Self::ClientError(ClientError::ExpectationFailed)),
-            "Imateapot" => Ok(Self::ClientError(ClientError::Imateapot)),
-            "MisdirectedRequest" => Ok(Self::ClientError(ClientError::MisdirectedRequest)),
-            "UnprocessableContent" => Ok(Self::ClientError(ClientError::UnprocessableContent)),
-            "Locked" => Ok(Self::ClientError(ClientError::Locked)),
-            "FailedDependency" => Ok(Self::ClientError(ClientError::FailedDependency)),
-            "TooEarly" => Ok(Self::ClientError(ClientError::TooEarly)),
-            "UpgradeRequired" => Ok(Self::ClientError(ClientError::UpgradeRequired)),
-            "PreconditionRequired" => Ok(Self::ClientError(ClientError::PreconditionRequired)),
-            "TooManyRequests" => Ok(Self::ClientError(ClientError::TooManyRequests)),
-            "RequestHeaderFieldsTooLarge" => {
+            "RequestTimeout" | "408" => Ok(Self::ClientError(ClientError::RequestTimeout)),
+            "Conflict" | "409" => Ok(Self::ClientError(ClientError::Conflict)),
+            "Gone" | "410" => Ok(Self::ClientError(ClientError::Gone)),
+            "LengthRequired" | "411" => Ok(Self::ClientError(ClientError::LengthRequired)),
+            "PreconditionFailed" | "412" => Ok(Self::ClientError(ClientError::PreconditionFailed)),
+            "ContentTooLarge" | "413" => Ok(Self::ClientError(ClientError::ContentTooLarge)),
+            "URITooLong" | "414" => Ok(Self::ClientError(ClientError::URITooLong)),
+            "UnsupportedMediaType" | "415" => {
+                Ok(Self::ClientError(ClientError::UnsupportedMediaType))
+            }
+            "RangeNotSatisfiable" | "416" => {
+                Ok(Self::ClientError(ClientError::RangeNotSatisfiable))
+            }
+            "ExpectationFailed" | "417" => Ok(Self::ClientError(ClientError::ExpectationFailed)),
+            "Imateapot" | "418" => Ok(Self::ClientError(ClientError::Imateapot)),
+            "MisdirectedRequest" | "421" => Ok(Self::ClientError(ClientError::MisdirectedRequest)),
+            "UnprocessableContent" | "422" => {
+                Ok(Self::ClientError(ClientError::UnprocessableContent))
+            }
+            "Locked" | "423" => Ok(Self::ClientError(ClientError::Locked)),
+            "FailedDependency" | "424" => Ok(Self::ClientError(ClientError::FailedDependency)),
+            "TooEarly" | "425" => Ok(Self::ClientError(ClientError::TooEarly)),
+            "UpgradeRequired" | "426" => Ok(Self::ClientError(ClientError::UpgradeRequired)),
+            "PreconditionRequired" | "428" => {
+                Ok(Self::ClientError(ClientError::PreconditionRequired))
+            }
+            "TooManyRequests" | "429" => Ok(Self::ClientError(ClientError::TooManyRequests)),
+            "RequestHeaderFieldsTooLarge" | "431" => {
                 Ok(Self::ClientError(ClientError::RequestHeaderFieldsTooLarge))
             }
-            "UnavailableForLegalReasons" => {
+            "UnavailableForLegalReasons" | "451" => {
                 Ok(Self::ClientError(ClientError::UnavailableForLegalReasons))
             }
 
-            "InternalServerError" => Ok(Self::ServerError(ServerError::InternalServerError)),
-            "NotImplemented" => Ok(Self::ServerError(ServerError::NotImplemented)),
-            "BadGateway" => Ok(Self::ServerError(ServerError::BadGateway)),
-            "ProcessUnavailable" => Ok(Self::ServerError(ServerError::ProcessUnavailable)),
-            "GatewayTimeout" => Ok(Self::ServerError(ServerError::GatewayTimeout)),
-            "HTTPVersionNotSupported" => {
+            "InternalServerError" | "500" => {
+                Ok(Self::ServerError(ServerError::InternalServerError))
+            }
+            "NotImplemented" | "501" => Ok(Self::ServerError(ServerError::NotImplemented)),
+            "BadGateway" | "502" => Ok(Self::ServerError(ServerError::BadGateway)),
+            "ProcessUnavailable" | "503" => Ok(Self::ServerError(ServerError::ProcessUnavailable)),
+            "GatewayTimeout" | "504" => Ok(Self::ServerError(ServerError::GatewayTimeout)),
+            "HTTPVersionNotSupported" | "505" => {
                 Ok(Self::ServerError(ServerError::HTTPVersionNotSupported))
             }
-            "VariantAlsoNegotiates" => Ok(Self::ServerError(ServerError::VariantAlsoNegotiates)),
-            "InsufficientStorage" => Ok(Self::ServerError(ServerError::InsufficientStorage)),
-            "LoopDetected" => Ok(Self::ServerError(ServerError::LoopDetected)),
-            "NotExtended" => Ok(Self::ServerError(ServerError::NotExtended)),
-            "NetworkAuthenticationRequired" => Ok(Self::ServerError(
+            "VariantAlsoNegotiates" | "506" => {
+                Ok(Self::ServerError(ServerError::VariantAlsoNegotiates))
+            }
+            "InsufficientStorage" | "507" => {
+                Ok(Self::ServerError(ServerError::InsufficientStorage))
+            }
+            "LoopDetected" | "508" => Ok(Self::ServerError(ServerError::LoopDetected)),
+            "NotExtended" | "510" => Ok(Self::ServerError(ServerError::NotExtended)),
+            "NetworkAuthenticationRequired" | "511" => Ok(Self::ServerError(
+                ServerError::NetworkAuthenticationRequired,
+            )),
+            _ => Err(()),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a [u8]> for Status {
+    type Error = ();
+    fn try_from(text: &[u8]) -> Result<Self, ()> {
+        match text {
+            b"EarlyHints" | b"103" => Ok(Self::Informational(Informational::EarlyHints)),
+            b"ProcessingDeprecated" | b"102" => {
+                Ok(Self::Informational(Informational::ProcessingDeprecated))
+            }
+            b"SwitchingProtocols" | b"101" => {
+                Ok(Self::Informational(Informational::SwitchingProtocols))
+            }
+            b"Continue" | b"100" => Ok(Self::Informational(Informational::Continue)),
+
+            b"IMUsed" | b"226" => Ok(Self::Successful(Successful::IMUsed)),
+            b"AlreadyReported" | b"208" => Ok(Self::Successful(Successful::AlreadyReported)),
+            b"MultiStatus" | b"207" => Ok(Self::Successful(Successful::MultiStatus)),
+            b"PartialContent" | b"206" => Ok(Self::Successful(Successful::PartialContent)),
+            b"ResetContent" | b"205" => Ok(Self::Successful(Successful::ResetContent)),
+            b"NoContent" | b"204" => Ok(Self::Successful(Successful::NoContent)),
+            b"NonAuthoritativeInformation" | b"203" => {
+                Ok(Self::Successful(Successful::NonAuthoritativeInformation))
+            }
+            b"Accepted" | b"202" => Ok(Self::Successful(Successful::Accepted)),
+            b"Created" | b"201" => Ok(Self::Successful(Successful::Created)),
+            b"OK" | b"200" => Ok(Self::Successful(Successful::OK)),
+
+            b"PermanentRedirect" | b"308" => Ok(Self::Redirection(Redirection::PermanentRedirect)),
+            b"TemporaryRedirect" | b"307" => Ok(Self::Redirection(Redirection::TemporaryRedirect)),
+            b"Unused" | b"306" => Ok(Self::Redirection(Redirection::Unused)),
+            b"UseProxyDeprecated" | b"305" => {
+                Ok(Self::Redirection(Redirection::UseProxyDeprecated))
+            }
+            b"NotModified" | b"304" => Ok(Self::Redirection(Redirection::NotModified)),
+            b"SeeOther" | b"303" => Ok(Self::Redirection(Redirection::SeeOther)),
+            b"Found" | b"302" => Ok(Self::Redirection(Redirection::Found)),
+            b"MovedPermanently" | b"301" => Ok(Self::Redirection(Redirection::MovedPermanently)),
+            b"MultipleChoices" | b"300" => Ok(Self::Redirection(Redirection::MultipleChoices)),
+
+            b"BadRequest" | b"400" => Ok(Self::ClientError(ClientError::BadRequest)),
+            b"Unauthorized" | b"401" => Ok(Self::ClientError(ClientError::Unauthorized)),
+            b"PaymentRequired" | b"402" => Ok(Self::ClientError(ClientError::PaymentRequired)),
+            b"Forbidden" | b"403" => Ok(Self::ClientError(ClientError::Forbidden)),
+            b"NotFound" | b"404" => Ok(Self::ClientError(ClientError::NotFound)),
+            b"MethodNotAllowed" | b"405" => Ok(Self::ClientError(ClientError::MethodNotAllowed)),
+            b"NotAcceptable" | b"406" => Ok(Self::ClientError(ClientError::NotAcceptable)),
+            b"ProxyAuthenticationRequired" | b"407" => {
+                Ok(Self::ClientError(ClientError::ProxyAuthenticationRequired))
+            }
+            b"RequestTimeout" | b"408" => Ok(Self::ClientError(ClientError::RequestTimeout)),
+            b"Conflict" | b"409" => Ok(Self::ClientError(ClientError::Conflict)),
+            b"Gone" | b"410" => Ok(Self::ClientError(ClientError::Gone)),
+            b"LengthRequired" | b"411" => Ok(Self::ClientError(ClientError::LengthRequired)),
+            b"PreconditionFailed" | b"412" => {
+                Ok(Self::ClientError(ClientError::PreconditionFailed))
+            }
+            b"ContentTooLarge" | b"413" => Ok(Self::ClientError(ClientError::ContentTooLarge)),
+            b"URITooLong" | b"414" => Ok(Self::ClientError(ClientError::URITooLong)),
+            b"UnsupportedMediaType" | b"415" => {
+                Ok(Self::ClientError(ClientError::UnsupportedMediaType))
+            }
+            b"RangeNotSatisfiable" | b"416" => {
+                Ok(Self::ClientError(ClientError::RangeNotSatisfiable))
+            }
+            b"ExpectationFailed" | b"417" => Ok(Self::ClientError(ClientError::ExpectationFailed)),
+            b"Imateapot" | b"418" => Ok(Self::ClientError(ClientError::Imateapot)),
+            b"MisdirectedRequest" | b"421" => {
+                Ok(Self::ClientError(ClientError::MisdirectedRequest))
+            }
+            b"UnprocessableContent" | b"422" => {
+                Ok(Self::ClientError(ClientError::UnprocessableContent))
+            }
+            b"Locked" | b"423" => Ok(Self::ClientError(ClientError::Locked)),
+            b"FailedDependency" | b"424" => Ok(Self::ClientError(ClientError::FailedDependency)),
+            b"TooEarly" | b"425" => Ok(Self::ClientError(ClientError::TooEarly)),
+            b"UpgradeRequired" | b"426" => Ok(Self::ClientError(ClientError::UpgradeRequired)),
+            b"PreconditionRequired" | b"428" => {
+                Ok(Self::ClientError(ClientError::PreconditionRequired))
+            }
+            b"TooManyRequests" | b"429" => Ok(Self::ClientError(ClientError::TooManyRequests)),
+            b"RequestHeaderFieldsTooLarge" | b"431" => {
+                Ok(Self::ClientError(ClientError::RequestHeaderFieldsTooLarge))
+            }
+            b"UnavailableForLegalReasons" | b"451" => {
+                Ok(Self::ClientError(ClientError::UnavailableForLegalReasons))
+            }
+
+            b"InternalServerError" | b"500" => {
+                Ok(Self::ServerError(ServerError::InternalServerError))
+            }
+            b"NotImplemented" | b"501" => Ok(Self::ServerError(ServerError::NotImplemented)),
+            b"BadGateway" | b"502" => Ok(Self::ServerError(ServerError::BadGateway)),
+            b"ProcessUnavailable" | b"503" => {
+                Ok(Self::ServerError(ServerError::ProcessUnavailable))
+            }
+            b"GatewayTimeout" | b"504" => Ok(Self::ServerError(ServerError::GatewayTimeout)),
+            b"HTTPVersionNotSupported" | b"505" => {
+                Ok(Self::ServerError(ServerError::HTTPVersionNotSupported))
+            }
+            b"VariantAlsoNegotiates" | b"506" => {
+                Ok(Self::ServerError(ServerError::VariantAlsoNegotiates))
+            }
+            b"InsufficientStorage" | b"507" => {
+                Ok(Self::ServerError(ServerError::InsufficientStorage))
+            }
+            b"LoopDetected" | b"508" => Ok(Self::ServerError(ServerError::LoopDetected)),
+            b"NotExtended" | b"510" => Ok(Self::ServerError(ServerError::NotExtended)),
+            b"NetworkAuthenticationRequired" | b"511" => Ok(Self::ServerError(
                 ServerError::NetworkAuthenticationRequired,
             )),
             _ => Err(()),
@@ -558,7 +690,7 @@ impl TryFrom<u16> for Status {
 // }
 
 /// error response status
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ErrorStatus {
     Client(ClientError),
     Server(ServerError),
@@ -661,10 +793,6 @@ impl From<ErrorStatus> for u16 {
     }
 }
 
-use proc_macro2::{Delimiter, Group, Span, TokenStream as TS2, TokenTree};
-use quote::{ToTokens, TokenStreamExt};
-use syn::Ident;
-
 impl ErrorStatus {
     fn str_lit(&self) -> &str {
         match self {
@@ -692,34 +820,34 @@ impl From<ErrorStatus> for Status {
     }
 }
 
-impl ToTokens for ErrorStatus {
-    fn to_tokens(&self, tokens: &mut TS2) {
-        tokens.append(<ErrorStatus as Into<TokenTree>>::into(*self))
-    }
-}
-
-impl From<ErrorStatus> for TokenTree {
-    fn from(err: ErrorStatus) -> Self {
-        let [var, subtype, subvar] = {
-            let s = err.to_string();
-            let mut iter = s
-                .split("::")
-                .map(|s| Ident::new(s.trim(), Span::call_site()));
-
-            [
-                iter.next().unwrap(),
-                iter.next().unwrap(),
-                iter.next().unwrap(),
-            ]
-        };
-
-        Group::new(
-            Delimiter::None,
-            quote::quote! { ErrorStatus::#var(pheasant:: #subtype::#subvar) },
-        )
-        .into()
-    }
-}
+// impl ToTokens for ErrorStatus {
+//     fn to_tokens(&self, tokens: &mut TS2) {
+//         tokens.append(<ErrorStatus as Into<TokenTree>>::into(*self))
+//     }
+// }
+//
+// impl From<ErrorStatus> for TokenTree {
+//     fn from(err: ErrorStatus) -> Self {
+//         let [var, subtype, subvar] = {
+//             let s = err.to_string();
+//             let mut iter = s
+//                 .split("::")
+//                 .map(|s| Ident::new(s.trim(), Span::call_site()));
+//
+//             [
+//                 iter.next().unwrap(),
+//                 iter.next().unwrap(),
+//                 iter.next().unwrap(),
+//             ]
+//         };
+//
+//         Group::new(
+//             Delimiter::None,
+//             quote::quote! { ErrorStatus::#var(pheasant:: #subtype::#subvar) },
+//         )
+//         .into()
+//     }
+// }
 
 impl fmt::Display for ErrorStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

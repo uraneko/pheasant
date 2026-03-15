@@ -1,19 +1,18 @@
-use super::{Header, Request, Token};
-use crate::{Method, Protocol};
+use super::Token;
+use crate::{Header, Method, Protocol, Status};
 use alloc::vec::Vec;
 use pheasant_uri::Resource;
 
-pub fn lex() {}
-
 pub struct Lex<'a> {
-    cursor: usize,
-    buf: &'a [u8],
+    pub(crate) cursor: usize,
+    pub(crate) buf: &'a [u8],
     // eof: bool,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Error {
     FailedToParseToken,
+    TokenMisbehaves,
     CouldntFindWhiteSpace,
     CouldntFindTheColon,
     CouldntFindTheEol,
@@ -25,17 +24,22 @@ pub enum Error {
 }
 
 impl<'a> Lex<'a> {
+    /// returns length of message buffer
     pub fn len(&self) -> usize {
         self.buf.len()
     }
 
+    /// returns how much of the message buffer remains
     pub fn rem(&self) -> usize {
         self.len() - self.cursor
     }
+
+    /// returns the cursor position in the message buffer
     pub fn cursor(&self) -> usize {
         self.cursor
     }
 
+    /// returns a shared ref to the message buffer
     pub fn buf(&self) -> &[u8] {
         self.buf
     }
@@ -50,9 +54,36 @@ impl<'a> Lex<'a> {
         let Some(sep) = find(&self.buf, 0, 32) else {
             return Err(Error::CouldntFindWhiteSpace);
         };
+        let start = self.cursor;
         self.cursor = sep + 1;
 
-        Method::try_from(&self.buf[..sep]).map_err(|_| Error::FailedToParseToken)
+        Method::try_from(&self.buf[start..sep]).map_err(|_| Error::FailedToParseToken)
+    }
+
+    pub fn status(&mut self) -> Result<Status, Error> {
+        let Some(sep) = find(&self.buf, self.cursor, 32) else {
+            return Err(Error::CouldntFindWhiteSpace);
+        };
+        let start = self.cursor;
+        self.cursor = sep + 1;
+
+        let code =
+            Status::try_from(&self.buf[start..sep]).map_err(|_| Error::FailedToParseToken)?;
+
+        let Some((sep, eol)) = find_eol(&self.buf, self.cursor) else {
+            return Err(Error::CouldntFindTheEol);
+        };
+        let start = self.cursor;
+        self.cursor = sep + if Token::LF == eol { 1 } else { 2 };
+
+        let text =
+            Status::try_from(&self.buf[start..sep]).map_err(|_| Error::FailedToParseToken)?;
+
+        if code != text {
+            return Err(Error::TokenMisbehaves);
+        }
+
+        Ok(text)
     }
 
     pub fn url(&mut self) -> Result<Resource, Error> {
@@ -65,7 +96,7 @@ impl<'a> Lex<'a> {
         Resource::try_from(&self.buf[start..sep]).map_err(|_| Error::FailedToParseToken)
     }
 
-    pub fn protocol(&mut self) -> Result<(Protocol, Token), Error> {
+    pub fn req_proto(&mut self) -> Result<(Protocol, Token), Error> {
         let Some((sep, eol)) = find_eol(&self.buf, self.cursor) else {
             return Err(Error::CouldntFindTheEol);
         };
@@ -77,6 +108,16 @@ impl<'a> Lex<'a> {
             .map(|p| (p, eol))
     }
 
+    pub fn resp_proto(&mut self) -> Result<Protocol, Error> {
+        let Some(sep) = find(&self.buf, self.cursor, 32) else {
+            return Err(Error::CouldntFindTheEol);
+        };
+        let start = self.cursor;
+        self.cursor = sep + 1;
+
+        Protocol::try_from(&self.buf[start..sep]).map_err(|_| Error::FailedToParseToken)
+    }
+
     pub fn field(&mut self) -> Result<Token, Error> {
         // TODO
         // if [10, 13].contains(&self.buf[self.cursor + 1]) {
@@ -86,13 +127,14 @@ impl<'a> Lex<'a> {
             return Err(Error::ArbitraryEol(eol));
         }
 
+        // std::println!("=> {:?}", str::from_utf8(&self.buf[self.cursor..]));
         let Some(sep) = find(&self.buf, self.cursor, b':') else {
             return Err(Error::CouldntFindTheColon);
         };
         let start = self.cursor;
         self.cursor = sep + 1;
 
-        Ok(Token::Field(self.buf[start..sep].to_vec()))
+        Ok(Token::Field(self.buf[start..sep].to_ascii_lowercase()))
     }
 
     pub fn value(&mut self) -> Result<[Token; 2], Error> {
@@ -131,12 +173,19 @@ impl<'a> Lex<'a> {
     /// takes only the headers specified by the filters variable
     /// # Example
     /// ```
-    /// let filters = &[
+    /// use pheasant_prologue::message::http11::{Error, Lex};
+    ///
+    /// let mut lex = Lex::new(
+    ///     b"access-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n");
+    ///
+    /// let filters: &[&[u8]] = &[
     ///     b"access-control-request-method",
     ///     b"access-control-request-header",
     ///     b"origin"
     /// ];
     /// let cors_headers = lex.headers_filtered(filters)?;
+    ///
+    /// Ok::<(), Error>(())
     /// ```
     ///
     /// # Errors
@@ -177,36 +226,6 @@ impl<'a> Lex<'a> {
         Ok(Some(Token::Body(self.buf[self.cursor..data_end].to_vec())))
     }
 
-    pub fn request(&mut self) -> Result<Request, Error> {
-        let method = self.method()?;
-        let (path, query) = self.url()?.disassemble();
-        let (proto, _) = self.protocol()?;
-        let headers = self.headers()?;
-        let len = content_length(&headers);
-        let len = match len {
-            // we take from cursor to buffer end
-            Err(Error::ContentLengthNotFound) => self.len() - self.cursor,
-            Ok(len) => len,
-            Err(err) => return Err(err),
-        };
-        let body = match self.body(len)? {
-            Some(Token::Body(body)) => Some(body),
-            Some(_) => return Err(Error::UndesirableToken),
-
-            None => None,
-        };
-        let headers = build_headers(headers)?;
-
-        Ok(Request {
-            method,
-            path,
-            query,
-            proto,
-            headers,
-            body,
-        })
-    }
-
     pub fn maybe_eol(&mut self) -> Option<Token> {
         let len = self.len();
         let idx = &mut self.cursor;
@@ -242,8 +261,6 @@ impl<'a> Lex<'a> {
 
 // TODO add a feature to arbitrarily walk around (back and forth) the lexer's buffer and get whatever components you want
 
-use std::eprintln;
-
 pub fn build_headers(tokens: Vec<Token>) -> Result<Vec<Header>, Error> {
     let mut iter = tokens.into_iter();
     let mut headers = Vec::new();
@@ -275,7 +292,7 @@ pub fn content_length(headers: &[Token]) -> Result<usize, Error> {
         .iter()
         .filter(|h| {
             let Token::Field(field) = h else { return false };
-            field == b"Content-Length"
+            field == b"content-length"
         })
         .count()
         > 1
@@ -287,7 +304,7 @@ pub fn content_length(headers: &[Token]) -> Result<usize, Error> {
         .iter()
         .position(|t| {
             let Token::Field(len) = t else { return false };
-            len == b"Content-Length"
+            len == b"content-length"
         })
         .map(|idx| idx + 1);
     let Some(idx) = len_idx else {
@@ -324,6 +341,7 @@ fn sidestep_whitespace(buf: &[u8], mut idx: usize) -> usize {
 }
 
 fn find(buf: &[u8], mut idx: usize, sep: u8) -> Option<usize> {
+    // BUG index out of bounds, the len is 0 but the index is 0 BUG on windows 11 vm
     while buf[idx] != sep {
         if idx == buf.len() - 1 {
             return None;
