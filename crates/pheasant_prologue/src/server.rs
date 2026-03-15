@@ -134,7 +134,7 @@ pub struct Respond {
     body: Vec<u8>,
 }
 
-// NOTE this function would have been easier to read using self.iter.position and field.len
+// NOTE this function would have been easier on the eyes had it used self.iter.position and field.len
 // fn find_subslice(slice: &[u8], subslice: &[u8]) -> Option<usize> {
 //     // error the only way a single header field is equal in len to the entire headers buffer is
 //     // if something is wrong

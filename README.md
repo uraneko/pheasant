@@ -1,5 +1,5 @@
 <h1>pheasant</h1>
-pheasant is a http web server framework written in rust
+pheasant is a http web server framework written in rust.
 
 An HTTP server is too broad a program; anything the host system can do (calling another program, doing some calculations, db ops, fs ops, etc.,) the server may need to do. 
 That's why the main goal of this framework is to give the user smaller individual components that integrate well together (and preferably with external libs/crates) and let them write their own server implementations.
@@ -17,45 +17,28 @@ elColor=3a3a3a&color=ECD53F" height="25">](https://github.com/uraneko/pheasant/b
 > [WARN] This readme is a work in progress.
 
 ## ToC
-- [goals](#goals)
-- [apis](#apis)
+- [Goals](#Goals)
+- [Crates](#Crates)
 - [MSRV](#MSRV)
 - [License](#License)
 
 ### 
-### goals
+### Goals
 
-This framework aims to be: 
+This framework aims to be:
 * fully functional in a no_std state
-
-### 
-### apis
-
-| api | crate | state |
-| :------------- | :--: | :--: |
-| <a href="crates/pheasant_uri">url scheme</a> | uri | working |
-| <a href="crates/pheasant_prologue">http1.1 req/resp parsing</a> | prologue | working |
-| <a href="crates/pheasant_prologue">http1.1 req/resp builders</a> | services
-| <a href="crates/pheasant_socket">system socket api bindings (linux only)</a> | socket | clean-up |
-| <a href="crates/pheasant_socket">no-std socket impl</a> | socket | clean-up |
-| <a href="crates/pheasant_services">built-in middlwares</a> | services | extending |
-| <a href="crates/pheasant_prologue">http primitive types</a> | prologue | working |
-| <a href="crates/pheasant_services">server pattern logic</a> | services | working | 
-| <a href="crates/pheasant_prologue">basic server socket</a> | prologue | working |
-
-### 
-
-clean-up: means the api needs a code refactor/clean-up, until then, the user may find it inconvenient or weirdly designed.
-
-working: means the api is currently working and you can use it with no worries.
-
-extending: means working + new features are being added.
+* moderately low level a backend web framework
 
 ###
-### features
-| feature | dependencies |
-| :------ | :----------: |
-| there are no crate features yet | - |
+### Crates
+
+| crate | features |
+| :------------- | :--: |
+| <a href="crates/pheasant_prologue">prologue</a> | http primitive types (Method, Protocol, Status),<br />http/1.1 client/server request/response parsing |
+| <a href="crates/pheasant_uri">uri</a> | URL parser and URN parser |
+| <a href="crates/pheasant_services">services</a> | Various middlewares, server/services pattern traits |
+| <a href="crates/pheasant_socket">socket</a> | safe low level socket api bindings<br />only AF_UNIX and AF_INET addresses currently supported |
+| <a href="crates/pheasant_sys">sys</a> | c-ffi calls, currently only has the socket module |
 
 ###
 ### usage
