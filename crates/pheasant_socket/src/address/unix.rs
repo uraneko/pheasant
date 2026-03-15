@@ -1,7 +1,7 @@
 use crate::AddressFamily;
 
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct SockAddrUn {
     // AF_UNIX
     family: u16,
@@ -99,5 +99,6 @@ fn slice_to_array(slice: &[u8]) -> [u8; 108] {
 
 impl crate::socket::SockAddrCasting for SockAddrUn {
     const ADDRESS_FAMILY: crate::AddressFamily = Self::AF;
+    const SIZE: u32 = Self::SIZE - 2;
 }
 impl crate::socket::TrueSockAddr for SockAddrUn {}

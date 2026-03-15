@@ -7,7 +7,7 @@ use pheasant_socket::{
 fn main() -> Result<(), Error> {
     let socket = Socket::new(
         AddressFamily::Inet,
-        SocketType::SockStream,
+        SocketType::Stream,
         ProtocolNumber::Default,
     )?;
 

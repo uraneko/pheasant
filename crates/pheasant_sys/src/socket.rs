@@ -1,12 +1,11 @@
 #[repr(C)]
-#[derive(Debug)]
 // this is really what modern documentations call sockaddr_storage
 // my understanding is that,
-// since the original sockaddr is uncapable of holding large addresses such as inet6 or unix
+// since the original sockaddr is incapable of holding large addresses such as inet6 or unix
 // sockaddr_storage was made to be large enough for all sockaddr_* variants
+/// never use this directly
+/// this is not aa user facing struct
 pub struct SockAddr {
-    // use AddressFamily::ChoiceFamily.into() to populate this field
-    // as it refers to a c_uint repr of the address family value
     family: u16,
     data: [u8; 110],
 }
@@ -75,10 +74,16 @@ unsafe extern "C" {
     pub fn unlink(pathname: *const u8) -> i32;
 
     // TODO
-    pub fn poll();
+    fn socketpair();
 
     // TODO
-    pub fn select();
+    fn getaddrinfo();
+
+    // TODO
+    fn poll();
+
+    // TODO
+    fn select();
 }
 
 type size_t = u64;

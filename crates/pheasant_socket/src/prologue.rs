@@ -85,13 +85,13 @@ impl From<AddressFamily> for u16 {
 #[derive(Debug, Clone, Copy)]
 pub enum SocketType {
     // use this to open a tcp socket
-    SockStream,
+    Stream,
     // use this to open a udp socket
-    SockDgram,
-    SockSeqPacket,
+    Dgram,
+    SeqPacket,
     // use this for direct access to the underlying ip protocol
-    SockRaw,
-    SockRdm,
+    Raw,
+    Rdm,
     // Deprecated
     // use (afpacket, sock*, 0)
     // SockPacket
@@ -106,11 +106,11 @@ impl TryFrom<i32> for SocketType {
     type Error = ConversionError;
     fn try_from(int: i32) -> Result<Self, Self::Error> {
         Ok(match int {
-            1 => Self::SockStream,
-            2 => Self::SockDgram,
-            3 => Self::SockRaw,
-            4 => Self::SockRdm,
-            5 => Self::SockSeqPacket,
+            1 => Self::Stream,
+            2 => Self::Dgram,
+            3 => Self::Raw,
+            4 => Self::Rdm,
+            5 => Self::SeqPacket,
             int => return Err(ConversionError::BadInt(int)),
         })
     }
@@ -119,11 +119,11 @@ impl TryFrom<i32> for SocketType {
 impl From<SocketType> for i32 {
     fn from(st: SocketType) -> i32 {
         match st {
-            SocketType::SockStream => 1,
-            SocketType::SockDgram => 2,
-            SocketType::SockRaw => 3,
-            SocketType::SockRdm => 4,
-            SocketType::SockSeqPacket => 5,
+            SocketType::Stream => 1,
+            SocketType::Dgram => 2,
+            SocketType::Raw => 3,
+            SocketType::Rdm => 4,
+            SocketType::SeqPacket => 5,
         }
     }
 }

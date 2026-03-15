@@ -199,7 +199,7 @@ impl<A: TrueSockAddr> Socket<A> {
     }
 
     /// dont use this with client sockets
-    /// only bind if you intend to to listen and accept
+    /// only bind if you intend to listen and accept
     pub fn bind(&mut self) -> Result<(), Error> {
         match unsafe { bind(self.fd() as i32, self.addr.cast_ref(), A::SIZE) } {
             0 => self.is_bound = true,
@@ -228,11 +228,7 @@ impl<A: TrueSockAddr> Socket<A> {
                 &mut size as *mut u32,
             )
         } {
-            -1 => {
-                extern crate std;
-
-                Err(Error::errno())
-            }
+            -1 => Err(Error::errno()),
             fd if fd >= 0 => Ok(Socket::from_params(fd as u32, peer_addr, true)),
             err => unreachable!("unexpected error code {}", err),
         }

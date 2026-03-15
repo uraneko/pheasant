@@ -1,23 +1,21 @@
 use pheasant_socket::{
-    AddressFamily, Error, ProtocolNumber, SocketType,
-    address::unix::SockAddrUn,
-    socket::{SetSockOpts, Socket},
+    AddressFamily, Error, ProtocolNumber, SocketType, address::unix::SockAddrUn, socket::Socket,
 };
 
 fn main() -> Result<(), Error> {
     let socket = Socket::new(
         AddressFamily::Unix,
-        SocketType::SockStream,
+        SocketType::Stream,
         ProtocolNumber::Default,
     )?;
 
-    println!("{:?}", socket);
-    SetSockOpts::new(socket.fd()).reuse_address(true)?;
+    // SetSockOpts::new(socket.fd()).reuse_address(true)?;
 
-    let Ok(addr) = "socket1".parse::<SockAddrUn>() else {
+    let Ok(addr) = "socket13".parse::<SockAddrUn>() else {
         panic!("bad address value or parser");
     };
     let mut socket = socket.init(addr);
+    println!("{:?}", socket);
     socket.bind()?;
     std::thread::sleep(std::time::Duration::from_secs(7));
     socket.unlink()?;
