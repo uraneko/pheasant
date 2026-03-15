@@ -1,0 +1,173 @@
+use crate::AddressFamily;
+
+// in addr
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct InAddr {
+    pub addr: u32,
+}
+
+impl InAddr {
+    pub fn new(o0: u8, o1: u8, o2: u8, o3: u8) -> Self {
+        Self {
+            addr: u32::from_be_bytes([o3, o2, o1, o0]),
+        }
+    }
+
+    pub fn to_bytes(&self) -> [u8; 4] {
+        self.addr.to_ne_bytes()
+    }
+
+    pub fn any() -> Self {
+        Self { addr: 0 }
+    }
+
+    pub fn localhost() -> Self {
+        Self::new(127, 0, 0, 1)
+    }
+
+    // loopback range is last 8 bytes so 127.0.0.x are all loopback addresses
+    pub fn loopback(o: u8) -> Self {
+        Self::new(127, 0, 0, o)
+    }
+}
+
+impl core::fmt::Debug for InAddr {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let a = self.addr.to_ne_bytes();
+
+        write!(f, "{}.{}.{}.{}", a[0], a[1], a[2], a[3])
+    }
+}
+
+pub enum ConversionError {
+    StrParseFailed,
+    InvalidStr,
+}
+
+fn split_str_addr(s: &str) -> Result<[u8; 4], ConversionError> {
+    let mut iter = s.split(".").map(|o| o.parse());
+    let o0 = iter
+        .next()
+        .ok_or_else(|| ConversionError::InvalidStr)?
+        .map_err(|_| ConversionError::StrParseFailed)?;
+    let o1 = iter
+        .next()
+        .ok_or_else(|| ConversionError::InvalidStr)?
+        .map_err(|_| ConversionError::StrParseFailed)?;
+    let o2 = iter
+        .next()
+        .ok_or_else(|| ConversionError::InvalidStr)?
+        .map_err(|_| ConversionError::StrParseFailed)?;
+    let o3 = iter
+        .next()
+        .ok_or_else(|| ConversionError::InvalidStr)?
+        .map_err(|_| ConversionError::StrParseFailed)?;
+
+    Ok([o0, o1, o2, o3])
+}
+
+impl<'a> TryFrom<&'a str> for InAddr {
+    type Error = ConversionError;
+
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl core::str::FromStr for InAddr {
+    type Err = ConversionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let [o0, o1, o2, o3] = split_str_addr(s)?;
+
+        Ok(Self::new(o0, o1, o2, o3))
+    }
+}
+
+impl From<[u8; 4]> for InAddr {
+    fn from(arr: [u8; 4]) -> Self {
+        Self::new(arr[0], arr[1], arr[2], arr[3])
+    }
+}
+
+impl From<(u8, u8, u8, u8)> for InAddr {
+    fn from(tuple: (u8, u8, u8, u8)) -> Self {
+        Self::new(tuple.0, tuple.1, tuple.2, tuple.3)
+    }
+}
+
+// definition fetched from netinet/in.h
+// socket address struct for AF_INET address family
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SockAddrIn {
+    pub family: u16,
+    pub port: u16,
+    pub addr: InAddr,
+    pub padding: [u8; PADDING],
+}
+pub const PADDING: usize = (super::SockAddr::SIZE as usize) - core::mem::size_of::<InAddr>() - 4;
+
+impl Default for SockAddrIn {
+    fn default() -> Self {
+        Self {
+            family: Self::AF.into(),
+            port: 0,
+            addr: InAddr::default(),
+            padding: [0u8; _],
+        }
+    }
+}
+
+impl SockAddrIn {
+    pub const SIZE: u32 = core::mem::size_of::<SockAddrIn>() as u32;
+    pub const AF: AddressFamily = AddressFamily::Inet;
+
+    pub fn new(addr: impl Into<InAddr>, port: u16) -> Self {
+        let port = port;
+        Self {
+            family: Self::AF.into(),
+            addr: addr.into(),
+            port,
+            padding: [0; _],
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a str> for SockAddrIn {
+    type Error = ConversionError;
+    fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+        s.parse()
+    }
+}
+
+impl core::str::FromStr for SockAddrIn {
+    type Err = ConversionError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut iter = s.split(":");
+
+        let Some(addr_str) = iter.next() else {
+            return Err(Self::Err::InvalidStr);
+        };
+        let addr = addr_str.parse()?;
+
+        let Some(port_str) = iter.next() else {
+            return Err(Self::Err::InvalidStr);
+        };
+        let port = port_str.parse().map_err(|_| Self::Err::StrParseFailed)?;
+        let port = port;
+
+        Ok(Self {
+            family: Self::AF.into(),
+            addr,
+            port,
+            padding: [0; _],
+        })
+    }
+}
+
+impl crate::socket::SockAddrCasting for SockAddrIn {
+    const ADDRESS_FAMILY: crate::AddressFamily = Self::AF;
+}
+impl crate::socket::TrueSockAddr for SockAddrIn {}
