@@ -22,6 +22,7 @@ exclude = ["examples/basic"]
 pheasant_prologue = { version = "0.1.0", path = "crates/pheasant_prologue" }
 pheasant_uri = { version = "0.1.0", path = "crates/pheasant_uri" }
 pheasant_services = { version = "0.1.0", path = "crates/pheasant_services" }
+pheasant_socket = { version = "0.1.0", path = "crates/pheasant_socket" }
 # crossbeam-utils = "0.8.21"
 # uuid = "1.18.1"
 # rayon = "1.11.0"

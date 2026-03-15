@@ -1,34 +1,20 @@
-//! this crate defines some primitive types apis
-//!
-//! ### APIs
-//! - Method
-//! - Protocol
-//! - Status
-//! - Wildcardish
-
 #![no_std]
 #![forbid(clippy::unwrap_used, clippy::expect_used)]
-
-extern crate alloc;
-extern crate std;
-
-use alloc::string::FromUtf8Error;
 use core::fmt::{self, Debug, Display, Formatter};
 use core::str::Utf8Error;
+extern crate alloc;
 
 pub mod client;
 pub mod headers;
 pub mod maybe_glob;
 pub mod message;
 pub mod method;
-pub mod mime;
 pub mod protocol;
 pub mod server;
 pub mod status;
 
 pub use headers::{Header, contains_header, header_value};
 pub use method::Method;
-pub use mime::Mime;
 // pub use monopoly::MonoPoly;
 pub use maybe_glob::MaybeGlob;
 pub use protocol::Protocol;
@@ -115,13 +101,6 @@ impl Display for PheasantError {
 
 impl core::error::Error for PheasantError {}
 
-// WARN this is senseless, should be PortIsTaken error variant
-impl From<std::io::Error> for PheasantError {
-    fn from(_err: std::io::Error) -> Self {
-        Self::ClientError(ClientError::BadRequest)
-    }
-}
-
 impl From<core::num::ParseIntError> for PheasantError {
     fn from(_err: core::num::ParseIntError) -> Self {
         Self::ClientError(ClientError::BadRequest)
@@ -130,12 +109,6 @@ impl From<core::num::ParseIntError> for PheasantError {
 
 impl From<Utf8Error> for PheasantError {
     fn from(_err: Utf8Error) -> Self {
-        Self::ClientError(ClientError::BadRequest)
-    }
-}
-
-impl From<FromUtf8Error> for PheasantError {
-    fn from(_err: FromUtf8Error) -> Self {
         Self::ClientError(ClientError::BadRequest)
     }
 }

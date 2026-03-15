@@ -808,6 +808,7 @@ version = "0.1.0"
 dependencies = [
  "pheasant_prologue",
  "pheasant_services",
+ "pheasant_socket",
  "pheasant_uri",
 ]
 
@@ -828,6 +829,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "mime",
  "pheasant_prologue",
+ "pheasant_socket",
  "pheasant_uri",
  "sha2",
  "sqlx",

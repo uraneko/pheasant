@@ -18,6 +18,7 @@ chrono = { version = "0.4.41", features = ["serde"] }
 hashbrown = "0.16.0"
 mime = "0.3.17"
 pheasant_prologue = { version = "0.1.0", path = "../pheasant_prologue" }
+pheasant_socket = { version = "0.1.0", path = "../pheasant_socket" }
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", features = ["sqlite"] }

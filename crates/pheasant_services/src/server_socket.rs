@@ -1,31 +1,14 @@
-use crate::Service;
-use pheasant_prologue::server::Request;
+use crate::TcpSocket;
+use pheasant_socket::{
+    AddressFamily, Error as SocketError, ProtocolNumber, SocketType, address::SockAddrIn,
+    socket::SetSockOpts,
+};
 use sqlx::sqlite;
-use std::io::Result as IoRes;
-use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 
 pub mod builder;
 
-/// tries to bind the socket to the passed addr and port
-/// keeps incrementing port number until it finds a free port
-///
-/// ### Error
-/// - returns an std::io::Error when port reaches u16::MAX and no free port is found
-pub fn bind_socket(addr: impl Into<Ipv4Addr>, mut port: u16) -> Result<TcpListener, Error> {
-    let addr = addr.into();
-    let socket = loop {
-        match TcpListener::bind((addr, port)) {
-            Ok(listener) => break listener,
-            err if port == u16::MAX => return err.map_err(|_| Error::None),
-            _err => port += 1,
-        }
-    };
-
-    Ok(socket)
-}
-
 pub struct Socket {
-    pub socket: TcpListener,
+    pub socket: TcpSocket<SockAddrIn>,
     pub buffer: Vec<u8>,
     pub conn: sqlite::SqliteConnection,
 }
@@ -33,29 +16,49 @@ pub struct Socket {
 impl Socket {
     /// # Error
     /// returns an Err if the Tcp Listener generation fails
-    pub fn builder(addr: impl Into<Ipv4Addr>, port: u16) -> builder::Builder {
-        let socket = bind_socket(addr, port);
+    pub fn builder(host: &str) -> Result<builder::Builder, Error> {
+        let socket = TcpSocket::new(
+            AddressFamily::Inet,
+            SocketType::Stream,
+            ProtocolNumber::Default,
+        )?;
+        SetSockOpts::new(socket.fd()).reuse_address(true)?;
+        let addr = host.parse().map_err(|_| Error::BadAddrOrPort)?;
 
-        builder::Builder::new(socket)
+        Ok(builder::Builder::new(socket.init::<SockAddrIn>(addr)))
+    }
+
+    // / prints out the socket url on the stdout
+    // fn init_message(&self) -> String {
+    //     "\x1b[1;38;2;211;163;104mSocket listening on http://{}:{}\x1b[0m\r\n";
+    // }
+
+    /// returns a copy of self.socket
+    /// which implements send and recv methods
+    /// to exchange messages with another socket
+    pub fn inner(&self) -> TcpSocket<SockAddrIn> {
+        self.socket
+    }
+
+    pub fn buf_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.buffer
+    }
+
+    pub fn buf_ref(&self) -> &[u8] {
+        &self.buffer
     }
 }
 
-impl crate::Server for Socket {
-    // returns a result of the socket's ip addr
-    fn addr(&self) -> IoRes<SocketAddr> {
-        self.socket.local_addr()
-    }
+impl crate::Server for Socket {}
 
-    fn port(&self) -> u16 {
-        match self.socket.local_addr() {
-            Ok(addr) => addr.port(),
-            Err(_) => 80,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub enum Error {
-    None,
-    ServersGottaServe,
+    Socket(SocketError),
+    BadAddrOrPort,
+    SqliteConnFailed,
+}
+
+impl From<SocketError> for Error {
+    fn from(err: SocketError) -> Self {
+        Self::Socket(err)
+    }
 }

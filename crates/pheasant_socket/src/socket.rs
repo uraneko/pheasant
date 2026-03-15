@@ -393,6 +393,26 @@ impl Socket<crate::address::SockAddrUn> {
     }
 }
 
+// also should be implemented for SockAddrIn6
+impl Socket<crate::address::SockAddrIn> {
+    pub fn bind_incremental(&mut self) -> Result<u16, Error> {
+        while let Err(err) = self.bind() {
+            match err {
+                Error::AddressInUse => {
+                    if self.addr.port == u16::MAX {
+                        return Err(err);
+                    }
+
+                    self.addr.port += 1;
+                }
+                err => return Err(err),
+            }
+        }
+
+        Ok(self.addr.port())
+    }
+}
+
 impl VoidCasting for u32 {}
 impl VoidCasting for i32 {}
 impl VoidCasting for bool {}

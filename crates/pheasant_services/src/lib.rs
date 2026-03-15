@@ -13,7 +13,6 @@ pub mod parse;
 pub mod print;
 pub mod range;
 pub mod server_socket;
-pub mod stream;
 
 pub use content_meta::MessageBodyInfo;
 pub use cookies::{ReadCookies, WriteCookies};
@@ -22,8 +21,8 @@ pub use errors::http_error;
 pub use forward::Forward;
 pub use parse::parse;
 pub use range::{Ranges, support_ranges};
-pub use server_socket::{Socket, bind_socket};
-pub use stream::{read_stream, req_buf, resp_write_stream, write_stream};
+
+type TcpSocket<T> = pheasant_socket::socket::Socket<T>;
 
 pub fn date() -> chrono::DateTime<chrono::Utc> {
     chrono::Utc::now()
@@ -60,27 +59,6 @@ pub trait Server {
     {
         service.serve(self, req, buf).await
     }
-
-    /// prints out the socket url on the stdout
-    fn init_message(&self) {
-        use std::io::Write;
-
-        let mut stdout = std::io::stdout();
-        _ = stdout.write(
-            format!(
-                "\x1b[1;38;2;211;163;104mSocket listening on http://{}\x1b[0m\r\n",
-                self.addr()
-                    .map(|addr| addr.to_string())
-                    .unwrap_or(format!("localhost:{}", self.port())),
-            )
-            .as_bytes(),
-        );
-        _ = stdout.flush();
-    }
-
-    fn addr(&self) -> Result<std::net::SocketAddr, std::io::Error>;
-
-    fn port(&self) -> u16;
 }
 
 pub trait Resource<S: Server>: Sized {

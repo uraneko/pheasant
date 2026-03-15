@@ -1,32 +1,59 @@
-use crate::Service;
-use pheasant_prologue::server::Request;
-use std::io::Result as IoRes;
-use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
+use crate::TcpSocket;
+use pheasant_socket::{
+    AddressFamily, Error as SocketError, ProtocolNumber, SocketType, address::SockAddrIn,
+};
 
-pub struct ClientSocket {
-    addr: Ipv4Addr,
-    port: u16,
+pub struct Socket {
+    socket: TcpSocket<()>,
+    buffer: Vec<u8>,
 }
 
+impl Socket {
+    pub fn new(buf_size: usize) -> Result<Self, Error> {
+        Ok(Self {
+            socket: TcpSocket::new(
+                AddressFamily::Inet,
+                SocketType::Stream,
+                ProtocolNumber::Default,
+            )?,
+            buffer: Vec::with_capacity(buf_size),
+        })
+    }
+
+    pub fn connect(&self, server: &str) -> Result<(), Error> {
+        let addr = server
+            .parse::<SockAddrIn>()
+            .map_err(|_| Error::BadAddrStr)?;
+        self.socket.connect(&addr)?;
+
+        Ok(())
+    }
+
+    /// returns a copy of self.socket
+    /// which implements send and recv methods
+    /// to exchange messages with another socket
+    pub fn inner(&self) -> TcpSocket<()> {
+        self.socket
+    }
+
+    pub fn buf_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.buffer
+    }
+
+    pub fn buf_ref(&self) -> &[u8] {
+        &self.buffer
+    }
+}
+
+#[derive(Debug)]
 pub enum Error {
+    Socket(SocketError),
+    BadAddrStr,
     ConnectFailed,
 }
 
-impl ClientSocket {
-    pub fn new(addr: impl Into<Ipv4Addr>, port: u16) -> Self {
-        let addr = addr.into();
-        Self { addr, port }
-    }
-
-    pub fn addr(&mut self, addr: impl Into<Ipv4Addr>) {
-        self.addr = addr.into();
-    }
-
-    pub fn port(&mut self, port: u16) {
-        self.port = port;
-    }
-
-    pub fn socket(&self) -> Result<TcpStream, Error> {
-        TcpStream::connect((self.addr, self.port)).map_err(|_| Error::ConnectFailed)
+impl From<SocketError> for Error {
+    fn from(err: SocketError) -> Self {
+        Self::Socket(err)
     }
 }

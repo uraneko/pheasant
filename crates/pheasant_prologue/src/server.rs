@@ -7,7 +7,6 @@ use crate::{Status, status};
 use alloc::string::String;
 use alloc::vec::Vec;
 use pheasant_uri::{Path, Query};
-use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub struct Request {
@@ -273,18 +272,6 @@ impl Respond {
     /// writes self as bytes to the passed buffer
     pub fn dump_bytes(&self, buf: &mut Vec<u8>, method: Method) {
         buf.extend(&self.to_bytes(method));
-    }
-
-    /// writes the response bytes directly to a tcp stream
-    pub fn direct_write(
-        &self,
-        writer: &mut impl Write,
-        method: Method,
-    ) -> Result<(), std::io::Error> {
-        writer.write_all(&self.to_bytes(method))?;
-        writer.flush()?;
-
-        Ok(())
     }
 
     // resets proto and status to defaults

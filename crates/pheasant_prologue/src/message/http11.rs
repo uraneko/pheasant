@@ -261,8 +261,6 @@ impl<'a> Lex<'a> {
 
 // TODO add a feature to arbitrarily walk around (back and forth) the lexer's buffer and get whatever components you want
 
-use std::eprintln;
-
 pub fn build_headers(tokens: Vec<Token>) -> Result<Vec<Header>, Error> {
     let mut iter = tokens.into_iter();
     let mut headers = Vec::new();
