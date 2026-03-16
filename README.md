@@ -17,20 +17,20 @@ elColor=3a3a3a&color=ECD53F" height="25">](https://github.com/uraneko/pheasant/b
 > [WARN] This readme is a work in progress.
 
 ## ToC
-- [Goals](#Goals)
-- [Crates](#Crates)
-- [MSRV](#MSRV)
-- [License](#License)
+- [goals](#goals)
+- [crates](#crates)
+- [msrv](#msrv)
+- [license](#license)
 
 ### 
-### Goals
+### goals
 
 This framework aims to be:
 * fully functional in a no_std state
 * moderately low level a backend web framework
 
 ###
-### Crates
+### crates
 
 | crate | features |
 | :------------- | :--: |

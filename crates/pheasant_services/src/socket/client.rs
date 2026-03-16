@@ -43,10 +43,6 @@ impl Socket {
     pub fn buf_ref(&self) -> &[u8] {
         &self.buffer
     }
-
-    pub fn clear_buf(&mut self) {
-        self.buffer.fill(0);
-    }
 }
 
 #[derive(Debug)]

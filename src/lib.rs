@@ -1,3 +1,5 @@
+#![no_std]
+
 pub mod prologue {
     pub use pheasant_prologue::{
         ClientError, ErrorStatus, Header, Informational, Method, Protocol, Redirection,
@@ -13,7 +15,7 @@ pub mod uri {
 pub mod services {
     pub use pheasant_services::{
         Cors, Forward, MessageBodyInfo, Ranges, ReadCookies, Resource, Server, Service,
-        WriteCookies, client_socket, cors, date, http_error, parse, print, server_socket,
+        WriteCookies, , cors, date, http_error, parse, print, socket,
         support_ranges,
     };
 }

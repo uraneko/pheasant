@@ -31,8 +31,7 @@ impl Builder {
 
         Ok(Socket {
             socket: self.socket,
-            buffer: vec![0; self.buf_size],
-            cursor: 0,
+            buffer: Vec::with_capacity(self.buf_size),
             conn: sqlite::SqliteConnectOptions::new()
                 .filename(self.path)
                 .create_if_missing(true)
