@@ -3,9 +3,10 @@ name = "pheasant"
 version = "0.1.0"
 edition = "2024"
 
-[[example]]
-path = "examples/basic"
-name = "basic"
+# [[example]]
+# name = "hello_web"
+### crate example - run like this 
+### cargo run --manifest-path examples/hello-web/Cargo.toml
 
 [workspace]
 members = [

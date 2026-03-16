@@ -395,6 +395,16 @@ impl Socket<crate::address::SockAddrUn> {
 
 // also should be implemented for SockAddrIn6
 impl Socket<crate::address::SockAddrIn> {
+    /// returns the 4 bytes of self's inner address' ipv4 address
+    pub fn addr(&self) -> [u8; 4] {
+        self.addr.addr()
+    }
+
+    /// returns self's inner address' port number
+    pub fn port(&self) -> u16 {
+        self.addr.port()
+    }
+
     pub fn bind_incremental(&mut self) -> Result<u16, Error> {
         while let Err(err) = self.bind() {
             match err {

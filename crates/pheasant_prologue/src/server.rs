@@ -270,8 +270,13 @@ impl Respond {
     // this doesnt clear
     // user can do so on their own
     /// writes self as bytes to the passed buffer
-    pub fn dump_bytes(&self, buf: &mut Vec<u8>, method: Method) {
-        buf.extend(&self.to_bytes(method));
+    pub fn dump_bytes(&self, buf: &mut Vec<u8>, method: Method) -> usize {
+        buf.clear();
+        let bytes = self.to_bytes(method);
+        let n = bytes.len();
+        buf.extend(&bytes);
+
+        n
     }
 
     // resets proto and status to defaults

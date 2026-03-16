@@ -126,7 +126,7 @@ impl SockAddrIn {
     pub const AF: AddressFamily = AddressFamily::Inet;
 
     pub fn new(addr: impl Into<InAddr>, port: u16) -> Self {
-        let port = port;
+        let port = u16::from_be(port);
         Self {
             family: Self::AF.into(),
             addr: addr.into(),
@@ -142,7 +142,7 @@ impl SockAddrIn {
 
     /// returns the port value of this address
     pub fn port(&self) -> u16 {
-        self.port
+        u16::from_be(self.port)
     }
 }
 
@@ -161,20 +161,14 @@ impl core::str::FromStr for SockAddrIn {
         let Some(addr_str) = iter.next() else {
             return Err(Self::Err::InvalidStr);
         };
-        let addr = addr_str.parse()?;
+        let addr: InAddr = addr_str.parse()?;
 
         let Some(port_str) = iter.next() else {
             return Err(Self::Err::InvalidStr);
         };
         let port = port_str.parse().map_err(|_| Self::Err::StrParseFailed)?;
-        let port = port;
 
-        Ok(Self {
-            family: Self::AF.into(),
-            addr,
-            port,
-            padding: [0; _],
-        })
+        Ok(Self::new(addr, port))
     }
 }
 
