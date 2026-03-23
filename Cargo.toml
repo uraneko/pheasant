@@ -10,20 +10,20 @@ edition = "2024"
 
 [workspace]
 members = [
-	"crates/pheasant_prologue",
-	"crates/pheasant_uri",
-	"crates/pheasant_services",
-	"crates/pheasant_socket",
-	"crates/pheasant_sys",
+	"crates/pheasant-prologue",
+	"crates/pheasant-uri",
+	"crates/pheasant-services",
+	"crates/pheasant-socket",
+	"crates/pheasant-sys",
 ]
 resolver = "3"
 exclude = ["examples/basic"]
 
 [dependencies]
-pheasant_prologue = { version = "0.1.0", path = "crates/pheasant-prologue" }
-pheasant_uri = { version = "0.1.0", path = "crates/pheasant-uri" }
-pheasant_services = { version = "0.1.0", path = "crates/pheasant-services" }
-pheasant_socket = { version = "0.1.0", path = "crates/pheasant-socket" }
+pheasant-prologue = { version = "0.1.0", path = "crates/pheasant-prologue" }
+pheasant-uri = { version = "0.1.0", path = "crates/pheasant-uri" }
+pheasant-services = { version = "0.1.0", path = "crates/pheasant-services" }
+pheasant-socket = { version = "0.1.0", path = "crates/pheasant-socket" }
 # crossbeam-utils = "0.8.21"
 # uuid = "1.18.1"
 # rayon = "1.11.0"

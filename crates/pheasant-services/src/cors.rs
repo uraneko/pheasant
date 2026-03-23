@@ -397,12 +397,15 @@ impl Cors {
         W: Write,
         Error: From<<W as ErrorType>::Error>,
     {
+        use num_into_ascii::NumToAscii;
+
         let Some(max_age) = self.max_age else {
             return Ok(());
         };
 
         buffer.write(b"access-control-max-age: ")?;
-        buffer.write(max_age.to_string().as_bytes())?;
+        let (slice, size) = max_age.ascii_bytes();
+        buffer.write(&slice[..size])?;
         buffer.write(&[10])?;
 
         Ok(())

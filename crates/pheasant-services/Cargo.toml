@@ -18,9 +18,10 @@ chrono = { version = "0.4.41", features = ["serde"] }
 embedded-io = { version = "0.7.1", features = ["alloc"] }
 hashbrown = "0.16.0"
 mime = "0.3.17"
-pheasant_prologue = { version = "0.1.0", path = "../pheasant_prologue" }
-pheasant_socket = { version = "0.1.0", path = "../pheasant_socket" }
-pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
+num-into-ascii = { version = "0.1.0", path = "../../../num-into-ascii" }
+pheasant-prologue = { version = "0.1.0", path = "../pheasant-prologue" }
+pheasant-socket = { version = "0.1.0", path = "../pheasant-socket" }
+pheasant-uri = { version = "0.1.0", path = "../pheasant-uri" }
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", features = ["sqlite"] }
 # uuid = { version = "1.18.1", features = ["v4", "v6", "v8"] }

@@ -6,6 +6,7 @@ use crate::{Header, Method, Protocol};
 use crate::{Status, status};
 use alloc::string::String;
 use alloc::vec::Vec;
+use embedded_io::Write;
 use pheasant_uri::{Path, Query};
 
 #[derive(Debug, Clone)]
