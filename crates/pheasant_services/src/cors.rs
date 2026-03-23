@@ -1,4 +1,5 @@
 use core::str::Utf8Error;
+use embedded_io::{ErrorType, Write};
 use hashbrown::HashSet;
 use pheasant_prologue::{Header, MaybeGlob, Method, header_value};
 
@@ -195,6 +196,7 @@ pub enum Error {
     BadHeaderValue,
     ForbiddenOrigin,
     MissingRequestOrigin,
+    IoFailure,
 }
 
 impl From<Utf8Error> for Error {
@@ -241,9 +243,13 @@ impl Cors {
 
 // methods for writing cors headers to the buffer
 impl Cors {
-    pub fn allow_origin(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn allow_origin<W>(&self, value: &[u8], buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         let MaybeGlob::Value(ref origins) = self.origins else {
-            buffer.extend(b"access-control-allow-origin: *\n");
+            buffer.write(b"access-control-allow-origin: *\n")?;
 
             return Ok(());
         };
@@ -253,16 +259,20 @@ impl Cors {
             return Err(Error::ForbiddenOrigin);
         }
 
-        buffer.extend(b"access-control-allow-origin: ");
-        buffer.extend(origin.as_bytes());
-        buffer.push(10);
+        buffer.write(b"access-control-allow-origin: ")?;
+        buffer.write(origin.as_bytes())?;
+        buffer.write(&[10])?;
 
         Ok(())
     }
 
-    pub fn allow_methods(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn allow_methods<W>(&self, _value: &[u8], buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         let MaybeGlob::Value(ref methods) = self.methods else {
-            buffer.extend(b"access-control-allow-methods: *\n");
+            buffer.write(b"access-control-allow-methods: *\n")?;
 
             return Ok(());
         };
@@ -270,6 +280,7 @@ impl Cors {
         if methods.is_empty() {
             return Ok(());
         }
+        buffer.write(b"access-control-allow-methods: ")?;
 
         // TODO str conversion is redundant
         // use method try from slice
@@ -283,27 +294,29 @@ impl Cors {
         //         .parse::<Method>()
         //         .map_err(|_| Error::BadHeaderValue)
         // })??) {}
-
-        buffer.extend(b"access-control-allow-methods: ");
-        methods.iter().fold(&mut *buffer, |acc, m| {
-            acc.extend(m.as_str().as_bytes());
-            acc.extend(b", ");
-
-            acc
-        });
-
-        buffer.pop();
-        buffer.pop();
-        buffer.push(10);
+        let mut size = methods.len();
+        let mut iter = methods.into_iter();
+        while let Some(m) = iter.next() {
+            buffer.write(m.as_str().as_bytes())?;
+            if size >= 1 {
+                buffer.write(b", ")?;
+            }
+            size -= 1;
+        }
+        buffer.write(&[10])?;
 
         Ok(())
     }
 
     /// compares these params with the requested cors params
     /// writes the response cors headers
-    pub fn allow_headers(&self, value: &[u8], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn allow_headers<W>(&self, value: &[u8], buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         let MaybeGlob::Value(ref headers) = self.headers else {
-            buffer.extend(b"access-control-allow-headers: *\n");
+            buffer.write(b"access-control-allow-headers: *\n")?;
 
             return Ok(());
         };
@@ -314,31 +327,36 @@ impl Cors {
         // NOTE it probably makes more sense to write all allowed headers
         // since client may cache that knowledge and use different headers later
 
+        // WARN str are unnecessary
         let mut headers = str::from_utf8(value)?
             .split(|ch| ch == ',')
             .map(|h| h.trim())
-            .filter(|h| allows_header(headers, h));
+            .filter(|h| allows_header(headers, h))
+            .peekable();
 
-        if let Some(header) = headers.next() {
-            buffer.extend(b"access-control-allow-headers: ");
-            buffer.extend(header.as_bytes());
-            buffer.push(b',');
+        if headers.peek().is_none() {
+            return Ok(());
         }
 
+        buffer.write(b"access-control-allow-headers: ")?;
         while let Some(header) = headers.next() {
-            buffer.extend(header.as_bytes());
-            buffer.push(b',');
+            buffer.write(header.as_bytes())?;
+            if headers.peek().is_some() {
+                buffer.write(b", ")?;
+            }
         }
-
-        buffer.pop();
-        buffer.push(10);
+        buffer.write(&[10])?;
 
         Ok(())
     }
 
-    pub fn expose_headers(&self, buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn expose_headers<W>(&self, buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         let MaybeGlob::Value(ref expose) = self.expose else {
-            buffer.extend(b"access-control-expose-headers: *\n");
+            buffer.write(b"access-control-expose-headers: *\n")?;
 
             return Ok(());
         };
@@ -346,39 +364,55 @@ impl Cors {
         if expose.is_empty() {
             return Ok(());
         }
+        buffer.write(b"access-control-expose-headers: ")?;
 
-        expose.iter().fold(
-            {
-                buffer.extend(b"access-control-expose-headers: ");
-                buffer
-            },
-            |acc, e| {
-                acc.extend(e.as_bytes());
-                acc.push(b',');
-                acc
-            },
-        );
+        let mut size = expose.len();
+        let mut iter = expose.into_iter();
+        while let Some(e) = iter.next() {
+            buffer.write(e.as_bytes())?;
+            if size >= 1 {
+                buffer.write(b", ")?;
+            }
+
+            size -= 1;
+        }
 
         Ok(())
     }
 
-    pub fn allow_credentials(&self, buffer: &mut Vec<u8>) {
+    pub fn allow_credentials<W>(&self, buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         if self.credentials {
-            buffer.extend(b"access-control-allow-credentials: true\n");
+            buffer.write(b"access-control-allow-credentials: true\n")?;
         }
+
+        Ok(())
     }
 
-    pub fn allow_max_age(&self, buffer: &mut Vec<u8>) {
+    pub fn allow_max_age<W>(&self, buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         let Some(max_age) = self.max_age else {
-            return;
+            return Ok(());
         };
 
-        buffer.extend(b"access-control-max-age: ");
-        buffer.extend(max_age.to_string().as_bytes());
-        buffer.push(10);
+        buffer.write(b"access-control-max-age: ")?;
+        buffer.write(max_age.to_string().as_bytes())?;
+        buffer.write(&[10])?;
+
+        Ok(())
     }
 
-    pub fn cors(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn cors<W>(&self, headers: &[Header], buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         // if there is no origin then we assume the request is not a cors one
         // and we early return
         let Some(value) = header_value(headers, b"origin") else {
@@ -395,13 +429,17 @@ impl Cors {
             self.allow_headers(value, buffer)?;
         }
 
-        self.allow_credentials(buffer);
-        self.allow_max_age(buffer);
+        self.allow_credentials(buffer)?;
+        self.allow_max_age(buffer)?;
 
         Ok(())
     }
 
-    pub fn cors_with_cookies(&self, headers: &[Header], buffer: &mut Vec<u8>) -> Result<(), Error> {
+    pub fn cors_with_cookies<W>(&self, headers: &[Header], buffer: &mut W) -> Result<(), Error>
+    where
+        W: Write,
+        Error: From<<W as ErrorType>::Error>,
+    {
         // if there is no origin then we assume the request is not a cors one
         // and we early return
         let Some(value) = header_value(headers, b"origin") else {
@@ -411,8 +449,8 @@ impl Cors {
         self.allow_origin(value, buffer)?;
         self.allow_methods(value, buffer)?;
         self.allow_headers(value, buffer)?;
-        self.allow_credentials(buffer);
-        self.allow_max_age(buffer);
+        self.allow_credentials(buffer)?;
+        self.allow_max_age(buffer)?;
 
         Ok(())
     }

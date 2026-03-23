@@ -1,5 +1,3 @@
-use crate::PheasantError;
-use alloc::string::ToString;
 use core::fmt::{self, Debug};
 use core::str::FromStr;
 
@@ -29,32 +27,8 @@ macro_rules! err_stt {
     };
 }
 
-// #[macro_export]
-// macro_rules! s_err {
-//     ($var: ident) => {
-//         stringify!($var)
-//             .parse::<pheasant_core::ErrorStatus>()
-//             .unwrap()
-//     };
-//     ($code: expr) => {
-//         pheasant_core::ErrorStatus::try_from($code).unwrap()
-//     };
-// }
-
-// #[macro_export]
-// macro_rules! c_err {
-//     ($var: ident) => {
-//         stringify!($var)
-//             .parse::<pheasant_core::ErrorStatus>()
-//             .unwrap()
-//     };
-//     ($code: expr) => {
-//         pheasant_core::ErrorStatus::try_from($code).unwrap()
-//     };
-// }
-
 macro_rules! status_enum {
-     ($name: ident, $($var: ident $code: literal),*) => {
+     ($name: ident: $($var: ident $code: literal),*) => {
         #[repr(u16)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
          pub enum $name {$(
@@ -95,7 +69,7 @@ macro_rules! status_enum {
  }
 
 /// http response server error status,
-status_enum!(ServerError,
+status_enum!(ServerError:
     InternalServerError 500,
     NotImplemented 501,
     BadGateway 502,
@@ -110,7 +84,7 @@ status_enum!(ServerError,
 );
 
 /// http response client error status
-status_enum!(ClientError,
+status_enum!(ClientError:
     BadRequest 400,
     Unauthorized 401,
     // NOTE rarely used
@@ -153,7 +127,7 @@ status_enum!(ClientError,
 // UseProxyDeprecated 305,
 
 /// http response redirection status
-status_enum!(Redirection,
+status_enum!(Redirection:
     PermanentRedirect 308,
     TemporaryRedirect 307,
     Unused 306,
@@ -166,7 +140,7 @@ status_enum!(Redirection,
 );
 
 /// http response successful status
-status_enum!(Successful,
+status_enum!(Successful:
     IMUsed 226,
     AlreadyReported 208,
     MultiStatus 207,
@@ -180,22 +154,12 @@ status_enum!(Successful,
 );
 
 /// http response informational status
-status_enum!(Informational,
+status_enum!(Informational:
     EarlyHints 103,
     ProcessingDeprecated 102,
     SwitchingProtocols 101,
     Continue 100
 );
-
-impl From<PheasantError> for Status {
-    fn from(err: PheasantError) -> Self {
-        match err {
-            PheasantError::ClientError(ce) => Self::ClientError(ce),
-
-            PheasantError::ServerError(se) => Self::ServerError(se),
-        }
-    }
-}
 
 impl ServerError {
     fn text(&self) -> &str {

@@ -1,6 +1,4 @@
-use crate::{
-    ByteIterator, ClientError, ErrorStatus, PheasantError, ServerError, err_stt, repeat_tfs,
-};
+use crate::{ByteIterator, ClientError, ErrorStatus, ServerError, err_stt, repeat_tfs};
 use alloc::str::FromStr;
 use alloc::string::String;
 use core::fmt;
@@ -44,7 +42,7 @@ impl Method {
 }
 
 impl TryFrom<&[u8]> for Method {
-    type Error = PheasantError;
+    type Error = ErrorStatus;
 
     fn try_from(s: &[u8]) -> Result<Self, Self::Error> {
         match s {
@@ -57,7 +55,7 @@ impl TryFrom<&[u8]> for Method {
             b"CONNECT" | b"connect" => Ok(Self::Connect),
             b"OPTIONS" | b"options" => Ok(Self::Options),
             b"TRACE" | b"trace" => Ok(Self::Trace),
-            _ => Err(Self::Error::ClientError(ClientError::BadRequest)),
+            _ => err_stt!(?BadRequest),
         }
     }
 }
@@ -66,18 +64,7 @@ impl FromStr for Method {
     type Err = ErrorStatus;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "HEAD" | "head" => Ok(Self::Head),
-            "GET" | "get" => Ok(Self::Get),
-            "POST" | "post" => Ok(Self::Post),
-            "PUT" | "put" => Ok(Self::Put),
-            "PATCH" | "patch" => Ok(Self::Patch),
-            "DELETE" | "delete" => Ok(Self::Delete),
-            "CONNECT" | "connect" => Ok(Self::Connect),
-            "OPTIONS" | "options" => Ok(Self::Options),
-            "TRACE" | "trace" => Ok(Self::Trace),
-            _ => err_stt!(?BadRequest),
-        }
+        s.as_bytes().try_into()
     }
 }
 repeat_tfs!(Method);

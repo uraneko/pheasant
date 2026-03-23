@@ -1,9 +1,10 @@
+// #![no_std]
+// #![forbid(clippy::unwrap_used, clippy::expect_used)]
 use pheasant_prologue::{
     ErrorStatus, Method, err_stt,
     server::{Request, Respond},
 };
 
-pub mod client_socket;
 pub mod content_meta;
 pub mod cookies;
 pub mod cors;
@@ -12,7 +13,7 @@ pub mod forward;
 pub mod parse;
 pub mod print;
 pub mod range;
-pub mod server_socket;
+pub mod socket;
 
 pub use content_meta::MessageBodyInfo;
 pub use cookies::{ReadCookies, WriteCookies};

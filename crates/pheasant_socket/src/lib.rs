@@ -1,4 +1,5 @@
 #![no_std]
+#![forbid(clippy::unwrap_used, clippy::expect_used)]
 pub mod address;
 pub mod prologue;
 pub mod socket;

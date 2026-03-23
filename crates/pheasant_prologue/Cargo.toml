@@ -20,5 +20,6 @@ mime = "0.3.17"
 # syn = { workspace = true }
 hashbrown = "0.16.0"
 pheasant_uri = { version = "0.1.0", path = "../pheasant_uri" }
+embedded-io = "0.7.1"
 # crossbeam-utils = "0.8.21"
 # uuid = "1.18.1"

@@ -1,3 +1,5 @@
+// #![no_std]
+// #![forbid(clippy::unwrap_used, clippy::expect_used)]
 pub mod url;
 pub mod urn;
 

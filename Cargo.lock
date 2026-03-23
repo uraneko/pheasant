@@ -230,6 +230,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-io"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eb1aa714776b75c7e67e1da744b81a129b3ff919c8712b5e1b32252c1f07cc7"
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -816,6 +822,7 @@ dependencies = [
 name = "pheasant_prologue"
 version = "0.1.0"
 dependencies = [
+ "embedded-io",
  "hashbrown 0.16.1",
  "mime",
  "pheasant_uri",
@@ -826,6 +833,7 @@ name = "pheasant_services"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "embedded-io",
  "hashbrown 0.16.1",
  "mime",
  "pheasant_prologue",

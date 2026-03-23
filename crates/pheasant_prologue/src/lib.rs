@@ -1,7 +1,5 @@
 #![no_std]
 #![forbid(clippy::unwrap_used, clippy::expect_used)]
-use core::fmt::{self, Debug, Display, Formatter};
-use core::str::Utf8Error;
 extern crate alloc;
 
 pub mod client;
@@ -14,9 +12,8 @@ pub mod server;
 pub mod status;
 
 pub use headers::{Header, contains_header, header_value};
-pub use method::Method;
-// pub use monopoly::MonoPoly;
 pub use maybe_glob::MaybeGlob;
+pub use method::Method;
 pub use protocol::Protocol;
 pub use status::{
     ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, Successful,
@@ -84,32 +81,11 @@ where
     }
 }
 
-pub type PheasantResult<T> = Result<T, PheasantError>;
+pub trait ConversionError {}
 
-/// crate's main error type
-#[derive(Debug)]
-pub enum PheasantError {
-    ClientError(ClientError),
-    ServerError(ServerError),
-}
-
-impl Display for PheasantError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{:#?}", self)
-    }
-}
-
-impl core::error::Error for PheasantError {}
-
-impl From<core::num::ParseIntError> for PheasantError {
-    fn from(_err: core::num::ParseIntError) -> Self {
-        Self::ClientError(ClientError::BadRequest)
-    }
-}
-
-impl From<Utf8Error> for PheasantError {
-    fn from(_err: Utf8Error) -> Self {
-        Self::ClientError(ClientError::BadRequest)
+impl<C: ConversionError> From<C> for ErrorStatus {
+    fn from(_err: C) -> Self {
+        err_stt!(400)
     }
 }
 
