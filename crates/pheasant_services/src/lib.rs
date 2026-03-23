@@ -5,7 +5,7 @@ use pheasant_prologue::{
     server::{Request, Respond},
 };
 
-pub mod content_meta;
+pub mod content;
 pub mod cookies;
 pub mod cors;
 pub mod errors;
@@ -15,7 +15,7 @@ pub mod print;
 pub mod range;
 pub mod socket;
 
-pub use content_meta::MessageBodyInfo;
+pub use content::Content;
 pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
 pub use errors::http_error;

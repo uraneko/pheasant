@@ -1,12 +1,13 @@
+use embedded_io::Write;
 use mime::{FromStrError, Mime};
 
-pub struct MessageBodyInfo {
+pub struct Content {
     ty: Mime,
     len: usize,
     // language: Option<Language>,
 }
 
-impl MessageBodyInfo {
+impl Content {
     pub fn with_len(len: usize) -> Self {
         Self {
             len,
@@ -43,13 +44,18 @@ impl MessageBodyInfo {
         Ok(self)
     }
 
-    pub fn dump_headers(self, headers: &mut Vec<u8>) {
-        headers.extend(b"content-length: ");
-        headers.extend(self.len.to_string().as_bytes());
-        headers.push(10);
-        headers.extend(b"content-type: ");
-        headers.extend(self.ty.essence_str().as_bytes());
-        headers.push(10);
+    pub fn dump_headers<W>(self, headers: &mut W) -> Result<(), W::Error>
+    where
+        W: Write,
+    {
+        headers.write(b"content-length: ")?;
+        headers.write(self.len.to_string().as_bytes())?;
+        headers.write(&[10])?;
+        headers.write(b"content-type: ")?;
+        headers.write(self.ty.essence_str().as_bytes())?;
+        headers.write(&[10])?;
+
+        Ok(())
     }
 
     // fn with_lang(data: &[u8], lang: impl Into<Language>) -> Self {

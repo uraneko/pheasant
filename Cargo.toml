@@ -20,10 +20,10 @@ resolver = "3"
 exclude = ["examples/basic"]
 
 [dependencies]
-pheasant_prologue = { version = "0.1.0", path = "crates/pheasant_prologue" }
-pheasant_uri = { version = "0.1.0", path = "crates/pheasant_uri" }
-pheasant_services = { version = "0.1.0", path = "crates/pheasant_services" }
-pheasant_socket = { version = "0.1.0", path = "crates/pheasant_socket" }
+pheasant_prologue = { version = "0.1.0", path = "crates/pheasant-prologue" }
+pheasant_uri = { version = "0.1.0", path = "crates/pheasant-uri" }
+pheasant_services = { version = "0.1.0", path = "crates/pheasant-services" }
+pheasant_socket = { version = "0.1.0", path = "crates/pheasant-socket" }
 # crossbeam-utils = "0.8.21"
 # uuid = "1.18.1"
 # rayon = "1.11.0"
