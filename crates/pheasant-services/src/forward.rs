@@ -1,3 +1,4 @@
+use embedded_io::{Read, Write};
 use pheasant_prologue::{Status, server::Respond};
 
 pub struct Forward {
@@ -11,10 +12,10 @@ impl Forward {
     }
 
     /// writes the forward status and location to the given server Respond instance
-    pub fn write(self, resp: &mut Respond) {
+    pub fn write(self, resp: &mut Respond<impl Read + Write, impl Read + Write>) {
         resp.status(self.status);
         resp.headers_mut()
-            .extend([b"location: ", self.location.as_bytes(), b"\n"].concat());
+            .write(&[b"location: ", self.location.as_bytes(), b"\n"].concat());
     }
 }
 

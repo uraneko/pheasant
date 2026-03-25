@@ -1,5 +1,25 @@
 use pheasant_prologue::{ErrorStatus, err_stt, server::Respond, status};
-use std::io::{Read, Seek, SeekFrom, Write};
+// use std::io::{Read, Seek, SeekFrom, Write};
+use embedded_io::{Read, Seek, SeekFrom, Write};
+
+pub trait ReadExt: Read {
+    fn read_to_end(&mut self, buf: &mut [u8]) -> Result<usize, Self::Error> {
+        let mut n = 0;
+        if buf.is_empty() {
+            // Err something
+            return Ok(0);
+        }
+        while let Ok(amnt) = self.read(&mut buf[n..])
+            && amnt > 0
+        {
+            n += amnt;
+        }
+
+        Ok(n)
+    }
+}
+
+impl<R: Read> ReadExt for R {}
 
 pub struct Ranges {
     ranges: Vec<[Option<usize>; 2]>,
@@ -31,10 +51,15 @@ impl Ranges {
         Ok(Self { ranges, writable })
     }
 
-    pub fn meta(&self, resp: &mut Respond, len: usize, range_header: &[u8]) {
+    pub fn meta<H: Read + Write, B: Read + Write>(
+        &self,
+        resp: &mut Respond<H, B>,
+        len: usize,
+        range_header: &[u8],
+    ) {
         resp.status(status!(206));
         // TODO fix this unwrap
-        resp.headers_mut().extend(
+        _ = resp.headers_mut().write(
             format!(
                 "content-range: {}/{}\n",
                 str::from_utf8(range_header).unwrap(),

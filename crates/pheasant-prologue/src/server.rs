@@ -6,7 +6,7 @@ use crate::{Header, Method, Protocol};
 use crate::{Status, status};
 use alloc::string::String;
 use alloc::vec::Vec;
-use embedded_io::Write;
+use embedded_io::{Read, Write};
 use pheasant_uri::{Path, Query};
 
 #[derive(Debug, Clone)]
@@ -127,11 +127,11 @@ impl Request {
 }
 
 #[derive(Debug)]
-pub struct Respond {
+pub struct Respond<H: Read + Write, B: Read + Write> {
     proto: Protocol,
     status: Status,
-    headers: Vec<u8>,
-    body: Vec<u8>,
+    headers: H,
+    body: B,
 }
 
 // NOTE this function would have been easier on the eyes had it used self.iter.position and field.len
@@ -204,13 +204,13 @@ pub struct Respond {
 //     }
 // }
 
-impl Respond {
-    pub fn new(proto: Protocol, status: Status) -> Self {
+impl<H: Read + Write, B: Read + Write> Respond<H, B> {
+    pub fn new(proto: Protocol, status: Status, h: H, b: B) -> Self {
         Self {
             proto,
             status,
-            headers: Vec::new(),
-            body: Vec::new(),
+            headers: h,
+            body: b,
         }
     }
 
@@ -234,50 +234,79 @@ impl Respond {
         self.status
     }
 
-    pub fn headers_mut(&mut self) -> &mut Vec<u8> {
+    pub fn headers_mut(&mut self) -> &mut H {
         &mut self.headers
     }
 
-    pub fn headers_ref(&self) -> &[u8] {
+    pub fn headers_ref(&self) -> &H {
         &self.headers
     }
 
-    pub fn body_mut(&mut self) -> &mut Vec<u8> {
+    pub fn body_mut(&mut self) -> &mut B {
         &mut self.body
     }
 
-    pub fn body_ref(&self) -> &[u8] {
+    pub fn body_ref(&self) -> &B {
         &self.body
     }
 
-    pub fn to_bytes(&self, method: Method) -> Vec<u8> {
-        let mut payload = [
-            self.proto.as_bytes(),
-            &[32],
-            self.status.as_bytes(),
-            &[10],
-            &self.headers,
-            &[10],
-        ]
-        .concat();
+    /// returns an iterator of the response bytes correctly formatted for sending
+    ///
+    /// includes the response body data
+    ///
+    /// this clears the contents of the headers and body buffers
+    pub fn stream_bytes_with_data(
+        &mut self,
+        hbuf: &mut [u8],
+        bbuf: &mut [u8],
+    ) -> impl IntoIterator<Item = u8> {
+        let stream = self
+            .proto
+            .as_bytes()
+            .into_iter()
+            .chain(Some(&32))
+            .chain(self.status.as_bytes())
+            .chain(Some(&10))
+            .map(|b| *b);
 
-        if ![Method::Connect, Method::Head].contains(&method) && !self.body.is_empty() {
-            payload.extend(&self.body);
-        }
+        // TODO needs read to end
+        let _n = self.headers.read(hbuf).unwrap();
+        let stream = stream.chain(hbuf.into_iter().map(|b| *b)).chain(Some(10));
+        let _n = self.body.read(bbuf).unwrap();
+        let stream = stream.chain(bbuf.into_iter().map(|b| *b));
 
-        payload
+        stream
     }
 
-    // this doesnt clear
-    // user can do so on their own
-    /// writes self as bytes to the passed buffer
-    pub fn dump_bytes(&self, buf: &mut Vec<u8>, method: Method) -> usize {
-        buf.clear();
-        let bytes = self.to_bytes(method);
-        let n = bytes.len();
-        buf.extend(&bytes);
+    /// returns an iterator of the response bytes correctly formatted for sending
+    ///
+    /// assumes response has no body data or a body is inadequate for the request method, use when
+    /// body is surely empty or the request method is head or connect
+    ///
+    /// this clears the contents of the headers buffer
+    pub fn stream_bytes_nodata(&mut self, buf: &mut [u8]) -> impl IntoIterator<Item = u8> {
+        let stream = self
+            .proto
+            .as_bytes()
+            .into_iter()
+            .chain(Some(&32))
+            .chain(self.status.as_bytes())
+            .chain(Some(&10))
+            .map(|b| *b);
 
-        n
+        // TODO needs read to end
+        let _n = self.headers.read(buf).unwrap();
+        let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
+
+        stream
+    }
+
+    pub fn read_headers(&mut self, buf: &mut [u8]) -> Result<usize, H::Error> {
+        self.headers.read(buf)
+    }
+
+    pub fn read_body(&mut self, buf: &mut [u8]) -> Result<usize, B::Error> {
+        self.body.read(buf)
     }
 
     // resets proto and status to defaults
@@ -285,7 +314,5 @@ impl Respond {
     pub fn clear(&mut self) {
         self.proto = Protocol::Http11;
         self.status = status!(200);
-        self.headers.clear();
-        self.body.clear();
     }
 }
