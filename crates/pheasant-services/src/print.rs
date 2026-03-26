@@ -2,7 +2,7 @@ pub mod server {
     use embedded_io::{Read, Write};
     use pheasant_prologue::server::{Request, Respond};
 
-    pub fn print_resp(resp: &mut Respond) {
+    pub fn print_resp(resp: &Respond) {
         println!(
             "{} {} {}",
             resp.proto_cpy().as_str(),
@@ -15,10 +15,12 @@ pub mod server {
             str::from_utf8(resp.headers_ref()).unwrap_or_else(|_| "headers err".into())
         );
         // let n = resp.read_body(buf).unwrap();
-        println!(
-            "{}",
-            str::from_utf8(resp.body_ref()).unwrap_or_else(|_| "body err".into())
-        );
+        let data = str::from_utf8(resp.body_ref()).unwrap_or_else(|_| "body err".into());
+        if data.len() > 128 {
+            println!("{}...", &data[..128]);
+        } else {
+            println!("{}", data);
+        }
         println!("***");
     }
 

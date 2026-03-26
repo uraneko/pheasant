@@ -68,16 +68,16 @@ impl Socket {
         fd: u32,
         resp: &mut pheasant_prologue::server::Respond,
     ) -> Result<usize, Error> {
-        extern crate std;
+        // extern crate std;
         self.buffer.clear();
         if resp.has_body() {
             self.buffer.extend(resp.stream_bytes_with_data());
         } else {
             self.buffer.extend(resp.stream_bytes_nodata());
         };
-        std::println!("response = <{}>", unsafe {
-            str::from_utf8_unchecked(&self.buffer)
-        });
+        // std::println!("response = <{}>", unsafe {
+        //     str::from_utf8_unchecked(&self.buffer)
+        // });
 
         let n = self.socket.send(fd, &mut self.buffer, 0)?;
         resp.clear();

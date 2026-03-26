@@ -98,10 +98,32 @@ impl From<(u8, u8, u8, u8)> for InAddr {
     }
 }
 
+impl core::fmt::Debug for SockAddrIn {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        <Self as core::fmt::Display>::fmt(self, f)
+    }
+}
+
+impl core::fmt::Display for SockAddrIn {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let [o0, o1, o2, o3] = self.addr();
+        write!(
+            f,
+            "inet-addr {{\n  family: {:?},\n  address: {}.{}.{}.{},\n  port: {},\n}}",
+            AddressFamily::Inet,
+            o0,
+            o1,
+            o2,
+            o3,
+            self.port
+        )
+    }
+}
+
 // definition fetched from netinet/in.h
 // socket address struct for AF_INET address family
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct SockAddrIn {
     pub family: u16,
     pub port: u16,

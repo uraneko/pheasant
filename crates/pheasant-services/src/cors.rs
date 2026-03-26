@@ -197,11 +197,18 @@ pub enum Error {
     ForbiddenOrigin,
     MissingRequestOrigin,
     IoFailure,
+    Infallible,
 }
 
 impl From<Utf8Error> for Error {
     fn from(_err: Utf8Error) -> Self {
         Self::BadHeaderValue
+    }
+}
+
+impl From<core::convert::Infallible> for Error {
+    fn from(_err: core::convert::Infallible) -> Self {
+        Self::Infallible
     }
 }
 

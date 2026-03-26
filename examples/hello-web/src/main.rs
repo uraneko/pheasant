@@ -29,9 +29,9 @@ async fn hello_web(server: &mut Socket) -> Result<(), ErrorStatus> {
         println!("client = >{:?}<", client);
         let n = server.read(client.fd()).map_err(|_| err_stt!(500))?;
         let req_buf = &server.buf_ref()[..n];
-        println!("request = <{}>", unsafe {
-            str::from_utf8_unchecked(req_buf)
-        });
+        // println!("request = <{}>", unsafe {
+        //     str::from_utf8_unchecked(req_buf)
+        // });
         let Ok(req) = parse(req_buf) else {
             http_error(err_stt!(400), &mut resp);
             server
@@ -57,8 +57,8 @@ async fn hello_web(server: &mut Socket) -> Result<(), ErrorStatus> {
             .write(client.fd(), &mut resp)
             .map_err(|_| err_stt!(500))?;
 
-        // this shuts down the while loop
-        // sock.shutdown_write().map_err(|_| err_stt!(500))?;
+        // shutdown the client so that it doesnt attempt to reuse the connection
+        client.shutdown_readwrite().map_err(|_| err_stt!(500))?;
     }
 
     Ok(())
