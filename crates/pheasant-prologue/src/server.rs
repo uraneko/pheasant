@@ -127,11 +127,11 @@ impl Request {
 }
 
 #[derive(Debug)]
-pub struct Respond<H: Read + Write, B: Read + Write> {
+pub struct Respond {
     proto: Protocol,
     status: Status,
-    headers: H,
-    body: B,
+    headers: Vec<u8>,
+    body: Vec<u8>,
 }
 
 // NOTE this function would have been easier on the eyes had it used self.iter.position and field.len
@@ -204,13 +204,13 @@ pub struct Respond<H: Read + Write, B: Read + Write> {
 //     }
 // }
 
-impl<H: Read + Write, B: Read + Write> Respond<H, B> {
-    pub fn new(proto: Protocol, status: Status, h: H, b: B) -> Self {
+impl Respond {
+    pub fn new(proto: Protocol, status: Status) -> Self {
         Self {
             proto,
             status,
-            headers: h,
-            body: b,
+            headers: Vec::new(),
+            body: Vec::new(),
         }
     }
 
@@ -234,19 +234,19 @@ impl<H: Read + Write, B: Read + Write> Respond<H, B> {
         self.status
     }
 
-    pub fn headers_mut(&mut self) -> &mut H {
+    pub fn headers_mut(&mut self) -> &mut Vec<u8> {
         &mut self.headers
     }
 
-    pub fn headers_ref(&self) -> &H {
+    pub fn headers_ref(&self) -> &[u8] {
         &self.headers
     }
 
-    pub fn body_mut(&mut self) -> &mut B {
+    pub fn body_mut(&mut self) -> &mut Vec<u8> {
         &mut self.body
     }
 
-    pub fn body_ref(&self) -> &B {
+    pub fn body_ref(&self) -> &[u8] {
         &self.body
     }
 
@@ -255,11 +255,7 @@ impl<H: Read + Write, B: Read + Write> Respond<H, B> {
     /// includes the response body data
     ///
     /// this clears the contents of the headers and body buffers
-    pub fn stream_bytes_with_data(
-        &mut self,
-        hbuf: &mut [u8],
-        bbuf: &mut [u8],
-    ) -> impl IntoIterator<Item = u8> {
+    pub fn stream_bytes_with_data(&self) -> impl IntoIterator<Item = u8> {
         let stream = self
             .proto
             .as_bytes()
@@ -267,13 +263,16 @@ impl<H: Read + Write, B: Read + Write> Respond<H, B> {
             .chain(Some(&32))
             .chain(self.status.as_bytes())
             .chain(Some(&10))
+            .chain(&self.headers)
+            .chain(Some(&10))
+            .chain(&self.body)
             .map(|b| *b);
 
         // TODO needs read to end
-        let _n = self.headers.read(hbuf).unwrap();
-        let stream = stream.chain(hbuf.into_iter().map(|b| *b)).chain(Some(10));
-        let _n = self.body.read(bbuf).unwrap();
-        let stream = stream.chain(bbuf.into_iter().map(|b| *b));
+        // let _n = self.headers.read(hbuf).unwrap();
+        // let stream = stream.chain(hbuf.into_iter().map(|b| *b)).chain(Some(10));
+        // let _n = self.body.read(bbuf).unwrap();
+        // let stream = stream.chain(bbuf.into_iter().map(|b| *b));
 
         stream
     }
@@ -284,7 +283,7 @@ impl<H: Read + Write, B: Read + Write> Respond<H, B> {
     /// body is surely empty or the request method is head or connect
     ///
     /// this clears the contents of the headers buffer
-    pub fn stream_bytes_nodata(&mut self, buf: &mut [u8]) -> impl IntoIterator<Item = u8> {
+    pub fn stream_bytes_nodata(&self) -> impl IntoIterator<Item = u8> {
         let stream = self
             .proto
             .as_bytes()
@@ -292,27 +291,35 @@ impl<H: Read + Write, B: Read + Write> Respond<H, B> {
             .chain(Some(&32))
             .chain(self.status.as_bytes())
             .chain(Some(&10))
+            .chain(&self.headers)
+            .chain(Some(&10))
             .map(|b| *b);
 
         // TODO needs read to end
-        let _n = self.headers.read(buf).unwrap();
-        let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
+        // let _n = self.headers.read(buf).unwrap();
+        // let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
 
         stream
     }
 
-    pub fn read_headers(&mut self, buf: &mut [u8]) -> Result<usize, H::Error> {
-        self.headers.read(buf)
-    }
-
-    pub fn read_body(&mut self, buf: &mut [u8]) -> Result<usize, B::Error> {
-        self.body.read(buf)
-    }
+    // pub fn read_headers(&mut self, buf: &mut [u8]) -> Result<usize, H::Error> {
+    //     self.headers.read(buf)
+    // }
+    //
+    // pub fn read_body(&mut self, buf: &mut [u8]) -> Result<usize, B::Error> {
+    //     self.body.read(buf)
+    // }
 
     // resets proto and status to defaults
     // and clears headers and body
     pub fn clear(&mut self) {
         self.proto = Protocol::Http11;
         self.status = status!(200);
+        self.headers.clear();
+        self.body.clear();
+    }
+
+    pub fn has_body(&self) -> bool {
+        !self.body.is_empty()
     }
 }

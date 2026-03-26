@@ -2,7 +2,7 @@ use pheasant::prologue::{
     ErrorStatus, err_stt,
     server::{Request, Respond},
 };
-use pheasant::services::{MessageBodyInfo, Resource, Service, server_socket::Socket};
+use pheasant::services::{Content, Resource, Service, socket::server::Socket};
 
 #[derive(Debug)]
 pub enum Services {
@@ -47,7 +47,7 @@ impl Resource<Socket> for Hello {
     ) -> Result<(), ErrorStatus> {
         resp.body_mut().extend(b"Hello ");
         resp.body_mut().extend(self.0.as_bytes());
-        MessageBodyInfo::new(resp.body_ref()).dump_headers(resp.headers_mut());
+        Content::new(resp.body_ref()).dump_headers(resp.headers_mut());
 
         Ok(())
     }
@@ -67,14 +67,14 @@ impl Resource<Socket> for BinUp {
         resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         resp.body_mut().extend(BINUP_ICON);
-        MessageBodyInfo::new(BINUP_ICON).dump_headers(resp.headers_mut());
+        Content::new(BINUP_ICON).dump_headers(resp.headers_mut());
 
         Ok(())
     }
 }
 
 pub fn lookup(path: &str) -> Result<Services, ErrorStatus> {
-    if path.starts_with("/hello") {
+    if path.starts_with("/hello/") || path.ends_with("/hello") {
         Ok(Services::Hello)
     } else if path.starts_with("/binup") {
         Ok(Services::BinUp)

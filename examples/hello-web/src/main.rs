@@ -1,5 +1,5 @@
 use pheasant::prologue::{ErrorStatus, Method, Protocol, err_stt, server::Respond, status};
-use pheasant::services::{Server, http_error, parse, server_socket::Socket};
+use pheasant::services::{Server, http_error, parse, socket::server::Socket};
 
 mod services;
 use services::*;
@@ -26,34 +26,39 @@ async fn hello_web(server: &mut Socket) -> Result<(), ErrorStatus> {
     let mut resp = Respond::new(Protocol::Http11, status!(200));
     let sock = server.inner();
     while let Ok(client) = sock.accept() {
-        resp.clear();
-        server.read(client.fd()).map_err(|_| err_stt!(500))?;
-        let req_buf = &server.buf_ref();
+        println!("client = >{:?}<", client);
+        let n = server.read(client.fd()).map_err(|_| err_stt!(500))?;
+        let req_buf = &server.buf_ref()[..n];
+        println!("request = <{}>", unsafe {
+            str::from_utf8_unchecked(req_buf)
+        });
         let Ok(req) = parse(req_buf) else {
             http_error(err_stt!(400), &mut resp);
-            server.dump(&resp, Method::Get);
-            server.write(client.fd()).map_err(|_| err_stt!(500))?;
+            server
+                .write(client.fd(), &mut resp)
+                .map_err(|_| err_stt!(500))?;
 
             continue;
         };
-        server.clr_buf();
-        let method = req.method();
         let service = match lookup(&req.path_str()) {
             Err(err) => {
                 http_error(err, &mut resp);
-                server.dump(&resp, method);
-                server.write(client.fd()).map_err(|_| err_stt!(500))?;
+                server
+                    .write(client.fd(), &mut resp)
+                    .map_err(|_| err_stt!(500))?;
 
                 continue;
             }
             Ok(service) => service,
         };
         server.service(req, &mut resp, service).await?;
-        server.dump(&resp, method);
-        server.write(client.fd()).map_err(|_| err_stt!(500))?;
+
+        server
+            .write(client.fd(), &mut resp)
+            .map_err(|_| err_stt!(500))?;
 
         // this shuts down the while loop
-        // sock.shutdown_read().map_err(|_| err_stt!(500))?;
+        // sock.shutdown_write().map_err(|_| err_stt!(500))?;
     }
 
     Ok(())

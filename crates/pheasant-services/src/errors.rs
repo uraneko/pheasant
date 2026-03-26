@@ -2,10 +2,7 @@ use crate::Content;
 use embedded_io::{Read, Write};
 use pheasant_prologue::{ErrorStatus, server::Respond, status};
 
-pub fn http_error<HRW: Read + Write, BRW: Read + Write>(
-    err: ErrorStatus,
-    resp: &mut Respond<HRW, BRW>,
-) {
+pub fn http_error(err: ErrorStatus, resp: &mut Respond) {
     resp.status(status!(err.code()));
     // Maybe use seek(0)
     // resp.body_mut().clear();

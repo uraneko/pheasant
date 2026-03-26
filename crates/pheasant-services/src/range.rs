@@ -51,12 +51,7 @@ impl Ranges {
         Ok(Self { ranges, writable })
     }
 
-    pub fn meta<H: Read + Write, B: Read + Write>(
-        &self,
-        resp: &mut Respond<H, B>,
-        len: usize,
-        range_header: &[u8],
-    ) {
+    pub fn meta(&self, resp: &mut Respond, len: usize, range_header: &[u8]) {
         resp.status(status!(206));
         // TODO fix this unwrap
         _ = resp.headers_mut().write(

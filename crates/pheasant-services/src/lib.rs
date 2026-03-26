@@ -31,11 +31,11 @@ pub fn date() -> chrono::DateTime<chrono::Utc> {
 }
 
 pub trait Service<S: Server> {
-    async fn serve<HRW: Read + Write, BRW: Read + Write>(
+    async fn serve(
         &self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus>;
 }
 
@@ -50,10 +50,10 @@ pub trait Server {
     // core services are run through the socket
     // this would ofc mean that the socket stores the server state
     // or whatever state is needed by the services to run correctly
-    async fn service<HRW: Read + Write, BRW: Read + Write>(
+    async fn service(
         &mut self,
         req: Request,
-        buf: &mut Respond<HRW, BRW>,
+        buf: &mut Respond,
         service: impl Service<Self>,
     ) -> Result<(), ErrorStatus>
     where
@@ -64,92 +64,92 @@ pub trait Server {
 }
 
 pub trait Resource<S: Server>: Sized {
-    async fn get<HWR: Read + Write, BRW: Read + Write>(
+    async fn get(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HWR, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn post<HRW: Read + Write, BRW: Read + Write>(
+    async fn post(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn put<HRW: Read + Write, BRW: Read + Write>(
+    async fn put(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn patch<HRW: Read + Write, BRW: Read + Write>(
+    async fn patch(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn head<HRW: Read + Write, BRW: Read + Write>(
+    async fn head(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn trace<HRW: Read + Write, BRW: Read + Write>(
+    async fn trace(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn delete<HRW: Read + Write, BRW: Read + Write>(
+    async fn delete(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn options<HRW: Read + Write, BRW: Read + Write>(
+    async fn options(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn connect<HRW: Read + Write, BRW: Read + Write>(
+    async fn connect(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         err_stt!(?405)
     }
 
-    async fn run<HRW: Read + Write, BRW: Read + Write>(
+    async fn run(
         self,
         socket: &mut S,
         req: Request,
-        resp: &mut Respond<HRW, BRW>,
+        resp: &mut Respond,
     ) -> Result<(), ErrorStatus> {
         use Method::*;
 

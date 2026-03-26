@@ -6,39 +6,62 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
+use embedded_io::{Read, Write};
 use pheasant_uri::{Path, Query};
 
-pub struct Request {
+pub struct Request<H: Read + Write, B: Read + Write> {
     method: Method,
     path: Path,
     query: Option<Query>,
     proto: Protocol,
-    headers: Vec<u8>,
-    body: Option<Vec<u8>>,
+    headers: H,
+    body: Option<B>,
 }
 
-impl Request {
-    pub fn method<C>(mut self, method: C) -> Result<Self, C::Error>
+impl<H: Read + Write, B: Read + Write> Request<H, B> {
+    pub fn new(method: Method, path: Path, proto: Protocol, headers: H) -> Self {
+        Self {
+            method,
+            path,
+            proto,
+            query: None,
+            headers,
+            body: None,
+        }
+    }
+
+    pub fn with_body(method: Method, path: Path, proto: Protocol, headers: H, b: B) -> Self {
+        Self {
+            method,
+            path,
+            proto,
+            query: None,
+            headers,
+            body: Some(b),
+        }
+    }
+
+    pub fn method<M>(mut self, method: M) -> Result<Self, M::Error>
     where
-        C: TryInto<Method>,
+        M: TryInto<Method>,
     {
         self.method = method.try_into()?;
 
         Ok(self)
     }
 
-    pub fn proto<C>(mut self, proto: C) -> Result<Self, C::Error>
+    pub fn proto<P>(mut self, proto: P) -> Result<Self, P::Error>
     where
-        C: TryInto<Protocol>,
+        P: TryInto<Protocol>,
     {
         self.proto = proto.try_into()?;
 
         Ok(self)
     }
 
-    pub fn path<C>(mut self, path: C) -> Result<Self, C::Error>
+    pub fn path<P>(mut self, path: P) -> Result<Self, P::Error>
     where
-        C: TryInto<Path>,
+        P: TryInto<Path>,
     {
         self.path = path.try_into()?;
 
@@ -49,11 +72,11 @@ impl Request {
         self.query.as_mut()
     }
 
-    pub fn headers_mut(&mut self) -> &mut Vec<u8> {
+    pub fn headers_mut(&mut self) -> &mut H {
         &mut self.headers
     }
 
-    pub fn body_mut(&mut self) -> Option<&mut Vec<u8>> {
+    pub fn body_mut(&mut self) -> Option<&mut B> {
         self.body.as_mut()
     }
 }

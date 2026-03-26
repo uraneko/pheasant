@@ -12,7 +12,7 @@ impl Forward {
     }
 
     /// writes the forward status and location to the given server Respond instance
-    pub fn write(self, resp: &mut Respond<impl Read + Write, impl Read + Write>) {
+    pub fn write(self, resp: &mut Respond) {
         resp.status(self.status);
         resp.headers_mut()
             .write(&[b"location: ", self.location.as_bytes(), b"\n"].concat());
