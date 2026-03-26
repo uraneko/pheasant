@@ -11,6 +11,7 @@ pub mod cookies;
 pub mod cors;
 pub mod errors;
 pub mod forward;
+pub mod gateway;
 pub mod parse;
 pub mod print;
 pub mod range;
@@ -21,7 +22,8 @@ pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
 pub use errors::http_error;
 pub use forward::Forward;
-pub use parse::parse;
+pub use gateway::{Blacklist, GateWay, Whitelist};
+pub use parse::{request, respond};
 pub use range::{Ranges, support_ranges};
 
 type TcpSocket<T> = pheasant_socket::socket::Socket<T>;

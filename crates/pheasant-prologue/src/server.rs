@@ -11,12 +11,12 @@ use pheasant_uri::{Path, Query};
 
 #[derive(Debug, Clone)]
 pub struct Request {
-    method: Method,
-    path: Path,
-    query: Option<Query>,
-    proto: Protocol,
-    headers: Vec<Header>,
-    body: Option<Vec<u8>>,
+    pub(crate) method: Method,
+    pub(crate) path: Path,
+    pub(crate) query: Option<Query>,
+    pub(crate) proto: Protocol,
+    pub(crate) headers: Vec<Header>,
+    pub(crate) body: Option<Vec<u8>>,
 }
 
 impl<'a> Lex<'a> {
@@ -128,10 +128,10 @@ impl Request {
 
 #[derive(Debug)]
 pub struct Respond {
-    proto: Protocol,
-    status: Status,
-    headers: Vec<u8>,
-    body: Vec<u8>,
+    pub(crate) proto: Protocol,
+    pub(crate) status: Status,
+    pub(crate) headers: Vec<u8>,
+    pub(crate) body: Vec<u8>,
 }
 
 // NOTE this function would have been easier on the eyes had it used self.iter.position and field.len
@@ -255,7 +255,7 @@ impl Respond {
     /// includes the response body data
     ///
     /// this clears the contents of the headers and body buffers
-    pub fn stream_bytes_with_data(&self) -> impl IntoIterator<Item = u8> {
+    pub fn stream_bytes(&self) -> impl IntoIterator<Item = u8> {
         let stream = self
             .proto
             .as_bytes()
@@ -265,8 +265,8 @@ impl Respond {
             .chain(Some(&10))
             .chain(&self.headers)
             .chain(Some(&10))
-            .chain(&self.body)
-            .map(|b| *b);
+            .chain(self.body.as_slice())
+            .copied();
 
         // TODO needs read to end
         // let _n = self.headers.read(hbuf).unwrap();
@@ -283,24 +283,24 @@ impl Respond {
     /// body is surely empty or the request method is head or connect
     ///
     /// this clears the contents of the headers buffer
-    pub fn stream_bytes_nodata(&self) -> impl IntoIterator<Item = u8> {
-        let stream = self
-            .proto
-            .as_bytes()
-            .into_iter()
-            .chain(Some(&32))
-            .chain(self.status.as_bytes())
-            .chain(Some(&10))
-            .chain(&self.headers)
-            .chain(Some(&10))
-            .map(|b| *b);
-
-        // TODO needs read to end
-        // let _n = self.headers.read(buf).unwrap();
-        // let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
-
-        stream
-    }
+    // pub fn stream_bytes_nodata(&self) -> impl IntoIterator<Item = u8> {
+    //     let stream = self
+    //         .proto
+    //         .as_bytes()
+    //         .into_iter()
+    //         .chain(Some(&32))
+    //         .chain(self.status.as_bytes())
+    //         .chain(Some(&10))
+    //         .chain(&self.headers)
+    //         .chain(Some(&10))
+    //         .map(|b| *b);
+    //
+    //     // TODO needs read to end
+    //     // let _n = self.headers.read(buf).unwrap();
+    //     // let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
+    //
+    //     stream
+    // }
 
     // pub fn read_headers(&mut self, buf: &mut [u8]) -> Result<usize, H::Error> {
     //     self.headers.read(buf)

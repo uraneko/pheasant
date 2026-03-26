@@ -1,5 +1,5 @@
 use pheasant::prologue::{ErrorStatus, Method, Protocol, err_stt, server::Respond, status};
-use pheasant::services::{Server, http_error, parse, socket::server::Socket};
+use pheasant::services::{Server, http_error, request, socket::server::Socket};
 
 mod services;
 use services::*;
@@ -32,7 +32,7 @@ async fn hello_web(server: &mut Socket) -> Result<(), ErrorStatus> {
         // println!("request = <{}>", unsafe {
         //     str::from_utf8_unchecked(req_buf)
         // });
-        let Ok(req) = parse(req_buf) else {
+        let Ok(req) = request(req_buf) else {
             http_error(err_stt!(400), &mut resp);
             server
                 .write(client.fd(), &mut resp)

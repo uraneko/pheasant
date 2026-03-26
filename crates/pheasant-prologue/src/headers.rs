@@ -31,6 +31,15 @@ impl Header {
     pub fn extend(&mut self, slice: &[u8]) {
         self.value.extend(slice);
     }
+
+    pub fn into_bytes(self) -> Vec<u8> {
+        let mut bytes = self.field;
+        bytes.extend(b": ");
+        bytes.extend(&self.value);
+        bytes.push(b'\n');
+
+        bytes
+    }
 }
 
 pub fn contains_header(headers: &[Header], header: &[u8]) -> bool {

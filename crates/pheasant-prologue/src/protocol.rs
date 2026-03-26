@@ -70,7 +70,10 @@ impl Protocol {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        self.as_str().as_bytes()
+        match self {
+            Self::Http11 => b"HTTP/1.1",
+            Self::Http2 => b"HTTP/2",
+        }
     }
 }
 

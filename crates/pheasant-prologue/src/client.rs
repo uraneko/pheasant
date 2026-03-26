@@ -9,35 +9,52 @@ use alloc::vec::Vec;
 use embedded_io::{Read, Write};
 use pheasant_uri::{Path, Query};
 
-pub struct Request<H: Read + Write, B: Read + Write> {
+impl From<crate::server::Request> for Request {
+    fn from(req: crate::server::Request) -> Self {
+        let crate::server::Request {
+            method,
+            path,
+            query,
+            proto,
+            headers,
+            body,
+        } = req;
+        let headers = headers
+            .into_iter()
+            .map(|h| h.into_bytes())
+            .flatten()
+            .collect();
+
+        Self {
+            method,
+            path,
+            query,
+            proto,
+            headers,
+            body,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Request {
     method: Method,
     path: Path,
     query: Option<Query>,
     proto: Protocol,
-    headers: H,
-    body: Option<B>,
+    headers: Vec<u8>,
+    body: Option<Vec<u8>>,
 }
 
-impl<H: Read + Write, B: Read + Write> Request<H, B> {
-    pub fn new(method: Method, path: Path, proto: Protocol, headers: H) -> Self {
+impl Request {
+    pub fn new(method: Method, path: Path, proto: Protocol) -> Self {
         Self {
             method,
             path,
             proto,
             query: None,
-            headers,
+            headers: Vec::new(),
             body: None,
-        }
-    }
-
-    pub fn with_body(method: Method, path: Path, proto: Protocol, headers: H, b: B) -> Self {
-        Self {
-            method,
-            path,
-            proto,
-            query: None,
-            headers,
-            body: Some(b),
         }
     }
 
@@ -72,12 +89,75 @@ impl<H: Read + Write, B: Read + Write> Request<H, B> {
         self.query.as_mut()
     }
 
-    pub fn headers_mut(&mut self) -> &mut H {
+    pub fn headers_mut(&mut self) -> &mut Vec<u8> {
         &mut self.headers
     }
 
-    pub fn body_mut(&mut self) -> Option<&mut B> {
+    pub fn body_mut(&mut self) -> Option<&mut Vec<u8>> {
         self.body.as_mut()
+    }
+
+    pub fn stream_bytes(&self) -> impl IntoIterator<Item = u8> {
+        let q = self
+            .query
+            .as_ref()
+            .map(|q| q.to_bytes())
+            .unwrap_or_else(|| Vec::new());
+
+        let b = self
+            .body
+            .as_ref()
+            .map(|b| b.clone())
+            .unwrap_or_else(|| Vec::new());
+
+        self.method
+            .as_bytes()
+            .into_iter()
+            .chain(Some(&32))
+            .copied()
+            .chain(self.path.serialized().into_bytes())
+            .chain(q)
+            .chain(Some(32))
+            .chain(self.proto.as_bytes().into_iter().map(|b| *b))
+            .chain(Some(10))
+            .chain(self.headers.as_slice().into_iter().map(|b| *b))
+            .chain(Some(10))
+            .chain(b)
+    }
+
+    pub fn clear(&mut self) {
+        self.method = Method::Get;
+        self.headers.clear();
+        if let Some(ref mut body) = self.body {
+            body.clear();
+        }
+    }
+
+    pub fn path_str(&self) -> alloc::string::String {
+        self.path.serialized()
+    }
+}
+
+impl From<Respond> for crate::server::Respond {
+    fn from(resp: Respond) -> Self {
+        let Respond {
+            proto,
+            status,
+            headers,
+            body,
+        } = resp;
+        let headers = headers
+            .into_iter()
+            .map(|h| h.into_bytes())
+            .flatten()
+            .collect();
+
+        Self {
+            proto,
+            status,
+            headers,
+            body,
+        }
     }
 }
 
@@ -90,7 +170,7 @@ pub struct Respond {
 }
 
 impl<'a> Lex<'a> {
-    pub fn response(&mut self) -> Result<Respond, Error> {
+    pub fn respond(&mut self) -> Result<Respond, Error> {
         let proto = self.resp_proto()?;
         let status = self.status()?;
         let headers = self.headers()?;

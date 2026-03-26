@@ -380,6 +380,10 @@ impl<A: SockAddrCasting> Socket<A> {
             err => unreachable!("unexpected error code {}", err),
         }
     }
+
+    pub fn sockaddr(&self) -> &A {
+        &self.addr
+    }
 }
 
 impl Socket<crate::address::SockAddrUn> {
@@ -396,8 +400,12 @@ impl Socket<crate::address::SockAddrUn> {
 // also should be implemented for SockAddrIn6
 impl Socket<crate::address::SockAddrIn> {
     /// returns the 4 bytes of self's inner address' ipv4 address
-    pub fn addr(&self) -> [u8; 4] {
-        self.addr.addr()
+    pub fn addr_bytes(&self) -> [u8; 4] {
+        self.addr.addr_bytes()
+    }
+
+    pub fn addr(&self) -> crate::address::InAddr {
+        self.addr.addr
     }
 
     /// returns self's inner address' port number

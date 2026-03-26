@@ -2,7 +2,7 @@ use crate::AddressFamily;
 
 // in addr
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct InAddr {
     pub addr: u32,
 }
@@ -68,6 +68,16 @@ fn split_str_addr(s: &str) -> Result<[u8; 4], ConversionError> {
     Ok([o0, o1, o2, o3])
 }
 
+impl<'a> TryFrom<&'a [u8]> for InAddr {
+    type Error = ConversionError;
+
+    fn try_from(s: &'a [u8]) -> Result<Self, Self::Error> {
+        str::from_utf8(s)
+            .map_err(|_| Self::Error::InvalidStr)?
+            .parse()
+    }
+}
+
 impl<'a> TryFrom<&'a str> for InAddr {
     type Error = ConversionError;
 
@@ -106,7 +116,7 @@ impl core::fmt::Debug for SockAddrIn {
 
 impl core::fmt::Display for SockAddrIn {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let [o0, o1, o2, o3] = self.addr();
+        let [o0, o1, o2, o3] = self.addr_bytes();
         write!(
             f,
             "inet-addr {{\n  family: {:?},\n  address: {}.{}.{}.{},\n  port: {},\n}}",
@@ -120,10 +130,16 @@ impl core::fmt::Display for SockAddrIn {
     }
 }
 
+impl PartialEq for SockAddrIn {
+    fn eq(&self, other: &Self) -> bool {
+        self.port == other.port && self.addr == other.addr
+    }
+}
+
 // definition fetched from netinet/in.h
 // socket address struct for AF_INET address family
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, Hash)]
 pub struct SockAddrIn {
     pub family: u16,
     pub port: u16,
@@ -158,7 +174,7 @@ impl SockAddrIn {
     }
 
     /// returns the 4 bytes of the address in native endianne order
-    pub fn addr(&self) -> [u8; 4] {
+    pub fn addr_bytes(&self) -> [u8; 4] {
         self.addr.to_bytes()
     }
 

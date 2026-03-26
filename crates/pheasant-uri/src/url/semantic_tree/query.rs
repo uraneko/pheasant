@@ -206,6 +206,30 @@ impl Query {
 
         seq
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        if self.params.is_empty() && self.attrs.is_empty() {
+            return bytes;
+        }
+
+        let mut size = self.params.len() + self.attrs.len();
+        let mut iter = self
+            .params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .chain(self.attrs.iter().map(|s| s.clone()));
+        bytes.push(b'?');
+        while let Some(e) = iter.next() {
+            bytes.extend(e.as_bytes());
+            if size > 1 {
+                bytes.push(b'&');
+            }
+            size -= 1;
+        }
+
+        bytes
+    }
 }
 
 impl std::str::FromStr for Query {

@@ -36,6 +36,22 @@ impl Socket {
         self.socket
     }
 
+    pub fn write(&mut self, req: pheasant_prologue::client::Request) -> Result<usize, Error> {
+        self.buffer.clear();
+        self.buffer.extend(req.stream_bytes());
+
+        let n = self.socket.send(&mut self.buffer, 0)?;
+
+        Ok(n)
+    }
+
+    pub fn read(&mut self) -> Result<usize, Error> {
+        self.buffer = vec![0u8; 4096];
+        let n = self.socket.recv(&mut self.buffer, 0)?;
+
+        Ok(n)
+    }
+
     pub fn buf_mut(&mut self) -> &mut Vec<u8> {
         &mut self.buffer
     }

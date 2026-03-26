@@ -30,7 +30,7 @@ impl Socket {
 
     /// prints out the socket url on the stdout
     pub fn init_message(&self) -> String {
-        let [o0, o1, o2, o3] = self.socket.addr();
+        let [o0, o1, o2, o3] = self.socket.addr_bytes();
         format!(
             "\x1b[1;38;2;211;163;104mSocket listening on http://{}.{}.{}.{}:{}\x1b[0m\r\n",
             o0,
@@ -70,11 +70,8 @@ impl Socket {
     ) -> Result<usize, Error> {
         // extern crate std;
         self.buffer.clear();
-        if resp.has_body() {
-            self.buffer.extend(resp.stream_bytes_with_data());
-        } else {
-            self.buffer.extend(resp.stream_bytes_nodata());
-        };
+        self.buffer.extend(resp.stream_bytes());
+
         // std::println!("response = <{}>", unsafe {
         //     str::from_utf8_unchecked(&self.buffer)
         // });

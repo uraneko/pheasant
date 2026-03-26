@@ -39,6 +39,20 @@ impl Method {
             Self::Trace => "TRACE",
         }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Head => b"HEAD",
+            Self::Get => b"GET",
+            Self::Post => b"POST",
+            Self::Put => b"PUT",
+            Self::Patch => b"PATCH",
+            Self::Delete => b"DELETE",
+            Self::Connect => b"CONNECT",
+            Self::Options => b"OPTIONS",
+            Self::Trace => b"TRACE",
+        }
+    }
 }
 
 impl TryFrom<&[u8]> for Method {
