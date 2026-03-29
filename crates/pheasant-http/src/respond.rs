@@ -9,129 +9,57 @@ use alloc::vec::Vec;
 use embedded_io::{Read, Write};
 use pheasant_uri::{Path, Query};
 
-#[derive(Debug, Clone)]
-pub struct Request {
-    pub(crate) method: Method,
-    pub(crate) path: Path,
-    pub(crate) query: Option<Query>,
-    pub(crate) proto: Protocol,
-    pub(crate) headers: Vec<Header>,
-    pub(crate) body: Option<Vec<u8>>,
+#[derive(Debug)]
+pub struct Respond<H: core::fmt::Debug + Clone> {
+    proto: Protocol,
+    status: Status,
+    headers: H,
+    body: Vec<u8>,
 }
 
 impl<'a> Lex<'a> {
-    pub fn request(&mut self) -> Result<Request, Error> {
-        let method = self.method()?;
-        let (path, query) = self.url()?.disassemble();
-        let (proto, _) = self.req_proto()?;
+    pub fn respond(&mut self) -> Result<Respond<Vec<Header>>, Error> {
+        let proto = self.resp_proto()?;
+        let status = self.status()?;
         let headers = self.headers()?;
         let len = content_length(&headers);
         let len = match len {
-            // we take from cursor to buffer end
             Err(Error::ContentLengthNotFound) => self.len() - self.cursor,
             Ok(len) => len,
             Err(err) => return Err(err),
         };
         let body = match self.body(len)? {
-            Some(Token::Body(body)) => Some(body),
+            Some(Token::Body(body)) => body,
             Some(_) => return Err(Error::UndesirableToken),
-
-            None => None,
+            None => Vec::new(),
         };
         let headers = build_headers(headers)?;
 
-        Ok(Request {
-            method,
-            path,
-            query,
+        Ok(Respond {
             proto,
+            status,
             headers,
             body,
         })
     }
 }
 
-impl Request {
-    pub fn method(&self) -> Method {
-        self.method
-    }
-
+impl Respond<Vec<Header>> {
     pub fn proto(&self) -> Protocol {
         self.proto
     }
 
-    pub fn path(&self) -> &[String] {
-        &self.path.segments()
-    }
-
-    pub fn path_str(&self) -> String {
-        self.path.serialized()
-    }
-
-    pub fn query(&self) -> Option<&Query> {
-        self.query.as_ref()
-    }
-
-    pub fn query_mut(&mut self) -> Option<&mut Query> {
-        self.query.as_mut()
+    pub fn status(&self) -> Status {
+        self.status
     }
 
     pub fn headers(&self) -> &[Header] {
         &self.headers
     }
 
-    pub fn body(&self) -> Option<&[u8]> {
-        self.body.as_ref().map(|b| b.as_slice())
+    pub fn body(&self) -> &[u8] {
+        &self.body
     }
-}
-
-impl Request {
-    /// makes a header value all in lowercase if it exists in request headers
-    /// useful for using any service that only works when a request header value matches with one that you provided to the service
-    /// and you're not sure about the request header value's case (upper/lower)
-    ///
-    /// # example
-    /// client sends this header: 'access-control-request-headers: Range, Content-type'
-    /// the server has this cors configuration: 'access-control-allow-headers: range, content-type'
-    /// the headers are allowed, but the Cors service would not understand that
-    /// since range != Range && Content-type != content-type
-    /// so we lowercase the request header value first
-    ///
-    /// ```
-    /// use pheasant_prologue::message::http11::{Error, Lex};
-    ///
-    /// let mut req = Lex::new(b"GET / HTTP/1.1\naccess-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n\n").request()?;
-    /// req.lowercase_header_value(b"access-control-request-headers");
-    ///
-    /// Ok::<(), Error>(())
-    /// ```
-    pub fn lowercase_header_value(&mut self, field: &[u8]) {
-        let Some(value) = self
-            .headers
-            .iter_mut()
-            .find_map(|h| (h.field_ref() == field).then(|| h.value_mut()))
-        else {
-            return;
-        };
-
-        value.make_ascii_lowercase();
-    }
-
-    /// same as the lowercase_header_value method but does many headers' values at once
-    pub fn lowercase_header_values(&mut self, fields: &[&[u8]]) {
-        self.headers
-            .iter_mut()
-            .filter(|h| fields.contains(&h.field_ref()))
-            .for_each(|h| h.value_mut().make_ascii_lowercase())
-    }
-}
-
-#[derive(Debug)]
-pub struct Respond {
-    pub(crate) proto: Protocol,
-    pub(crate) status: Status,
-    pub(crate) headers: Vec<u8>,
-    pub(crate) body: Vec<u8>,
 }
 
 // NOTE this function would have been easier on the eyes had it used self.iter.position and field.len
@@ -204,7 +132,7 @@ pub struct Respond {
 //     }
 // }
 
-impl Respond {
+impl Respond<Vec<u8>> {
     pub fn new(proto: Protocol, status: Status) -> Self {
         Self {
             proto,
@@ -321,5 +249,24 @@ impl Respond {
 
     pub fn has_body(&self) -> bool {
         !self.body.is_empty()
+    }
+}
+
+impl From<Respond<Vec<Header>>> for Respond<Vec<u8>> {
+    fn from(resp: Respond<Vec<Header>>) -> Self {
+        let Respond {
+            proto,
+            status,
+            headers,
+            body,
+        } = resp;
+        let headers = crate::headers::headers_into_bytes(headers);
+
+        Self {
+            proto,
+            status,
+            headers,
+            body,
+        }
     }
 }

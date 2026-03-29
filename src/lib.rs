@@ -1,10 +1,9 @@
 #![no_std]
 
-pub mod prologue {
-    pub use pheasant_prologue::{
-        ClientError, ErrorStatus, Header, Informational, Method, Protocol, Redirection,
-        ServerError, Status, Successful, client, contains_header, err_stt, header_value, server,
-        status,
+pub mod http {
+    pub use pheasant_http::{
+        ClientError, ErrorStatus, Header, Informational, Method, Protocol, Redirection, Request,
+        Respond, ServerError, Status, Successful, contains_header, err_stt, header_value, status,
     };
 }
 

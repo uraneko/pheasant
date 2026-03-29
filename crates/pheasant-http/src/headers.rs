@@ -123,3 +123,18 @@ impl From<[Vec<u8>; 2]> for Header {
         }
     }
 }
+
+pub fn headers_into_bytes(headers: Vec<Header>) -> Vec<u8> {
+    headers
+        .into_iter()
+        .map(|h| {
+            let mut hdr = h.field;
+            hdr.extend(b": ");
+            hdr.extend(&h.value);
+            hdr.push(b'\n');
+
+            hdr
+        })
+        .flatten()
+        .collect()
+}

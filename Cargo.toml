@@ -10,7 +10,7 @@ edition = "2024"
 
 [workspace]
 members = [
-	"crates/pheasant-prologue",
+	"crates/pheasant-http",
 	"crates/pheasant-uri",
 	"crates/pheasant-services",
 	"crates/pheasant-socket",
@@ -20,7 +20,7 @@ resolver = "3"
 exclude = ["examples/basic"]
 
 [dependencies]
-pheasant-prologue = { version = "0.1.0", path = "crates/pheasant-prologue" }
+pheasant-http = { version = "0.1.0", path = "crates/pheasant-http" }
 pheasant-uri = { version = "0.1.0", path = "crates/pheasant-uri" }
 pheasant-services = { version = "0.1.0", path = "crates/pheasant-services" }
 pheasant-socket = { version = "0.1.0", path = "crates/pheasant-socket" }

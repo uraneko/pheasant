@@ -1,5 +1,6 @@
+use crate::Respond;
 use embedded_io::{Read, Write};
-use pheasant_prologue::{Status, server::Respond};
+use pheasant_http::Status;
 
 pub struct Forward {
     status: Status,

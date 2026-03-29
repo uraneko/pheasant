@@ -1,6 +1,6 @@
 use chrono::{DateTime, TimeDelta, Utc};
 use hashbrown::HashMap;
-use pheasant_prologue::Header;
+use pheasant_http::Header;
 use pheasant_uri::{Host, Path};
 
 pub struct ReadCookies {

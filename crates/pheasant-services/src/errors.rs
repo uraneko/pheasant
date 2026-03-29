@@ -1,6 +1,7 @@
 use crate::Content;
+use crate::Respond;
 use embedded_io::{Read, Write};
-use pheasant_prologue::{ErrorStatus, server::Respond, status};
+use pheasant_http::{ErrorStatus, status};
 
 pub fn http_error(err: ErrorStatus, resp: &mut Respond) {
     resp.status(status!(err.code()));

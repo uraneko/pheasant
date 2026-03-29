@@ -1,6 +1,6 @@
 pub mod server {
+    use crate::{Request, Respond};
     use embedded_io::{Read, Write};
-    use pheasant_prologue::server::{Request, Respond};
 
     pub fn print_resp(resp: &Respond) {
         println!(

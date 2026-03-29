@@ -3,6 +3,8 @@ use pheasant_socket::{
     AddressFamily, Error as SocketError, ProtocolNumber, SocketType, address::SockAddrIn,
 };
 
+type Request = pheasant_http::Request<Vec<u8>>;
+
 pub struct Socket {
     socket: TcpSocket<()>,
     buffer: Vec<u8>,
@@ -36,7 +38,7 @@ impl Socket {
         self.socket
     }
 
-    pub fn write(&mut self, req: pheasant_prologue::client::Request) -> Result<usize, Error> {
+    pub fn write(&mut self, req: Request) -> Result<usize, Error> {
         self.buffer.clear();
         self.buffer.extend(req.stream_bytes());
 

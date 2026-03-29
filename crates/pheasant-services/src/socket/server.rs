@@ -1,4 +1,4 @@
-use crate::TcpSocket;
+use crate::{Respond, TcpSocket};
 use pheasant_socket::{
     AddressFamily, Error as SocketError, ProtocolNumber, SocketType, address::SockAddrIn,
     socket::SetSockOpts,
@@ -22,7 +22,9 @@ impl Socket {
             SocketType::Stream,
             ProtocolNumber::Default,
         )?;
-        SetSockOpts::new(socket.fd()).reuse_address(true)?;
+        SetSockOpts::new(socket.fd())
+            .reuse_address(true)?
+            .reuse_port(true)?;
         let addr = host.parse().map_err(|_| Error::BadAddrOrPort)?;
 
         Ok(builder::Builder::new(socket.init::<SockAddrIn>(addr)))
@@ -56,6 +58,15 @@ impl Socket {
         &self.buffer
     }
 
+    pub fn connect(&self, server: &str) -> Result<(), Error> {
+        let addr = server
+            .parse::<SockAddrIn>()
+            .map_err(|_| Error::BadAddrOrPort)?;
+        self.socket.connect(&addr)?;
+
+        Ok(())
+    }
+
     pub fn read(&mut self, fd: u32) -> Result<usize, Error> {
         self.buffer = vec![0; 4096];
         let n = self.socket.recv(fd, &mut self.buffer, 0)?;
@@ -63,11 +74,7 @@ impl Socket {
         Ok(n)
     }
 
-    pub fn write(
-        &mut self,
-        fd: u32,
-        resp: &mut pheasant_prologue::server::Respond,
-    ) -> Result<usize, Error> {
+    pub fn write(&mut self, fd: u32, resp: &mut Respond) -> Result<usize, Error> {
         // extern crate std;
         self.buffer.clear();
         self.buffer.extend(resp.stream_bytes());
@@ -81,10 +88,27 @@ impl Socket {
 
         Ok(n)
     }
+
+    pub fn cwrite(&mut self, req: pheasant_http::Request<Vec<u8>>) -> Result<usize, Error> {
+        self.buffer.clear();
+        self.buffer.extend(req.stream_bytes());
+
+        let n = self.socket.send(self.socket.fd(), &mut self.buffer, 0)?;
+
+        Ok(n)
+    }
+
+    pub fn cread(&mut self) -> Result<usize, Error> {
+        self.buffer = vec![0u8; 4096];
+        let n = self.socket.recv(self.socket.fd(), &mut self.buffer, 0)?;
+
+        Ok(n)
+    }
 }
 
 impl crate::Server for Socket {}
 
+#[derive(Debug)]
 pub enum Error {
     Socket(SocketError),
     BadAddrOrPort,

@@ -2,19 +2,21 @@
 #![forbid(clippy::unwrap_used, clippy::expect_used)]
 extern crate alloc;
 
-pub mod client;
 pub mod headers;
 pub mod maybe_glob;
 pub mod message;
 pub mod method;
 pub mod protocol;
-pub mod server;
+pub mod request;
+pub mod respond;
 pub mod status;
 
 pub use headers::{Header, contains_header, header_value};
 pub use maybe_glob::MaybeGlob;
 pub use method::Method;
 pub use protocol::Protocol;
+pub use request::Request;
+pub use respond::Respond;
 pub use status::{
     ClientError, ErrorStatus, Informational, Redirection, ServerError, Status, Successful,
 };

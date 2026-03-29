@@ -1,13 +1,14 @@
 use crate::respond;
 use crate::socket::client::{Error as ClientError, Socket};
+use crate::{Request, Respond};
 use hashbrown::HashSet;
-use pheasant_prologue::client::{Request, Respond};
 use pheasant_socket::address::SockAddrIn;
 
 pub enum Error {
     NoOriginHeader,
     ParseFailed,
     Client(ClientError),
+    Bad,
 }
 
 pub struct GateWay;
@@ -18,10 +19,10 @@ impl GateWay {
     /// then None is returned
     /// else a service address is returned
     pub fn route<'a>(
-        router: impl Fn(&str) -> Option<&str>,
-        path: &'a str,
+        router: impl Fn(&Request) -> Option<&str>,
+        req: &'a Request,
     ) -> Result<Option<&'a str>, Error> {
-        Ok(router(path))
+        Ok(router(req))
     }
 
     /// pings all of the gateway's services by sending a `Head / http1.1`
@@ -34,16 +35,29 @@ impl GateWay {
 
     /// sends the request to the appropriate service and gets back the result
     /// use client.connect(result of self.route) before calling this
-    pub fn service(service: &mut Socket, req: Request) -> Result<Respond, Error> {
-        let _n = service.write(req)?;
-        let n = service.read()?;
-        let resp = &service.buf_ref()[..n];
+    pub fn service(
+        // internal: &mut crate::socket::client::Socket,
+        internal: &mut pheasant_socket::socket::Socket<pheasant_socket::address::SockAddrIn>,
+        req: pheasant_http::Request<Vec<u8>>,
+        buf: &mut [u8],
+    ) -> Result<Respond, Error> {
+        let _n = internal
+            .send(
+                internal.fd(),
+                &req.stream_bytes().into_iter().collect::<Vec<u8>>(),
+                0,
+            )
+            .map_err(|_| Error::Bad)?;
+        let n = internal
+            .recv(internal.fd(), buf, 0)
+            .map_err(|_| Error::Bad)?;
+        let resp = &buf[..n];
         let resp = respond(resp).map_err(|_| Error::ParseFailed)?;
         // let n = service.write(req)?;
         // let n = service.read()?;
         //
         // parse(service.buf_ref()[..n])?
-        Ok(resp)
+        Ok(resp.into())
     }
 }
 

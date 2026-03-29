@@ -816,14 +816,14 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 name = "pheasant"
 version = "0.1.0"
 dependencies = [
- "pheasant-prologue",
+ "pheasant-http",
  "pheasant-services",
  "pheasant-socket",
  "pheasant-uri",
 ]
 
 [[package]]
-name = "pheasant-prologue"
+name = "pheasant-http"
 version = "0.1.0"
 dependencies = [
  "embedded-io",
@@ -841,7 +841,7 @@ dependencies = [
  "hashbrown 0.16.1",
  "mime",
  "num-into-ascii",
- "pheasant-prologue",
+ "pheasant-http",
  "pheasant-socket",
  "pheasant-uri",
  "sha2",

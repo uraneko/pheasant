@@ -1,4 +1,4 @@
-use crate::{AddressFamily, Error, ProtocolNumber, SocketLevel, SocketType};
+use crate::{AddressFamily, Error, ProtocolNumber, SocketLevel, SocketType, address::SockAddrIn};
 use core::ffi::c_void;
 use pheasant_sys::socket::{
     SockAddr, accept, bind, close, connect, getsockopt, listen, recv, send, shutdown, socket,
@@ -11,6 +11,11 @@ pub mod options;
 pub use io::{recv::RecvFlags, send::SendFlags};
 pub use options::linger;
 pub use options::socket::{GetSockOpts, SetSockOpts, SocketOption};
+
+pub struct InetSocket {
+    sockfd: u32,
+    address: Option<SockAddrIn>,
+}
 
 // this trait is a gate keeper
 // that makes sure fake sockaddr types: i.e., () (the unit type)
@@ -143,6 +148,19 @@ impl Socket<()> {
             err => unreachable!("unexpected error code {}", err),
         }
     }
+
+    /// closes this socket's fd in the system
+    /// effectively rendering it useless
+    /// thats why this also consumes self
+    ///
+    /// on success: returns the address that was on self (may or may not have been bound)
+    pub fn close(self) -> Result<(), Error> {
+        match unsafe { close(self.fd() as i32) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
 }
 
 impl<A: TrueSockAddr> Socket<A> {
@@ -198,7 +216,7 @@ impl<A: TrueSockAddr> Socket<A> {
         }
     }
 
-    /// dont use this with client sockets
+    /// dont use this with client sockets unless they need a specific addr or port
     /// only bind if you intend to listen and accept
     pub fn bind(&mut self) -> Result<(), Error> {
         match unsafe { bind(self.fd() as i32, self.addr.cast_ref(), A::SIZE) } {
@@ -230,6 +248,16 @@ impl<A: TrueSockAddr> Socket<A> {
         } {
             -1 => Err(Error::errno()),
             fd if fd >= 0 => Ok(Socket::from_params(fd as u32, peer_addr, true)),
+            err => unreachable!("unexpected error code {}", err),
+        }
+    }
+
+    /// this is for servers that need to talk to other servers
+    /// useful to gateways for example
+    pub fn connect(&self, addr: &A) -> Result<(), Error> {
+        match unsafe { connect(self.fd() as i32, addr.cast_ref(), A::SIZE) } {
+            0 => Ok(()),
+            -1 => Err(Error::errno()),
             err => unreachable!("unexpected error code {}", err),
         }
     }
