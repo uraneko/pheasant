@@ -125,7 +125,7 @@ impl core::fmt::Display for SockAddrIn {
             o1,
             o2,
             o3,
-            self.port
+            self.port()
         )
     }
 }
@@ -201,6 +201,8 @@ impl core::str::FromStr for SockAddrIn {
         };
         let addr: InAddr = addr_str.parse()?;
 
+        // TODO user could not specify a port num
+        // in fact thats likely the most prevalent use
         let Some(port_str) = iter.next() else {
             return Err(Self::Err::InvalidStr);
         };
