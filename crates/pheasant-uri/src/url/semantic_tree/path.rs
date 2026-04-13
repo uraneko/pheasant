@@ -15,6 +15,10 @@ impl Path {
         self.segments.iter().map(|s| s.len()).sum()
     }
 
+    pub fn take_segments(&mut self) -> Vec<String> {
+        core::mem::take(&mut self.segments)
+    }
+
     pub fn segments(&self) -> &[String] {
         // WARN new change
         // not sure if this could break some stuff

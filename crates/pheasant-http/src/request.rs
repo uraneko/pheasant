@@ -3,10 +3,8 @@ use crate::message::{
     http11::{Error, Lex, build_headers, content_length},
 };
 use crate::{Header, Method, Protocol};
-use crate::{Status, status};
 use alloc::string::String;
 use alloc::vec::Vec;
-use embedded_io::{Read, Write};
 use pheasant_uri::{Path, Query};
 
 #[derive(Debug, Clone)]
@@ -64,6 +62,10 @@ impl Request<Vec<Header>> {
         &self.path.segments()
     }
 
+    pub fn take_path(&mut self) -> Vec<String> {
+        self.path.take_segments()
+    }
+
     pub fn path_str(&self) -> String {
         self.path.serialized()
     }
@@ -82,6 +84,10 @@ impl Request<Vec<Header>> {
 
     pub fn body(&self) -> Option<&[u8]> {
         self.body.as_ref().map(|b| b.as_slice())
+    }
+
+    pub fn take_body(&mut self) -> Option<Vec<u8>> {
+        core::mem::take(&mut self.body)
     }
 
     /// makes a header value all in lowercase if it exists in request headers

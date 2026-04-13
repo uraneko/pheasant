@@ -83,6 +83,13 @@ pub fn mime_from_ext(ext: &str) -> Mime {
 }
 
 pub fn guess_mime(data: &[u8]) -> Mime {
+    match data {
+        s if has_jpg_magic(s) => return mime::IMAGE_JPEG,
+        s if has_png_magic(s) => return mime::IMAGE_PNG,
+        s if has_gif_magic(s) => return mime::IMAGE_GIF,
+        _ => (),
+    }
+
     let Ok(s) = str::from_utf8(data) else {
         return mime::APPLICATION_OCTET_STREAM;
     };
@@ -185,3 +192,15 @@ fn probably_rust(s: &str) -> bool {
 //     Sa,
 //     Ja,
 // }
+
+fn has_jpg_magic(s: &[u8]) -> bool {
+    s.starts_with(&[255, 0xd8]) && s.ends_with(&[255, 0xd9])
+}
+
+fn has_png_magic(s: &[u8]) -> bool {
+    s.starts_with(&[0x89, 0x50, 0x4E, 0x47])
+}
+
+fn has_gif_magic(s: &[u8]) -> bool {
+    s.starts_with(&[0x47, 0x49, 0x46, 0x38])
+}
