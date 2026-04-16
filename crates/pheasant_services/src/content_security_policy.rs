@@ -19,11 +19,12 @@ impl<'a> ContentSecurityPolicy<'a> {
     }
 
     pub fn write_header(&self, buf: &mut Vec<u8>) {
-        buf.extend(b"content-security-policy");
+        buf.extend(b"content-security-policy:");
         for policy in self.policies.iter() {
             buf.extend(policy.stream_bytes());
             buf.push(b';');
         }
+        buf.push(10);
     }
 }
 
@@ -48,10 +49,10 @@ impl FetchDirective {
 
     pub fn as_bytes(&self) -> &'static [u8] {
         match self {
-            Self::Default => b"default-src",
-            Self::Image => b"img-src",
-            Self::Script => b"script-src",
-            Self::Style => b"style-src",
+            Self::Default => b" default-src",
+            Self::Image => b" img-src",
+            Self::Script => b" script-src",
+            Self::Style => b" style-src",
         }
     }
 }
