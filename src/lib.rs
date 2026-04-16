@@ -13,9 +13,9 @@ pub mod uri {
 
 pub mod services {
     pub use pheasant_services::{
-        Blacklist, Content, Cors, Forward, GateWay, Ranges, ReadCookies, Resource, Server, Service,
-        Whitelist, WriteCookies, cors, date, http_error, print, request, respond, socket,
-        support_ranges,
+        Blacklist, Content, ContentSecurity, ContentSecurityPolicy, Cors, Forward, GateWay, Ranges,
+        ReadCookies, Resource, Server, Service, Whitelist, WriteCookies, cors, date, http_error,
+        print, request, respond, socket, support_ranges,
     };
 }
 

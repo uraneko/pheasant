@@ -4,6 +4,7 @@ use embedded_io::{Read, Write};
 use pheasant_http::{ErrorStatus, Header, Method, err_stt};
 
 pub mod content;
+pub mod content_security_policy;
 pub mod cookies;
 pub mod cors;
 pub mod errors;
@@ -15,6 +16,7 @@ pub mod range;
 pub mod socket;
 
 pub use content::Content;
+pub use content_security_policy::{ContentSecurity, ContentSecurityPolicy};
 pub use cookies::{ReadCookies, WriteCookies};
 pub use cors::Cors;
 pub use errors::http_error;
