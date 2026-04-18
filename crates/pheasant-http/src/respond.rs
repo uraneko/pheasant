@@ -2,23 +2,30 @@ use crate::message::{
     Token,
     http11::{Error, Lex, build_headers, content_length},
 };
-use crate::{Header, Method, Protocol};
+use crate::{Header, Headers, Protocol};
 use crate::{Status, status};
-use alloc::string::String;
 use alloc::vec::Vec;
-use embedded_io::{Read, Write};
-use pheasant_uri::{Path, Query};
 
 #[derive(Debug)]
-pub struct Respond<H: core::fmt::Debug + Clone> {
+pub struct Respond {
     proto: Protocol,
     status: Status,
-    headers: H,
+    headers: Headers,
     body: Vec<u8>,
 }
 
+impl Respond {
+    pub fn new(proto: Protocol, status: Status) -> Self {
+        Self {
+            proto,
+            status,
+            headers: Headers::default(),
+            body: Vec::new(),
+        }
+    }
+}
 impl<'a> Lex<'a> {
-    pub fn respond(&mut self) -> Result<Respond<Vec<Header>>, Error> {
+    pub fn respond(&mut self) -> Result<Respond, Error> {
         let proto = self.resp_proto()?;
         let status = self.status()?;
         let headers = self.headers()?;
@@ -33,7 +40,7 @@ impl<'a> Lex<'a> {
             Some(_) => return Err(Error::UndesirableToken),
             None => Vec::new(),
         };
-        let headers = build_headers(headers)?;
+        let headers = build_headers(headers)?.into();
 
         Ok(Respond {
             proto,
@@ -44,7 +51,104 @@ impl<'a> Lex<'a> {
     }
 }
 
-impl Respond<Vec<Header>> {
+#[derive(Debug)]
+pub struct Client(Respond);
+
+impl core::ops::Deref for Client {
+    type Target = Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for Client {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Client {
+    pub fn proto(&self) -> Protocol {
+        self.proto
+    }
+
+    pub fn status(&self) -> Status {
+        self.status
+    }
+
+    pub fn headers(&self) -> &[Header] {
+        &self.headers
+    }
+
+    pub fn body(&self) -> &[u8] {
+        &self.body
+    }
+
+    pub fn take_body(&mut self) -> Vec<u8> {
+        core::mem::take(&mut self.body)
+    }
+
+    pub fn take_headers(&mut self) -> Headers {
+        core::mem::take(&mut self.headers)
+    }
+
+    pub fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
+    }
+
+    pub fn body_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.body
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientMut<'a>(&'a mut Respond);
+
+impl<'a> core::ops::Deref for ClientMut<'a> {
+    type Target = &'a mut Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for ClientMut<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> ClientMut<'a> {
+    pub fn take_body(&mut self) -> Vec<u8> {
+        core::mem::take(&mut self.body)
+    }
+
+    pub fn take_headers(&mut self) -> Headers {
+        core::mem::take(&mut self.headers)
+    }
+
+    pub fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
+    }
+
+    pub fn body_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.body
+    }
+}
+
+#[derive(Debug)]
+pub struct ClientRef<'a>(&'a Respond);
+
+impl core::ops::Deref for ClientRef<'_> {
+    type Target = Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> ClientRef<'a> {
     pub fn proto(&self) -> Protocol {
         self.proto
     }
@@ -132,16 +236,24 @@ impl Respond<Vec<Header>> {
 //     }
 // }
 
-impl Respond<Vec<u8>> {
-    pub fn new(proto: Protocol, status: Status) -> Self {
-        Self {
-            proto,
-            status,
-            headers: Vec::new(),
-            body: Vec::new(),
-        }
-    }
+#[derive(Debug)]
+pub struct Server(Respond);
 
+impl core::ops::Deref for Server {
+    type Target = Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for Server {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Server {
     pub fn proto(&mut self, proto: Protocol) -> &mut Self {
         self.proto = proto;
 
@@ -162,11 +274,11 @@ impl Respond<Vec<u8>> {
         self.status
     }
 
-    pub fn headers_mut(&mut self) -> &mut Vec<u8> {
+    pub fn headers_mut(&mut self) -> &mut Headers {
         &mut self.headers
     }
 
-    pub fn headers_ref(&self) -> &[u8] {
+    pub fn headers_ref(&self) -> &[Header] {
         &self.headers
     }
 
@@ -191,10 +303,10 @@ impl Respond<Vec<u8>> {
             .chain(Some(&32))
             .chain(self.status.as_bytes())
             .chain(Some(&10))
-            .chain(&self.headers)
-            .chain(Some(&10))
-            .chain(self.body.as_slice())
-            .copied();
+            .copied()
+            .chain(self.headers.stream_bytes())
+            .chain(Some(10))
+            .chain(self.body.as_slice().into_iter().map(|b| *b));
 
         // TODO needs read to end
         // let _n = self.headers.read(hbuf).unwrap();
@@ -205,38 +317,9 @@ impl Respond<Vec<u8>> {
         stream
     }
 
-    /// returns an iterator of the response bytes correctly formatted for sending
-    ///
-    /// assumes response has no body data or a body is inadequate for the request method, use when
-    /// body is surely empty or the request method is head or connect
-    ///
-    /// this clears the contents of the headers buffer
-    // pub fn stream_bytes_nodata(&self) -> impl IntoIterator<Item = u8> {
-    //     let stream = self
-    //         .proto
-    //         .as_bytes()
-    //         .into_iter()
-    //         .chain(Some(&32))
-    //         .chain(self.status.as_bytes())
-    //         .chain(Some(&10))
-    //         .chain(&self.headers)
-    //         .chain(Some(&10))
-    //         .map(|b| *b);
-    //
-    //     // TODO needs read to end
-    //     // let _n = self.headers.read(buf).unwrap();
-    //     // let stream = stream.chain(buf.into_iter().map(|b| *b)).chain(Some(10));
-    //
-    //     stream
-    // }
-
-    // pub fn read_headers(&mut self, buf: &mut [u8]) -> Result<usize, H::Error> {
-    //     self.headers.read(buf)
-    // }
-    //
-    // pub fn read_body(&mut self, buf: &mut [u8]) -> Result<usize, B::Error> {
-    //     self.body.read(buf)
-    // }
+    pub fn has_body(&self) -> bool {
+        !self.body.is_empty()
+    }
 
     // resets proto and status to defaults
     // and clears headers and body
@@ -247,26 +330,187 @@ impl Respond<Vec<u8>> {
         self.body.clear();
     }
 
+    pub fn clear_body(&mut self) {
+        self.body.clear();
+    }
+
+    /// removes all headers expect for those in excluded
+    pub fn clear_headers_exclude(&mut self, excluded: &[&[u8]]) {
+        self.headers.retain(|h| excluded.contains(&h.field_ref()))
+    }
+
+    /// removes only the headers that are in included
+    pub fn clear_headers_include(&mut self, included: &[&[u8]]) {
+        self.headers.retain(|h| !included.contains(&h.field_ref()))
+    }
+
+    /// removes all headers
+    pub fn clear_headers(&mut self) {
+        self.headers.clear();
+    }
+}
+
+#[derive(Debug)]
+pub struct ServerMut<'a>(&'a mut Respond);
+
+impl<'a> core::ops::Deref for ServerMut<'a> {
+    type Target = &'a mut Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for ServerMut<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> ServerMut<'a> {
+    pub fn proto(&mut self, proto: Protocol) -> &mut Self {
+        self.proto = proto;
+
+        self
+    }
+
+    pub fn status(&mut self, status: Status) -> &mut Self {
+        self.status = status;
+
+        self
+    }
+
+    pub fn headers_mut(&mut self) -> &mut Headers {
+        &mut self.headers
+    }
+
+    pub fn body_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.body
+    }
+
+    // resets proto and status to defaults
+    // and clears headers and body
+    pub fn clear(&mut self) {
+        self.proto = Protocol::Http11;
+        self.status = status!(200);
+        self.headers.clear();
+        self.body.clear();
+    }
+
+    pub fn clear_body(&mut self) {
+        self.body.clear();
+    }
+
+    /// removes all headers expect for those in excluded
+    pub fn clear_headers_exclude(&mut self, excluded: &[&[u8]]) {
+        self.headers.retain(|h| excluded.contains(&h.field_ref()))
+    }
+
+    /// removes only the headers that are in included
+    pub fn clear_headers_include(&mut self, included: &[&[u8]]) {
+        self.headers.retain(|h| !included.contains(&h.field_ref()))
+    }
+
+    /// removes all headers
+    pub fn clear_headers(&mut self) {
+        self.headers.clear();
+    }
+}
+
+#[derive(Debug)]
+pub struct ServerRef<'a>(&'a Respond);
+
+impl<'a> core::ops::Deref for ServerRef<'a> {
+    type Target = &'a Respond;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> ServerRef<'a> {
+    pub fn proto(&self) -> Protocol {
+        self.proto
+    }
+
+    pub fn status(&self) -> Status {
+        self.status
+    }
+
+    pub fn headers(&self) -> &[Header] {
+        &self.headers
+    }
+
+    pub fn body(&self) -> &[u8] {
+        &self.body
+    }
+
+    /// returns an iterator of the response bytes correctly formatted for sending
+    ///
+    /// includes the response body data
+    ///
+    /// this clears the contents of the headers and body buffers
+    pub fn stream_bytes(&self) -> impl IntoIterator<Item = u8> {
+        let stream = self
+            .proto
+            .as_bytes()
+            .into_iter()
+            .chain(Some(&32))
+            .chain(self.status.as_bytes())
+            .chain(Some(&10))
+            .copied()
+            .chain(self.headers.stream_bytes())
+            .chain(Some(10))
+            .chain(self.body.as_slice().into_iter().map(|b| *b));
+
+        // TODO needs read to end
+        // let _n = self.headers.read(hbuf).unwrap();
+        // let stream = stream.chain(hbuf.into_iter().map(|b| *b)).chain(Some(10));
+        // let _n = self.body.read(bbuf).unwrap();
+        // let stream = stream.chain(bbuf.into_iter().map(|b| *b));
+
+        stream
+    }
+
     pub fn has_body(&self) -> bool {
         !self.body.is_empty()
     }
 }
 
-impl From<Respond<Vec<Header>>> for Respond<Vec<u8>> {
-    fn from(resp: Respond<Vec<Header>>) -> Self {
-        let Respond {
-            proto,
-            status,
-            headers,
-            body,
-        } = resp;
-        let headers = crate::headers::headers_into_bytes(headers);
+impl Respond {
+    pub fn server(self) -> Server {
+        Server(self)
+    }
 
-        Self {
-            proto,
-            status,
-            headers,
-            body,
-        }
+    pub fn server_ref<'a, 'b>(&'a self) -> ServerRef<'b>
+    where
+        'a: 'b,
+    {
+        ServerRef(self)
+    }
+
+    pub fn server_mut<'a, 'b>(&'a mut self) -> ServerMut<'b>
+    where
+        'a: 'b,
+    {
+        ServerMut(self)
+    }
+
+    pub fn client(self) -> Client {
+        Client(self)
+    }
+
+    pub fn client_ref<'a, 'b>(&'a self) -> ClientRef<'b>
+    where
+        'a: 'b,
+    {
+        ClientRef(self)
+    }
+
+    pub fn client_mut<'r, 'c>(&'r mut self) -> ClientMut<'c>
+    where
+        'r: 'c,
+    {
+        ClientMut(self)
     }
 }

@@ -1,7 +1,7 @@
 use core::str::Utf8Error;
 use embedded_io::{ErrorType, Write};
 use hashbrown::HashSet;
-use pheasant_http::{Header, MaybeGlob, Method, header_value};
+use pheasant_http::{Header, Headers, MaybeGlob, Method};
 
 // pub fn cors(resp: &mut Vec<u8>, status: &str) {
 //     let headers = "access-control-allow-headers: *\n";
@@ -418,24 +418,24 @@ impl Cors {
         Ok(())
     }
 
-    pub fn cors<W>(&self, headers: &[Header], buffer: &mut W) -> Result<(), Error>
+    pub fn cors<W>(&self, headers: &Headers, buffer: &mut W) -> Result<(), Error>
     where
         W: Write,
         Error: From<<W as ErrorType>::Error>,
     {
         // if there is no origin then we assume the request is not a cors one
         // and we early return
-        let Some(value) = header_value(headers, b"origin") else {
+        let Some(value) = headers.get(b"origin") else {
             // return Err(Error::MissingRequestOrigin);
             return Ok(());
         };
         self.allow_origin(value, buffer)?;
 
-        if let Some(value) = header_value(headers, b"access-control-request-method") {
+        if let Some(value) = headers.get(b"access-control-request-method") {
             self.allow_methods(value, buffer)?;
         }
 
-        if let Some(value) = header_value(headers, b"access-control-request-headers") {
+        if let Some(value) = headers.get(b"access-control-request-headers") {
             self.allow_headers(value, buffer)?;
         }
 
@@ -445,14 +445,14 @@ impl Cors {
         Ok(())
     }
 
-    pub fn cors_with_cookies<W>(&self, headers: &[Header], buffer: &mut W) -> Result<(), Error>
+    pub fn cors_with_cookies<W>(&self, headers: &Headers, buffer: &mut W) -> Result<(), Error>
     where
         W: Write,
         Error: From<<W as ErrorType>::Error>,
     {
         // if there is no origin then we assume the request is not a cors one
         // and we early return
-        let Some(value) = header_value(headers, b"origin") else {
+        let Some(value) = headers.get(b"origin") else {
             // return Err(Error::MissingRequestOrigin);
             return Ok(());
         };

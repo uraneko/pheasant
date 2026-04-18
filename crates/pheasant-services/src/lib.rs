@@ -1,7 +1,7 @@
 // #![no_std]
 // #![forbid(clippy::unwrap_used, clippy::expect_used)]
 use embedded_io::{Read, Write};
-use pheasant_http::{ErrorStatus, Header, Method, err_stt};
+use pheasant_http::{ErrorStatus, Method, Request, Respond, err_stt};
 
 pub mod content;
 pub mod content_security_policy;
@@ -30,9 +30,6 @@ type TcpSocket<T> = pheasant_socket::socket::Socket<T>;
 pub fn date() -> chrono::DateTime<chrono::Utc> {
     chrono::Utc::now()
 }
-
-type Request = pheasant_http::Request<Vec<Header>>;
-type Respond = pheasant_http::Respond<Vec<u8>>;
 
 pub trait Service<S: Server> {
     async fn serve(
@@ -157,7 +154,7 @@ pub trait Resource<S: Server>: Sized {
     ) -> Result<(), ErrorStatus> {
         use Method::*;
 
-        match req.method() {
+        match req.server_ref().method() {
             Get => self.get(socket, req, resp).await,
             Post => self.post(socket, req, resp).await,
             Head => self.head(socket, req, resp).await,

@@ -1,9 +1,8 @@
 use crate::TcpSocket;
+use pheasant_http::Request;
 use pheasant_socket::{
     AddressFamily, Error as SocketError, ProtocolNumber, SocketType, address::SockAddrIn,
 };
-
-type Request = pheasant_http::Request<Vec<u8>>;
 
 pub struct Socket {
     socket: TcpSocket<()>,
@@ -40,7 +39,7 @@ impl Socket {
 
     pub fn write(&mut self, req: Request) -> Result<usize, Error> {
         self.buffer.clear();
-        self.buffer.extend(req.stream_bytes());
+        self.buffer.extend(req.client_ref().stream_bytes());
 
         let n = self.socket.send(&mut self.buffer, 0)?;
 

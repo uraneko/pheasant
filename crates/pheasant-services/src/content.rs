@@ -1,5 +1,7 @@
 use embedded_io::Write;
 use mime::{FromStrError, Mime};
+use num_into_ascii::NumToAscii;
+use pheasant_http::Headers;
 
 pub struct Content {
     ty: Mime,
@@ -44,18 +46,11 @@ impl Content {
         Ok(self)
     }
 
-    pub fn dump_headers<W>(self, headers: &mut W) -> Result<(), W::Error>
-    where
-        W: Write,
-    {
-        headers.write(b"content-length: ")?;
-        headers.write(self.len.to_string().as_bytes())?;
-        headers.write(&[10])?;
-        headers.write(b"content-type: ")?;
-        headers.write(self.ty.essence_str().as_bytes())?;
-        headers.write(&[10])?;
+    pub fn write_headers(self, headers: &mut Headers) {
+        let (slice, size) = self.len.ascii_bytes();
 
-        Ok(())
+        headers.push([b"content-length", &slice[..size]]);
+        headers.push([b"content-type", self.ty.essence_str().as_bytes()]);
     }
 
     // fn with_lang(data: &[u8], lang: impl Into<Language>) -> Self {

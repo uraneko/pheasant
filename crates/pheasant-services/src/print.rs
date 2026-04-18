@@ -3,19 +3,21 @@ pub mod server {
     use embedded_io::{Read, Write};
 
     pub fn print_resp(resp: &Respond) {
+        let resp = resp.server_ref();
         println!(
             "{} {} {}",
-            resp.proto_cpy().as_str(),
-            resp.status_cpy().code(),
-            resp.status_cpy().text()
+            resp.proto().as_str(),
+            resp.status().code(),
+            resp.status().text()
         );
-        // let n = resp.read_headers(buf).unwrap();
+        let headers: pheasant_http::headers::HeadersRef = resp.headers().into();
+        let headers = headers.stream_bytes();
         println!(
             "{}",
-            str::from_utf8(resp.headers_ref()).unwrap_or_else(|_| "headers err".into())
+            Box::<str>::from_iter(headers.into_iter().map(|b| b as char))
         );
         // let n = resp.read_body(buf).unwrap();
-        let data = str::from_utf8(resp.body_ref()).unwrap_or_else(|_| "body err".into());
+        let data = str::from_utf8(resp.body()).unwrap_or_else(|_| "body err".into());
         if data.len() > 128 {
             println!("{}...", &data[..128]);
         } else {
@@ -25,6 +27,7 @@ pub mod server {
     }
 
     pub fn print_req(req: &Request) {
+        let req = req.server_ref();
         println!(
             "{} - {} - {:?} - {}",
             req.method(),

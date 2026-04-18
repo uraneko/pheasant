@@ -77,21 +77,21 @@ impl Socket {
     pub fn write(&mut self, fd: u32, resp: &mut Respond) -> Result<usize, Error> {
         // extern crate std;
         self.buffer.clear();
-        self.buffer.extend(resp.stream_bytes());
+        self.buffer.extend(resp.server_ref().stream_bytes());
 
         // std::println!("response = <{}>", unsafe {
         //     str::from_utf8_unchecked(&self.buffer)
         // });
 
         let n = self.socket.send(fd, &mut self.buffer, 0)?;
-        resp.clear();
+        resp.server_mut().clear();
 
         Ok(n)
     }
 
-    pub fn cwrite(&mut self, req: pheasant_http::Request<Vec<u8>>) -> Result<usize, Error> {
+    pub fn cwrite(&mut self, req: pheasant_http::Request) -> Result<usize, Error> {
         self.buffer.clear();
-        self.buffer.extend(req.stream_bytes());
+        self.buffer.extend(req.client_ref().stream_bytes());
 
         let n = self.socket.send(self.socket.fd(), &mut self.buffer, 0)?;
 

@@ -180,9 +180,10 @@ fn no_body() {
     let mut buf = REQ2.bytes().collect::<Vec<u8>>();
     let mut lexer = Lex::new(&mut buf);
 
-    let Ok(req) = lexer.request() else {
+    let Ok(mut req) = lexer.request() else {
         panic!("request couldnt be lexed properly");
     };
+    let req = req.server();
 
     assert_eq!(req.method(), Method::Post);
     assert_eq!(req.path_str(), "/subscribe".to_owned());
@@ -212,16 +213,17 @@ fn no_body() {
     ]) else {
         panic!("headers couldnt be built");
     };
-    assert_eq!(req.headers(), &headers);
+    assert_eq!(req.headers(), &headers.into());
 }
 
 fn request() {
     let mut buf = REQ1.bytes().collect::<Vec<u8>>();
     let mut lexer = Lex::new(&mut buf);
 
-    let Ok(req) = lexer.request() else {
+    let Ok(mut req) = lexer.request() else {
         panic!("request couldnt be lexed properly");
     };
+    let req = req.server();
 
     assert_eq!(req.method(), Method::Post);
     assert_eq!(req.path_str(), "/subscribe".to_owned());
@@ -251,7 +253,7 @@ fn request() {
     ]) else {
         panic!("headers couldnt be built");
     };
-    assert_eq!(req.headers(), &headers);
+    assert_eq!(req.headers(), &headers.into());
     assert_eq!(
         req.body(),
         Some(b"name=Brian%20Smith&email=brian.smith%40example.com".as_slice())

@@ -38,13 +38,13 @@ impl GateWay {
     pub fn service(
         // internal: &mut crate::socket::client::Socket,
         internal: &mut pheasant_socket::socket::Socket<pheasant_socket::address::SockAddrIn>,
-        req: pheasant_http::Request<Vec<u8>>,
+        mut req: pheasant_http::Request,
         buf: &mut [u8],
     ) -> Result<Respond, Error> {
         let _n = internal
             .send(
                 internal.fd(),
-                &req.stream_bytes().into_iter().collect::<Vec<u8>>(),
+                &req.client().stream_bytes().into_iter().collect::<Vec<u8>>(),
                 0,
             )
             .map_err(|_| Error::Bad)?;

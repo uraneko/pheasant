@@ -170,13 +170,14 @@ impl<'a> Lex<'a> {
         Ok(tokens)
     }
 
+    // FIXME this example test fails with - eol not found -
     /// takes only the headers specified by the filters variable
     /// # Example
     /// ```
-    /// use pheasant_prologue::message::http11::{Error, Lex};
+    /// use pheasant_http::message::http11::{Error, Lex};
     ///
     /// let mut lex = Lex::new(
-    ///     b"access-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n");
+    ///     b"content-type: text/html\naccess-control-request-method: GET\naccess-control-request-header: ranges\norigin: localhost\n");
     ///
     /// let filters: &[&[u8]] = &[
     ///     b"access-control-request-method",

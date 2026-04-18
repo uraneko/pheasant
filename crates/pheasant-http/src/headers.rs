@@ -1,7 +1,7 @@
 use crate::sidestep_whitespace;
 use alloc::vec::Vec;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Header {
     field: Vec<u8>,
     value: Vec<u8>,
@@ -42,15 +42,15 @@ impl Header {
     }
 }
 
-pub fn contains_header(headers: &[Header], header: &[u8]) -> bool {
-    headers.iter().any(|Header { field, .. }| field == header)
-}
+// pub fn contains_header(headers: &[Header], header: &[u8]) -> bool {
+//     headers.iter().any(|Header { field, .. }| field == header)
+// }
 
-pub fn header_value<'a>(headers: &'a [Header], header: &[u8]) -> Option<&'a [u8]> {
-    headers
-        .iter()
-        .find_map(|Header { field, value }| (field == header).then(|| value.as_slice()))
-}
+// pub fn header_value<'a>(headers: &'a [Header], header: &[u8]) -> Option<&'a [u8]> {
+//     headers
+//         .iter()
+//         .find_map(|Header { field, value }| (field == header).then(|| value.as_slice()))
+// }
 
 pub enum Error {
     UnparsableHeaderBytes,
@@ -124,17 +124,170 @@ impl From<[Vec<u8>; 2]> for Header {
     }
 }
 
-pub fn headers_into_bytes(headers: Vec<Header>) -> Vec<u8> {
-    headers
-        .into_iter()
-        .map(|h| {
-            let mut hdr = h.field;
-            hdr.extend(b": ");
-            hdr.extend(&h.value);
-            hdr.push(b'\n');
+// pub fn headers_into_bytes(headers: Vec<Header>) -> Vec<u8> {
+//     headers
+//         .into_iter()
+//         .map(|h| {
+//             let mut hdr = h.field;
+//             hdr.extend(b": ");
+//             hdr.extend(&h.value);
+//             hdr.push(b'\n');
 
-            hdr
-        })
-        .flatten()
-        .collect()
+//             hdr
+//         })
+//         .flatten()
+//         .collect()
+// }
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Headers(Vec<Header>);
+
+impl From<Vec<Header>> for Headers {
+    fn from(v: Vec<Header>) -> Self {
+        Self(v)
+    }
+}
+
+impl core::ops::Deref for Headers {
+    type Target = Vec<Header>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::ops::DerefMut for Headers {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Headers {
+    pub fn contains(&self, header: &[u8]) -> bool {
+        self.0.iter().any(|Header { field, .. }| field == header)
+    }
+
+    pub fn get(&self, header: &[u8]) -> Option<&[u8]> {
+        self.0
+            .iter()
+            .find_map(|Header { field, value }| (field == header).then(|| value.as_slice()))
+    }
+
+    /// removes header from self's vec and returns it if it exists
+    pub fn remove(&mut self, header: &[u8]) -> Option<Header> {
+        let Some(idx) = self
+            .0
+            .iter()
+            .enumerate()
+            .find_map(|(i, h)| (h.field_ref() == header).then(|| i))
+        else {
+            return None;
+        };
+
+        Some(self.0.remove(idx))
+    }
+
+    pub fn stream_bytes(&self) -> impl IntoIterator<Item = u8> {
+        self.0
+            .iter()
+            .map(|h| [h.field_ref(), b": ", h.value_ref(), b"\n"].concat())
+            .flatten()
+    }
+
+    pub fn push(&mut self, header: impl Into<Header>) {
+        self.0.push(header.into());
+    }
+
+    pub fn try_push(&mut self, header: impl TryInto<Header, Error = Error>) -> Result<(), Error> {
+        self.0.push(header.try_into()?);
+
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct HeadersRef<'a>(&'a [Header]);
+
+impl<'a> From<&'a [Header]> for HeadersRef<'a> {
+    fn from(v: &'a [Header]) -> Self {
+        Self(v)
+    }
+}
+
+impl<'a> core::ops::Deref for HeadersRef<'a> {
+    type Target = [Header];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> HeadersRef<'a> {
+    pub fn contains(&self, header: &[u8]) -> bool {
+        self.0.iter().any(|Header { field, .. }| field == header)
+    }
+
+    pub fn get(&self, header: &[u8]) -> Option<&[u8]> {
+        self.0
+            .iter()
+            .find_map(|Header { field, value }| (field == header).then(|| value.as_slice()))
+    }
+
+    /// removes header from self's vec and returns it if it exists
+
+    pub fn stream_bytes(&self) -> impl IntoIterator<Item = u8> {
+        self.0
+            .iter()
+            .map(|h| [h.field_ref(), b": ", h.value_ref(), b"\n"].concat())
+            .flatten()
+    }
+}
+
+#[derive(Debug)]
+pub struct HeadersMut<'a>(&'a mut Vec<Header>);
+
+impl<'a> From<&'a mut Vec<Header>> for HeadersMut<'a> {
+    fn from(v: &'a mut Vec<Header>) -> Self {
+        Self(v)
+    }
+}
+
+impl<'a> core::ops::Deref for HeadersMut<'a> {
+    type Target = Vec<Header>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'a> core::ops::DerefMut for HeadersMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a> HeadersMut<'a> {
+    /// removes header from self's vec and returns it if it exists
+    pub fn remove(&mut self, header: &[u8]) -> Option<Header> {
+        let Some(idx) = self
+            .0
+            .iter()
+            .enumerate()
+            .find_map(|(i, h)| (h.field_ref() == header).then(|| i))
+        else {
+            return None;
+        };
+
+        Some(self.0.remove(idx))
+    }
+
+    pub fn push(&mut self, header: impl Into<Header>) {
+        self.0.push(header.into());
+    }
+
+    pub fn try_push(&mut self, header: impl TryInto<Header, Error = Error>) -> Result<(), Error> {
+        self.0.push(header.try_into()?);
+
+        Ok(())
+    }
 }

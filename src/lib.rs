@@ -3,7 +3,7 @@
 pub mod http {
     pub use pheasant_http::{
         ClientError, ErrorStatus, Header, Informational, Method, Protocol, Redirection, Request,
-        Respond, ServerError, Status, Successful, contains_header, err_stt, header_value, status,
+        Respond, ServerError, Status, Successful, err_stt, status,
     };
 }
 

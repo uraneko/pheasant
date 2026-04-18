@@ -11,7 +11,7 @@ pub mod request;
 pub mod respond;
 pub mod status;
 
-pub use headers::{Header, contains_header, header_value};
+pub use headers::{Header, Headers};
 pub use maybe_glob::MaybeGlob;
 pub use method::Method;
 pub use protocol::Protocol;

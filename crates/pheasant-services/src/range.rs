@@ -53,16 +53,20 @@ impl Ranges {
     }
 
     pub fn meta(&self, resp: &mut Respond, len: usize, range_header: &[u8]) {
+        let mut resp = resp.server_mut();
         resp.status(status!(206));
         // TODO fix this unwrap
-        _ = resp.headers_mut().write(
+
+        let Ok(_) = resp.headers_mut().try_push(
             format!(
-                "content-range: {}/{}\n",
+                "content-range: {}/{}",
                 str::from_utf8(range_header).unwrap(),
                 len
             )
             .as_bytes(),
-        );
+        ) else {
+            unreachable!("hand coded header value should have been parsed correctly")
+        };
     }
 
     pub fn read(
